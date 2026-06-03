@@ -1,0 +1,23 @@
+name: journal_trend_analyzer
+description: "A Flutter app for searching OpenAlex publications and analyzing journal trends."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  fl_chart: ^1.2.0
+  http: ^1.6.0
+  provider: ^6.1.5+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
