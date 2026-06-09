@@ -22,19 +22,25 @@ A Flutter mobile app for searching research publications from OpenAlex and analy
 ```text
 lib/
   main.dart
+
   core/
     constants/
     errors/
-    utils/
+    widgets/
+    utils/ (tạo sau nếu cần)
+
   data/
-    models/
-    services/
-    repositories/
+    models/ (Step 1)
+    services/ (Step 1)
+    repositories/ (Step 1)
+
   presentation/
-    providers/
+    providers/ (Step 2)
     screens/
     widgets/
 ```
+
+> Ghi chú: Hiện tại bạn đang ở **Step 0** (khung UI + navigation skeleton). Các folder cho Step 1+ đã được chuẩn bị bằng README để team dễ theo dõi.
 
 ## How To Run
 
