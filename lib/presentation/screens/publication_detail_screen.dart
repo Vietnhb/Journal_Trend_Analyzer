@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'search_screen.dart'; // Để dùng MockPublication
+import '../../data/models/publication.dart';
 
 class PublicationDetailScreen extends StatelessWidget {
-  final MockPublication publication;
+  final Publication publication;
 
   const PublicationDetailScreen({super.key, required this.publication});
 
@@ -29,16 +29,17 @@ class PublicationDetailScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                  children: [
-                    _buildInfoRow(Icons.person, 'Authors', publication.authors.join(', ')),
+                    _buildInfoRow(Icons.person, 'Authors', publication.authors.isEmpty ? 'Unknown' : publication.authors.join(', ')),
                     const Divider(),
-                    _buildInfoRow(Icons.calendar_today, 'Year', publication.year.toString()),
+                    _buildInfoRow(Icons.calendar_today, 'Year', publication.year?.toString() ?? 'Unknown'),
                     const Divider(),
-                    _buildInfoRow(Icons.book, 'Journal', publication.journal),
+                    _buildInfoRow(Icons.book, 'Journal', publication.journalName),
                     const Divider(),
-                    _buildInfoRow(Icons.star, 'Citations', publication.citations.toString(), valueColor: Colors.green),
-                    const Divider(),
-                    _buildInfoRow(Icons.link, 'DOI', publication.doi, valueColor: Colors.blue),
+                    _buildInfoRow(Icons.star, 'Citations', publication.citationCount.toString(), valueColor: Colors.green),
+                    if (publication.doi != null) ...[
+                      const Divider(),
+                      _buildInfoRow(Icons.link, 'DOI', publication.doi!, valueColor: Colors.blue),
+                    ]
                   ],
                 ),
               ),
@@ -50,7 +51,7 @@ class PublicationDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              publication.abstractText,
+              publication.abstractText ?? 'No abstract available.',
               style: const TextStyle(fontSize: 16, height: 1.6, color: Colors.black87),
             ),
           ],

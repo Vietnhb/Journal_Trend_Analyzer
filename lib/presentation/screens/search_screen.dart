@@ -1,63 +1,8 @@
 import 'package:flutter/material.dart';
 import 'publication_detail_screen.dart';
 
-// --- MOCK DATA MODEL ---
-// Tạm thời để Model ở đây. Sau này Minh làm xong, bạn đổi sang Model của Minh nhé.
-class MockPublication {
-  final String id;
-  final String title;
-  final List<String> authors;
-  final int year;
-  final String journal;
-  final int citations;
-  final String doi;
-  final String abstractText;
-
-  MockPublication({
-    required this.id,
-    required this.title,
-    required this.authors,
-    required this.year,
-    required this.journal,
-    required this.citations,
-    required this.doi,
-    required this.abstractText,
-  });
-}
-
-// --- MOCK DATA ---
-final List<MockPublication> mockData = [
-  MockPublication(
-    id: 'W123456',
-    title: 'Attention Is All You Need',
-    authors: ['Ashish Vaswani', 'Noam Shazeer', 'Niki Parmar'],
-    year: 2017,
-    journal: 'Advances in Neural Information Processing Systems',
-    citations: 125000,
-    doi: '10.48550/arXiv.1706.03762',
-    abstractText: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks...',
-  ),
-  MockPublication(
-    id: 'W789012',
-    title: 'Deep Residual Learning for Image Recognition',
-    authors: ['Kaiming He', 'Xiangyu Zhang', 'Shaoqing Ren', 'Jian Sun'],
-    year: 2016,
-    journal: 'CVPR',
-    citations: 180000,
-    doi: '10.1109/CVPR.2016.90',
-    abstractText: 'Deeper neural networks are more difficult to train. We present a residual learning framework to ease the training of networks that are substantially deeper than those used previously.',
-  ),
-  MockPublication(
-    id: 'W345678',
-    title: 'Artificial Intelligence in Healthcare: A Review',
-    authors: ['Jane Doe', 'John Smith'],
-    year: 2023,
-    journal: 'Nature Medicine',
-    citations: 540,
-    doi: '10.1038/s41591-023-01',
-    abstractText: 'This paper discusses the impact of AI on modern healthcare, highlighting recent breakthroughs in predictive analytics and medical imaging.',
-  ),
-];
+import '../../data/models/publication.dart';
+import '../../data/repositories/publication_repository.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -68,9 +13,11 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
+  final _repository = PublicationRepository();
   bool _isLoading = false;
-  List<MockPublication> _results = [];
+  List<Publication> _results = [];
   bool _hasSearched = false;
+  String? _errorMessage;
 
   void _performSearch() async {
     final query = _searchController.text.trim();
@@ -79,18 +26,30 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _isLoading = true;
       _hasSearched = true;
+      _errorMessage = null;
     });
 
-    // Giả lập gọi API mất 1.5 giây để bạn thấy được hiệu ứng Loading
-    await Future.delayed(const Duration(milliseconds: 1500));
+    try {
+      final results = await _repository.searchPublications(query);
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _results = results;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+    }
+  }
 
-    setState(() {
-      _isLoading = false;
-      // Tìm kiếm cơ bản giả lập dựa trên tiêu đề
-      _results = mockData
-          .where((p) => p.title.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _repository.dispose();
+    super.dispose();
   }
 
   @override
@@ -155,6 +114,19 @@ class _SearchScreenState extends State<SearchScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'Error: $_errorMessage',
+            style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     if (_results.isEmpty) {
       return const Center(
         child: Text(
@@ -182,9 +154,9 @@ class _SearchScreenState extends State<SearchScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 6),
-                Text('${pub.year} • ${pub.journal}'),
+                Text('${pub.year ?? 'Unknown'} • ${pub.journalName}'),
                 const SizedBox(height: 4),
-                Text('Citations: ${pub.citations}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+                Text('Citations: ${pub.citationCount}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
               ],
             ),
             isThreeLine: true,
