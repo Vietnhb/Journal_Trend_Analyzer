@@ -29,6 +29,7 @@ class PublicationDetailScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
+                  children: [
                     _buildInfoRow(Icons.person, 'Authors', publication.authors.isEmpty ? 'Unknown' : publication.authors.join(', ')),
                     const Divider(),
                     _buildInfoRow(Icons.calendar_today, 'Year', publication.year?.toString() ?? 'Unknown'),
