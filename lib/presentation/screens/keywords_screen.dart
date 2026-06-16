@@ -9,6 +9,7 @@ import '../../data/repositories/publication_repository.dart';
 import '../providers/publication_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
+import 'publication_detail_screen.dart';
 
 class KeywordsScreen extends StatelessWidget {
   const KeywordsScreen({super.key});
@@ -150,6 +151,13 @@ class _KeywordsBody extends StatelessWidget {
                         '${paper.year ?? 'No year'} · ${paper.journalName}',
                     value: paper.citationCount,
                     valueLabel: '${paper.citationCount} citations',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            PublicationDetailScreen(publication: paper),
+                      ),
+                    ),
                   ),
                 )
                 .toList(),
@@ -165,6 +173,14 @@ class _KeywordsBody extends StatelessWidget {
                     label: entry.key,
                     value: entry.value,
                     valueLabel: '${entry.value} pubs',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Detailed view for ${entry.key} is coming soon!'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
                   ),
                 )
                 .toList(),
@@ -180,6 +196,14 @@ class _KeywordsBody extends StatelessWidget {
                     label: entry.key,
                     value: entry.value,
                     valueLabel: '${entry.value} pubs',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Detailed view for ${entry.key} is coming soon!'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
                   ),
                 )
                 .toList(),
@@ -261,9 +285,9 @@ class _MetricRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _MetricCard(
-            title: 'Top 50 Citations',
-            value: provider.topCitationsCount != null
-                ? _formatCitations(provider.topCitationsCount!)
+            title: 'Avg Citations',
+            value: provider.avgCitationCount != null
+                ? _formatCitations(provider.avgCitationCount!)
                 : '—',
             icon: Icons.trending_up_rounded,
             color: AppColors.success,
@@ -519,12 +543,14 @@ class _BarItem {
   final String? details;
   final int value;
   final String valueLabel;
+  final VoidCallback? onTap;
 
   const _BarItem({
     required this.label,
     this.details,
     required this.value,
     required this.valueLabel,
+    this.onTap,
   });
 }
 
@@ -602,7 +628,7 @@ class _BarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ratio = maxValue == 0 ? 0.0 : item.value / maxValue;
 
-    return Padding(
+    Widget content = Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,5 +721,13 @@ class _BarRow extends StatelessWidget {
         ],
       ),
     );
+
+    if (item.onTap != null) {
+      return InkWell(
+        onTap: item.onTap,
+        child: content,
+      );
+    }
+    return content;
   }
 }

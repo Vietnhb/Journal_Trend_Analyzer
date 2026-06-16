@@ -55,14 +55,15 @@ class PublicationProvider extends ChangeNotifier {
     return _totalAvailable > 0 ? _totalAvailable : _publications.length;
   }
 
-  int? get topCitationsCount {
+  int? get avgCitationCount {
     if (_topPapersData.isEmpty) {
       return null;
     }
-    return _topPapersData.fold<int>(
+    final total = _topPapersData.fold<int>(
       0,
       (sum, publication) => sum + publication.citationCount,
     );
+    return total ~/ _topPapersData.length;
   }
 
   int? get mostActiveYear {

@@ -16,10 +16,12 @@ class YearRankingList extends StatelessWidget {
       );
     }
 
+    final displayCount = rankedYears.length > 10 ? 10 : rankedYears.length;
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: rankedYears.length,
+      itemCount: displayCount,
       separatorBuilder: (context, index) =>
           const Divider(height: 1, indent: 16, endIndent: 16),
       itemBuilder: (context, index) {
