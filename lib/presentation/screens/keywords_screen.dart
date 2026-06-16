@@ -10,6 +10,7 @@ import '../providers/publication_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
 import 'publication_detail_screen.dart';
+import 'journal_screen.dart';
 
 class KeywordsScreen extends StatelessWidget {
   const KeywordsScreen({super.key});
@@ -174,10 +175,10 @@ class _KeywordsBody extends StatelessWidget {
                     value: entry.value,
                     valueLabel: '${entry.value} pubs',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Detailed view for ${entry.key} is coming soon!'),
-                          duration: const Duration(seconds: 2),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => JournalScreen(journalFilter: entry.key),
                         ),
                       );
                     },
@@ -197,10 +198,10 @@ class _KeywordsBody extends StatelessWidget {
                     value: entry.value,
                     valueLabel: '${entry.value} pubs',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Detailed view for ${entry.key} is coming soon!'),
-                          duration: const Duration(seconds: 2),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => JournalScreen(authorFilter: entry.key),
                         ),
                       );
                     },

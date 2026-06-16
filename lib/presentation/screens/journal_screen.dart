@@ -10,7 +10,10 @@ import '../providers/publication_provider.dart';
 import 'publication_detail_screen.dart';
 
 class JournalScreen extends StatelessWidget {
-  const JournalScreen({super.key});
+  final String? journalFilter;
+  final String? authorFilter;
+
+  const JournalScreen({super.key, this.journalFilter, this.authorFilter});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +25,12 @@ class JournalScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context, provider),
-            Expanded(child: _PublicationResults(provider: provider)),
+            Expanded(
+                child: _PublicationResults(
+              provider: provider,
+              journalFilter: journalFilter,
+              authorFilter: authorFilter,
+            )),
           ],
         ),
       ),
@@ -42,7 +50,11 @@ class JournalScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Journals',
+                      journalFilter != null
+                          ? 'Journal: $journalFilter'
+                          : authorFilter != null
+                              ? 'Author: $authorFilter'
+                              : 'Journals',
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 color: AppColors.textPrimary,
@@ -52,15 +64,43 @@ class JournalScreen extends StatelessWidget {
                     if (provider.hasSearched && provider.error == null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          provider.totalAvailable > 0
-                              ? '${provider.totalAvailable} publications · Page ${provider.currentPage}/${provider.totalPages}'
-                              : '${provider.publications.length} publications loaded',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                        ),
+                        child: Builder(builder: (ctx) {
+                          if (journalFilter != null || authorFilter != null) {
+                            final all = provider.analysisPublications;
+                            final filtered = all.where((p) {
+                              if (journalFilter != null) {
+                                return p.journalName
+                                    .toLowerCase()
+                                    .contains(journalFilter!.toLowerCase());
+                              }
+                              if (authorFilter != null) {
+                                return p.authors.any((a) =>
+                                    a.toLowerCase().contains(authorFilter!.toLowerCase()));
+                              }
+                              return true;
+                            }).toList();
+                            return Text(
+                              '${filtered.length} publications',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            );
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              provider.totalAvailable > 0
+                                  ? '${provider.totalAvailable} publications · Page ${provider.currentPage}/${provider.totalPages}'
+                                  : '${provider.publications.length} publications loaded',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                      color: AppColors.textSecondary),
+                            ),
+                          );
+                        }),
                       ),
                   ],
                 ),
@@ -195,8 +235,10 @@ class _SortChip extends StatelessWidget {
 
 class _PublicationResults extends StatelessWidget {
   final PublicationProvider provider;
+  final String? journalFilter;
+  final String? authorFilter;
 
-  const _PublicationResults({required this.provider});
+  const _PublicationResults({required this.provider, this.journalFilter, this.authorFilter});
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +267,12 @@ class _PublicationResults extends StatelessWidget {
       );
     }
 
-    final results = provider.analysisPublications;
+    final all = provider.analysisPublications;
+    final results = (journalFilter != null)
+        ? all.where((p) => p.journalName.toLowerCase().contains(journalFilter!.toLowerCase())).toList()
+        : (authorFilter != null)
+            ? all.where((p) => p.authors.any((a) => a.toLowerCase().contains(authorFilter!.toLowerCase()))).toList()
+            : all;
     if (results.isEmpty) {
       return const AppEmptyView(
         message: 'No publications found.',
