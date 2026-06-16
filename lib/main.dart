@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'presentation/trends/providers/trend_provider.dart';
 
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_typography.dart';
@@ -17,18 +20,21 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
     );
 
-    return MaterialApp(
-      title: 'Journal Trend Analyzer',
-      debugShowCheckedModeBanner: false,
-      theme: baseTheme.copyWith(
-        scaffoldBackgroundColor: AppColors.background,
-        textTheme: AppTypography.textTheme(baseTheme.textTheme),
-        colorScheme: baseTheme.colorScheme.copyWith(
-          primary: AppColors.primary,
-          error: AppColors.danger,
+    return MultiProvider(
+      providers: [ChangeNotifierProvider(create: (_) => TrendProvider())],
+      child: MaterialApp(
+        title: 'Journal Trend Analyzer',
+        debugShowCheckedModeBanner: false,
+        theme: baseTheme.copyWith(
+          scaffoldBackgroundColor: AppColors.background,
+          textTheme: AppTypography.textTheme(baseTheme.textTheme),
+          colorScheme: baseTheme.colorScheme.copyWith(
+            primary: AppColors.primary,
+            error: AppColors.danger,
+          ),
         ),
+        home: const AppBottomNavShell(),
       ),
-      home: const AppBottomNavShell(),
     );
   }
 }

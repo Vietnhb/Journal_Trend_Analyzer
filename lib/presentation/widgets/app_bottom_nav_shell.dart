@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../screens/search_screen.dart';
-import '../screens/trend_analysis_screen.dart';
 import '../screens/research_dashboard_screen.dart';
+import '../trends/screens/trend_analysis_screen.dart';
 
 class AppBottomNavShell extends StatefulWidget {
   const AppBottomNavShell({super.key});
