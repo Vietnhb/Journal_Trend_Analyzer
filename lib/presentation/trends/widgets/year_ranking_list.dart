@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_colors.dart';
+
 class YearRankingList extends StatelessWidget {
   final List<MapEntry<int, int>> rankedYears;
 
@@ -8,59 +10,115 @@ class YearRankingList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (rankedYears.isEmpty) {
-      return const Center(child: Text('No ranking available'));
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: Text('No ranking available')),
+      );
     }
 
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: rankedYears.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
+      separatorBuilder: (context, index) =>
+          const Divider(height: 1, indent: 16, endIndent: 16),
       itemBuilder: (context, index) {
         final entry = rankedYears[index];
         final rank = index + 1;
 
-        // Style top 3 ranks differently
-        Color? avatarColor;
+        Color medalColor;
+        IconData? medalIcon;
         if (rank == 1) {
-          avatarColor = Colors.amber;
+          medalColor = AppColors.gold;
+          medalIcon = Icons.emoji_events_rounded;
         } else if (rank == 2) {
-          avatarColor = Colors.grey[400];
+          medalColor = AppColors.silver;
+          medalIcon = Icons.emoji_events_rounded;
         } else if (rank == 3) {
-          avatarColor = Colors.brown[300];
+          medalColor = AppColors.bronze;
+          medalIcon = Icons.emoji_events_rounded;
         } else {
-          avatarColor = Colors.indigo[100];
+          medalColor = AppColors.textHint;
+          medalIcon = null;
         }
 
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: avatarColor,
-            foregroundColor: rank <= 3 ? Colors.white : Colors.indigo[900],
-            child: Text(
-              '#$rank',
-              style: TextStyle(
-                fontWeight: rank <= 3 ? FontWeight.bold : FontWeight.normal,
-                fontSize: 14,
-              ),
-            ),
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
           ),
-          title: Text(
-            'Year ${entry.key}',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.indigo.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              '${entry.value} pubs',
-              style: const TextStyle(
-                color: Colors.indigo,
-                fontWeight: FontWeight.bold,
+          child: Row(
+            children: [
+              // Rank avatar
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: medalColor.withValues(alpha: rank <= 3 ? 0.12 : 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: medalIcon != null
+                    ? Icon(medalIcon, size: 18, color: medalColor)
+                    : Text(
+                        '#$rank',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Year ${entry.key}',
+                      style:
+                          Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                    ),
+                    Text(
+                      rank == 1
+                          ? 'Most active year'
+                          : rank == 2
+                              ? '2nd most active'
+                              : rank == 3
+                                  ? '3rd most active'
+                                  : 'Rank #$rank',
+                      style:
+                          Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: medalColor.withValues(
+                    alpha: rank <= 3 ? 0.12 : 0.06,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${entry.value} pubs',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: rank <= 3 ? medalColor : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

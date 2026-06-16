@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../data/repositories/publication_repository.dart';
 
 class TrendChart extends StatelessWidget {
@@ -12,7 +13,12 @@ class TrendChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (data.isEmpty) {
-      return const Center(child: Text('No data available'));
+      return const Center(
+        child: Text(
+          'No data available',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      );
     }
 
     final sortedEntries = data.entries.toList()
@@ -25,15 +31,12 @@ class TrendChart extends StatelessWidget {
 
     double maxY = 0;
     for (final entry in sortedEntries) {
-      if (entry.value > maxY) {
-        maxY = entry.value.toDouble();
-      }
+      if (entry.value > maxY) maxY = entry.value.toDouble();
     }
 
     final chartMaxY = maxY == 0 ? 10.0 : (maxY * 1.18).ceilToDouble();
-    final horizontalInterval = chartMaxY > 10
-        ? (chartMaxY / 4).ceilToDouble()
-        : 1.0;
+    final horizontalInterval =
+        chartMaxY > 10 ? (chartMaxY / 4).ceilToDouble() : 1.0;
 
     return BarChart(
       BarChartData(
@@ -42,14 +45,15 @@ class TrendChart extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (group) => Colors.indigo.withValues(alpha: 0.8),
+            getTooltipColor: (group) =>
+                AppColors.primary.withValues(alpha: 0.92),
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               return BarTooltipItem(
                 '${group.x.toInt()}\n',
                 const TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
                 children: <TextSpan>[
                   TextSpan(
@@ -71,20 +75,19 @@ class TrendChart extends StatelessWidget {
             sideTitles: SideTitles(
               showTitles: true,
               getTitlesWidget: (value, meta) {
-                final year = value.toInt();
                 return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
+                  padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    year.toString(),
+                    value.toInt().toString(),
                     style: const TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
                     ),
                   ),
                 );
               },
-              reservedSize: 30,
+              reservedSize: 28,
             ),
           ),
           leftTitles: AxisTitles(
@@ -92,20 +95,18 @@ class TrendChart extends StatelessWidget {
               showTitles: true,
               interval: horizontalInterval,
               getTitlesWidget: (value, meta) {
-                if (value < 0) {
-                  return const SizedBox.shrink();
-                }
+                if (value < 0) return const SizedBox.shrink();
                 return SizedBox(
-                  width: 56,
+                  width: 52,
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 6),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerRight,
                       child: Text(
                         _formatCount(value),
                         style: const TextStyle(
-                          color: Colors.grey,
+                          color: AppColors.textSecondary,
                           fontSize: 11,
                         ),
                         maxLines: 1,
@@ -115,7 +116,7 @@ class TrendChart extends StatelessWidget {
                   ),
                 );
               },
-              reservedSize: 62,
+              reservedSize: 56,
             ),
           ),
           topTitles: const AxisTitles(
@@ -129,12 +130,11 @@ class TrendChart extends StatelessWidget {
           show: true,
           drawVerticalLine: false,
           horizontalInterval: horizontalInterval,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.grey.withValues(alpha: 0.2),
-              strokeWidth: 1,
-            );
-          },
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: AppColors.borderLight.withValues(alpha: 0.8),
+            strokeWidth: 1,
+            dashArray: [4, 4],
+          ),
         ),
         borderData: FlBorderData(show: false),
         barGroups: sortedEntries.map((entry) {
@@ -144,14 +144,19 @@ class TrendChart extends StatelessWidget {
               BarChartRodData(
                 toY: entry.value.toDouble(),
                 gradient: const LinearGradient(
-                  colors: [Colors.indigo, Colors.blueAccent],
+                  colors: [AppColors.primary, AppColors.primaryLight],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
-                width: 16,
+                width: 14,
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(4),
+                  topLeft: Radius.circular(5),
+                  topRight: Radius.circular(5),
+                ),
+                backDrawRodData: BackgroundBarChartRodData(
+                  show: true,
+                  toY: chartMaxY,
+                  color: AppColors.primary.withValues(alpha: 0.04),
                 ),
               ),
             ],
@@ -163,16 +168,12 @@ class TrendChart extends StatelessWidget {
 
   String _formatCount(double value) {
     final count = value.round();
-    if (count >= 1000000) {
-      return '${_compactNumber(count / 1000000)}M';
-    }
-    if (count >= 1000) {
-      return '${_compactNumber(count / 1000)}K';
-    }
+    if (count >= 1000000) return '${_compact(count / 1000000)}M';
+    if (count >= 1000) return '${_compact(count / 1000)}K';
     return count.toString();
   }
 
-  String _compactNumber(double value) {
+  String _compact(double value) {
     if (value >= 10 || value == value.roundToDouble()) {
       return value.toStringAsFixed(0);
     }
