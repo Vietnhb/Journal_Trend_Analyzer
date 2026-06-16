@@ -17,7 +17,7 @@ class PublicationProvider extends ChangeNotifier {
   PublicationYearSort _yearSort = PublicationYearSort.descending;
   List<Publication> _publications = const [];
   List<Publication> _analysisPublications = const [];
-  PublicationAnalytics? _analytics;
+  List<String> _recentSearches = const [];
   int _totalAvailable = 0;
   int _currentPage = 1;
   int _perPage = 50;
@@ -28,11 +28,16 @@ class PublicationProvider extends ChangeNotifier {
   AppError? get error => _error;
   PublicationYearSort get yearSort => _yearSort;
   List<Publication> get publications => _publications;
+  List<Publication> get analysisPublications => _analysisPublications;
+  List<String> get recentSearches => _recentSearches;
   int get totalAvailable => _totalAvailable;
   int get currentPage => _currentPage;
   int get perPage => _perPage;
+  bool get isLoadingAnalytics => false;
+  AppError? get analyticsError => null;
+
   int get totalPages {
-    if (_totalAvailable == 0) {
+    if (_totalAvailable <= 0) {
       return 1;
     }
     return (_totalAvailable / _perPage).ceil();
@@ -41,78 +46,44 @@ class PublicationProvider extends ChangeNotifier {
   bool get canGoPrevious => _currentPage > 1 && !_isLoading;
   bool get canGoNext => _currentPage < totalPages && !_isLoading;
 
-  List<Publication> get analysisPublications {
-    return _analysisPublications;
-  }
-
   int get totalPublications {
-    if (_totalAvailable > 0) {
-      return _totalAvailable;
-    }
-    return _analytics?.totalCount ?? 0;
+    return _totalAvailable > 0 ? _totalAvailable : _publications.length;
   }
 
-  int get totalCitations {
-    final analytics = _analytics;
-    if (analytics != null) {
-      return analytics.citationSampleTotal;
+  double? get averageCitationCount {
+    if (_analysisPublications.isEmpty) {
+      return null;
     }
-    return analysisPublications.fold<int>(
+    final total = _analysisPublications.fold<int>(
       0,
-      (total, publication) => total + publication.citationCount,
+      (sum, publication) => sum + publication.citationCount,
     );
-  }
-
-  double get averageCitations {
-    final analytics = _analytics;
-    if (analytics != null) {
-      return analytics.averageCitationCount;
-    }
-    if (analysisPublications.isEmpty) {
-      return 0;
-    }
-    return totalCitations / analysisPublications.length;
+    return total / _analysisPublications.length;
   }
 
   int? get mostActiveYear {
     final ranked = yearsByPublicationCount;
-    if (ranked.isEmpty) {
-      return null;
-    }
-    return ranked.first.key;
+    return ranked.isEmpty ? null : ranked.first.key;
   }
 
   Publication? get mostInfluentialPaper {
-    final analyticsPapers = _analytics?.topPapers;
-    if (analyticsPapers != null && analyticsPapers.isNotEmpty) {
-      return analyticsPapers.first;
-    }
-    return null;
+    final papers = topPapers;
+    return papers.isEmpty ? null : papers.first;
   }
 
   String? get topJournal {
-    final analyticsJournals = _analytics?.topJournals;
-    if (analyticsJournals != null && analyticsJournals.isNotEmpty) {
-      return analyticsJournals.first.label;
-    }
-    return null;
+    final journals = topJournals;
+    return journals.isEmpty ? null : journals.first.key;
   }
 
   String? get topAuthor {
-    final analyticsAuthors = _analytics?.topAuthors;
-    if (analyticsAuthors != null && analyticsAuthors.isNotEmpty) {
-      return analyticsAuthors.first.label;
-    }
-    return null;
+    final authors = topAuthors;
+    return authors.isEmpty ? null : authors.first.key;
   }
 
   Map<int, int> get publicationsByYear {
-    final analyticsYears = _analytics?.publicationsByYear;
-    if (analyticsYears != null && analyticsYears.isNotEmpty) {
-      return analyticsYears;
-    }
     final grouped = <int, int>{};
-    for (final publication in _publications) {
+    for (final publication in _analysisPublications) {
       final year = publication.year;
       if (year == null) {
         continue;
@@ -126,40 +97,29 @@ class PublicationProvider extends ChangeNotifier {
     final list = publicationsByYear.entries.toList();
     list.sort((a, b) {
       final countCompare = b.value.compareTo(a.value);
-      if (countCompare != 0) {
-        return countCompare;
-      }
-      return _compareYears(a.key, b.key);
+      return countCompare != 0 ? countCompare : _compareYears(a.key, b.key);
     });
     return list;
   }
 
   List<Publication> get topPapers {
-    final analyticsPapers = _analytics?.topPapers;
-    if (analyticsPapers != null && analyticsPapers.isNotEmpty) {
-      return analyticsPapers;
-    }
-    return const [];
+    final sorted = _analysisPublications.toList()
+      ..sort((a, b) => b.citationCount.compareTo(a.citationCount));
+    return sorted.take(5).toList(growable: false);
   }
 
   List<MapEntry<String, int>> get topJournals {
-    final analyticsJournals = _analytics?.topJournals;
-    if (analyticsJournals != null && analyticsJournals.isNotEmpty) {
-      return analyticsJournals
-          .map((item) => MapEntry(item.label, item.count))
-          .toList(growable: false);
-    }
-    return const [];
+    return _rankByCount(
+      _analysisPublications
+          .map((publication) => publication.journalName)
+          .where((journal) => journal.trim().isNotEmpty),
+    );
   }
 
   List<MapEntry<String, int>> get topAuthors {
-    final analyticsAuthors = _analytics?.topAuthors;
-    if (analyticsAuthors != null && analyticsAuthors.isNotEmpty) {
-      return analyticsAuthors
-          .map((item) => MapEntry(item.label, item.count))
-          .toList(growable: false);
-    }
-    return const [];
+    return _rankByCount(
+      _analysisPublications.expand((publication) => publication.authors),
+    );
   }
 
   Future<void> search(String query) async {
@@ -168,42 +128,38 @@ class PublicationProvider extends ChangeNotifier {
       return;
     }
 
+    final keepCurrent =
+        _hasSearched &&
+        trimmed.toLowerCase() == _query.toLowerCase() &&
+        _publications.isNotEmpty;
+
     _query = trimmed;
+    _rememberSearch(trimmed);
     _isLoading = true;
     _hasSearched = true;
     _error = null;
-    _publications = const [];
-    _analysisPublications = const [];
-    _analytics = null;
-    _totalAvailable = 0;
-    _currentPage = 1;
+    if (!keepCurrent) {
+      _clearResults();
+    }
     notifyListeners();
 
     try {
-      final results = await Future.wait([
-        _repository.searchPublicationsPage(
-          trimmed,
-          yearSort: _yearSort,
-          page: 1,
-        ),
-        _repository.fetchAnalytics(trimmed),
-      ]);
-      final page = results[0] as PublicationSearchPage;
-      final analytics = results[1] as PublicationAnalytics;
+      final page = await _repository.searchPublicationsPage(
+        trimmed,
+        yearSort: _yearSort,
+        page: 1,
+      );
       _applySearchPage(page);
-      _analytics = analytics;
     } on AppError catch (error) {
       _error = error;
-      _publications = const [];
-      _analysisPublications = const [];
-      _analytics = null;
-      _totalAvailable = 0;
+      if (!keepCurrent) {
+        _clearResults();
+      }
     } catch (error) {
       _error = AppError('Search failed.', details: error.toString());
-      _publications = const [];
-      _analysisPublications = const [];
-      _analytics = null;
-      _totalAvailable = 0;
+      if (!keepCurrent) {
+        _clearResults();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -215,7 +171,7 @@ class PublicationProvider extends ChangeNotifier {
       return;
     }
 
-    final targetPage = pageNumber.clamp(1, totalPages);
+    final targetPage = pageNumber.clamp(1, totalPages).toInt();
     if (!force && targetPage == _currentPage) {
       return;
     }
@@ -263,11 +219,7 @@ class PublicationProvider extends ChangeNotifier {
     _hasSearched = false;
     _error = null;
     _yearSort = PublicationYearSort.descending;
-    _publications = const [];
-    _analysisPublications = const [];
-    _analytics = null;
-    _totalAvailable = 0;
-    _currentPage = 1;
+    _clearResults();
     notifyListeners();
   }
 
@@ -277,11 +229,28 @@ class PublicationProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  int _compareYears(int a, int b) {
-    return switch (_yearSort) {
-      PublicationYearSort.descending => b.compareTo(a),
-      PublicationYearSort.ascending => a.compareTo(b),
-    };
+  void _applySearchPage(PublicationSearchPage page) {
+    _publications = page.publications;
+    _totalAvailable = page.totalCount;
+    _currentPage = page.page;
+    _perPage = page.perPage;
+    _sortAnalysisPublications();
+  }
+
+  void _clearResults() {
+    _publications = const [];
+    _analysisPublications = const [];
+    _totalAvailable = 0;
+    _currentPage = 1;
+  }
+
+  void _sortAnalysisPublications() {
+    final sorted = _publications.where((publication) {
+      final year = publication.year;
+      return year == null || year <= DateTime.now().year;
+    }).toList();
+    sorted.sort(_comparePublicationsByYear);
+    _analysisPublications = sorted;
   }
 
   int _comparePublicationsByYear(Publication a, Publication b) {
@@ -299,17 +268,34 @@ class PublicationProvider extends ChangeNotifier {
     return _compareYears(aYear, bYear);
   }
 
-  void _applySearchPage(PublicationSearchPage page) {
-    _publications = page.publications;
-    _totalAvailable = page.totalCount;
-    _currentPage = page.page;
-    _perPage = page.perPage;
-    _sortAnalysisPublications();
+  int _compareYears(int a, int b) {
+    return switch (_yearSort) {
+      PublicationYearSort.descending => b.compareTo(a),
+      PublicationYearSort.ascending => a.compareTo(b),
+    };
   }
 
-  void _sortAnalysisPublications() {
-    final sorted = _publications.toList();
-    sorted.sort(_comparePublicationsByYear);
-    _analysisPublications = sorted;
+  List<MapEntry<String, int>> _rankByCount(Iterable<String> values) {
+    final counts = <String, int>{};
+    for (final value in values) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty || trimmed == 'Unknown journal') {
+        continue;
+      }
+      counts[trimmed] = (counts[trimmed] ?? 0) + 1;
+    }
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return entries.take(5).toList(growable: false);
+  }
+
+  void _rememberSearch(String query) {
+    final updated = [
+      query,
+      ..._recentSearches.where(
+        (item) => item.toLowerCase() != query.toLowerCase(),
+      ),
+    ];
+    _recentSearches = updated.take(6).toList(growable: false);
   }
 }

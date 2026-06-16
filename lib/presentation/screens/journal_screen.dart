@@ -8,79 +8,37 @@ import '../../data/repositories/publication_repository.dart';
 import '../providers/publication_provider.dart';
 import 'publication_detail_screen.dart';
 
-class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
-
-  @override
-  State<SearchScreen> createState() => _SearchScreenState();
-}
-
-class _SearchScreenState extends State<SearchScreen> {
-  final _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+class JournalScreen extends StatelessWidget {
+  const JournalScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PublicationProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Journal Search')),
+      appBar: AppBar(title: const Text('Journal')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Enter a topic, journal, or keyword',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                suffixIcon: IconButton(
-                  tooltip: 'Clear',
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    context.read<PublicationProvider>().clear();
-                  },
-                ),
-              ),
-              onSubmitted: (_) => _search(context),
-            ),
-            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: FilledButton.icon(
-                    onPressed: provider.isLoading
-                        ? null
-                        : () => _search(context),
-                    icon: provider.isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.search),
-                    label: const Text('Search'),
+                  child: Text(
+                    provider.hasSearched
+                        ? 'Publications for "${provider.query}"'
+                        : 'Publications',
+                    style: Theme.of(context).textTheme.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 12),
                 _YearSortControl(provider: provider),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             if (provider.hasSearched && provider.error == null)
               Text(
                 provider.totalAvailable > 0
@@ -90,15 +48,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             const SizedBox(height: 8),
-            Expanded(child: _SearchResults(provider: provider)),
+            Expanded(child: _PublicationResults(provider: provider)),
           ],
         ),
       ),
     );
-  }
-
-  void _search(BuildContext context) {
-    context.read<PublicationProvider>().search(_searchController.text);
   }
 }
 
@@ -133,16 +87,17 @@ class _YearSortControl extends StatelessWidget {
   }
 }
 
-class _SearchResults extends StatelessWidget {
+class _PublicationResults extends StatelessWidget {
   final PublicationProvider provider;
 
-  const _SearchResults({required this.provider});
+  const _PublicationResults({required this.provider});
 
   @override
   Widget build(BuildContext context) {
     if (!provider.hasSearched) {
       return const AppEmptyView(
-        message: 'Search a topic to load OpenAlex publications.',
+        message: 'Search a topic from Home to browse publications.',
+        icon: Icons.article,
       );
     }
 
@@ -151,7 +106,7 @@ class _SearchResults extends StatelessWidget {
     }
 
     final error = provider.error;
-    if (error != null) {
+    if (error != null && provider.analysisPublications.isEmpty) {
       return AppErrorView(
         error: error,
         onRetry: provider.query.isEmpty

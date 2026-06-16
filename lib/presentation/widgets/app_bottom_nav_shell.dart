@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../screens/search_screen.dart';
-import '../screens/research_dashboard_screen.dart';
-import '../trends/screens/trend_analysis_screen.dart';
+import '../screens/home_screen.dart';
+import '../screens/journal_screen.dart';
+import '../screens/keywords_screen.dart';
+import '../screens/profile_screen.dart';
 
 class AppBottomNavShell extends StatefulWidget {
   const AppBottomNavShell({super.key});
@@ -15,9 +16,10 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
   int index = 0;
 
   final screens = const [
-    SearchScreen(),
-    TrendAnalysisScreen(),
-    ResearchDashboardScreen(),
+    HomeScreen(),
+    JournalScreen(),
+    KeywordsScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -28,12 +30,13 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
-          NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Trends'),
+          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.article), label: 'Journal'),
           NavigationDestination(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            icon: Icon(Icons.manage_search),
+            label: 'Keywords',
           ),
+          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );

@@ -1,11 +1,7 @@
 import '../services/openalex_api_service.dart';
 
 export '../services/openalex_api_service.dart'
-    show
-        GroupStat,
-        PublicationAnalytics,
-        PublicationSearchPage,
-        PublicationYearSort;
+    show PublicationSearchPage, PublicationYearSort;
 
 class PublicationRepository {
   final OpenAlexApiService _apiService;
@@ -23,10 +19,6 @@ class PublicationRepository {
       yearSort: yearSort,
       page: page,
     );
-  }
-
-  Future<PublicationAnalytics> fetchAnalytics(String topic) {
-    return _apiService.fetchAnalytics(topic: topic);
   }
 
   void dispose() {
