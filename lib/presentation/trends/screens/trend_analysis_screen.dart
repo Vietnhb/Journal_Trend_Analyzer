@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../core/widgets/app_empty_view.dart';
 import '../../../core/widgets/app_error_view.dart';
 import '../../../core/widgets/app_loading.dart';
-import '../../../data/repositories/publication_repository.dart';
 import '../../providers/publication_provider.dart';
 import '../widgets/trend_chart.dart';
 import '../widgets/year_ranking_list.dart';
@@ -108,7 +107,7 @@ class _TrendBody extends StatelessWidget {
                         width: chartWidth,
                         child: TrendChart(
                           data: provider.publicationsByYear,
-                          yearSort: PublicationYearSort.descending,
+                          yearSort: provider.yearSort,
                         ),
                       ),
                     );
