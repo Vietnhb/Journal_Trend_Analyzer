@@ -19,19 +19,6 @@ class Publication {
     this.abstractText,
   });
 
-  String get journal => journalName;
-
-  factory Publication.dummy(int year) {
-    return Publication(
-      id: 'dummy_${year}_${DateTime.now().microsecondsSinceEpoch}',
-      title: 'Sample Publication $year',
-      year: year,
-      citationCount: 10,
-      journalName: 'Dummy Journal',
-      authors: const ['Demo Author'],
-    );
-  }
-
   factory Publication.fromOpenAlexJson(Map<String, dynamic> json) {
     return Publication(
       id: _asString(json['id']) ?? '',

@@ -1,10 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../../data/repositories/publication_repository.dart';
+
 class TrendChart extends StatelessWidget {
   final Map<int, int> data;
+  final PublicationYearSort yearSort;
 
-  const TrendChart({super.key, required this.data});
+  const TrendChart({super.key, required this.data, required this.yearSort});
 
   @override
   Widget build(BuildContext context) {
@@ -12,25 +15,30 @@ class TrendChart extends StatelessWidget {
       return const Center(child: Text('No data available'));
     }
 
-    // Sort data by year
     final sortedEntries = data.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+      ..sort((a, b) {
+        return switch (yearSort) {
+          PublicationYearSort.descending => b.key.compareTo(a.key),
+          PublicationYearSort.ascending => a.key.compareTo(b.key),
+        };
+      });
 
-    // Find max value for Y axis scaling
     double maxY = 0;
-    for (var entry in sortedEntries) {
+    for (final entry in sortedEntries) {
       if (entry.value > maxY) {
         maxY = entry.value.toDouble();
       }
     }
 
-    // Add some padding to top of chart
-    maxY = (maxY * 1.2).ceilToDouble();
+    final chartMaxY = maxY == 0 ? 10.0 : (maxY * 1.18).ceilToDouble();
+    final horizontalInterval = chartMaxY > 10
+        ? (chartMaxY / 4).ceilToDouble()
+        : 1.0;
 
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: maxY == 0 ? 10 : maxY,
+        maxY: chartMaxY,
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
@@ -63,7 +71,6 @@ class TrendChart extends StatelessWidget {
             sideTitles: SideTitles(
               showTitles: true,
               getTitlesWidget: (value, meta) {
-                // To avoid overlapping titles on small screens, we might skip some
                 final year = value.toInt();
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),
@@ -83,20 +90,32 @@ class TrendChart extends StatelessWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              interval: horizontalInterval,
               getTitlesWidget: (value, meta) {
-                if (value == value.toInt().toDouble()) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: Text(
-                      value.toInt().toString(),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      textAlign: TextAlign.right,
-                    ),
-                  );
+                if (value < 0) {
+                  return const SizedBox.shrink();
                 }
-                return const SizedBox();
+                return SizedBox(
+                  width: 56,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        _formatCount(value),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ),
+                );
               },
-              reservedSize: 40,
+              reservedSize: 62,
             ),
           ),
           topTitles: const AxisTitles(
@@ -109,7 +128,7 @@ class TrendChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
+          horizontalInterval: horizontalInterval,
           getDrawingHorizontalLine: (value) {
             return FlLine(
               color: Colors.grey.withValues(alpha: 0.2),
@@ -140,5 +159,23 @@ class TrendChart extends StatelessWidget {
         }).toList(),
       ),
     );
+  }
+
+  String _formatCount(double value) {
+    final count = value.round();
+    if (count >= 1000000) {
+      return '${_compactNumber(count / 1000000)}M';
+    }
+    if (count >= 1000) {
+      return '${_compactNumber(count / 1000)}K';
+    }
+    return count.toString();
+  }
+
+  String _compactNumber(double value) {
+    if (value >= 10 || value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(1);
   }
 }

@@ -25,22 +25,48 @@ class PublicationDetailScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Card(
               elevation: 3,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    _buildInfoRow(Icons.person, 'Authors', publication.authors.isEmpty ? 'Unknown' : publication.authors.join(', ')),
+                    _buildInfoRow(
+                      Icons.person,
+                      'Authors',
+                      publication.authors.isEmpty
+                          ? 'Unknown'
+                          : publication.authors.join(', '),
+                    ),
                     const Divider(),
-                    _buildInfoRow(Icons.calendar_today, 'Year', publication.year?.toString() ?? 'Unknown'),
+                    _buildInfoRow(
+                      Icons.calendar_today,
+                      'Year',
+                      publication.year?.toString() ?? 'Unknown',
+                    ),
                     const Divider(),
-                    _buildInfoRow(Icons.book, 'Journal', publication.journalName),
+                    _buildInfoRow(
+                      Icons.book,
+                      'Journal',
+                      publication.journalName,
+                    ),
                     const Divider(),
-                    _buildInfoRow(Icons.star, 'Citations', publication.citationCount.toString(), valueColor: Colors.green),
+                    _buildInfoRow(
+                      Icons.star,
+                      'Citations',
+                      publication.citationCount.toString(),
+                      valueColor: Colors.green,
+                    ),
                     if (publication.doi != null) ...[
                       const Divider(),
-                      _buildInfoRow(Icons.link, 'DOI', publication.doi!, valueColor: Colors.blue),
-                    ]
+                      _buildInfoRow(
+                        Icons.link,
+                        'DOI',
+                        publication.doi!,
+                        valueColor: Colors.blue,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -53,7 +79,11 @@ class PublicationDetailScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               publication.abstractText ?? 'No abstract available.',
-              style: const TextStyle(fontSize: 16, height: 1.6, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.6,
+                color: Colors.black87,
+              ),
             ),
           ],
         ),
@@ -61,7 +91,12 @@ class PublicationDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value, {Color? valueColor}) {
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -74,10 +109,18 @@ class PublicationDetailScreen extends StatelessWidget {
               text: TextSpan(
                 style: const TextStyle(color: Colors.black87, fontSize: 16),
                 children: [
-                  TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   TextSpan(
                     text: value,
-                    style: TextStyle(color: valueColor ?? Colors.black87, fontWeight: valueColor != null ? FontWeight.w600 : FontWeight.normal),
+                    style: TextStyle(
+                      color: valueColor ?? Colors.black87,
+                      fontWeight: valueColor != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                 ],
               ),

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'presentation/trends/providers/trend_provider.dart';
-
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_typography.dart';
+import 'presentation/providers/publication_provider.dart';
 import 'presentation/widgets/app_bottom_nav_shell.dart';
 
 void main() {
@@ -20,8 +19,8 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
     );
 
-    return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => TrendProvider())],
+    return ChangeNotifierProvider(
+      create: (_) => PublicationProvider(),
       child: MaterialApp(
         title: 'Journal Trend Analyzer',
         debugShowCheckedModeBanner: false,

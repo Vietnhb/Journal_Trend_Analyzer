@@ -1,205 +1,168 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/trend_provider.dart';
+import '../../../core/widgets/app_empty_view.dart';
+import '../../../core/widgets/app_error_view.dart';
+import '../../../core/widgets/app_loading.dart';
+import '../../../data/repositories/publication_repository.dart';
+import '../../providers/publication_provider.dart';
 import '../widgets/trend_chart.dart';
 import '../widgets/year_ranking_list.dart';
 
-class TrendAnalysisScreen extends StatefulWidget {
+class TrendAnalysisScreen extends StatelessWidget {
   const TrendAnalysisScreen({super.key});
 
   @override
-  State<TrendAnalysisScreen> createState() => _TrendAnalysisScreenState();
+  Widget build(BuildContext context) {
+    final provider = context.watch<PublicationProvider>();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Trend Analysis')),
+      body: _TrendBody(provider: provider),
+    );
+  }
 }
 
-class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Load dummy data when screen initializes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TrendProvider>().loadDummyData();
-    });
-  }
+class _TrendBody extends StatelessWidget {
+  final PublicationProvider provider;
+
+  const _TrendBody({required this.provider});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Trend Analysis'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Consumer<TrendProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    if (!provider.hasSearched) {
+      return const AppEmptyView(
+        message: 'Search a topic first, then trends will appear here.',
+        icon: Icons.query_stats,
+      );
+    }
 
-          if (provider.publications.isEmpty) {
-            return const Center(
-              child: Text('No publications found to analyze.'),
-            );
-          }
+    if (provider.isLoading) {
+      return const AppLoading(message: 'Building trend analysis...');
+    }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              provider.loadDummyData();
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+    final error = provider.error;
+    if (error != null) {
+      return AppErrorView(error: error);
+    }
+
+    if (provider.publicationsByYear.isEmpty) {
+      return const AppEmptyView(
+        message: 'The loaded publications do not include publication years.',
+        icon: Icons.event_busy,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => provider.search(provider.query),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryTile(
+                  label: 'Publications',
+                  value: provider.totalPublications.toString(),
+                  icon: Icons.article,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _SummaryTile(
+                  label: 'Top year',
+                  value: provider.mostActiveYear?.toString() ?? '-',
+                  icon: Icons.leaderboard,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Publications by Year',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 320,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                ),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Summary Cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildSummaryCard(
-                            title: 'Total Publications',
-                            value: provider.publications.length.toString(),
-                            icon: Icons.article,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildSummaryCard(
-                            title: 'Most Active Year',
-                            value: provider.mostActiveYear.toString(),
-                            icon: Icons.local_fire_department,
-                            color: Colors.deepOrange,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Chart Section
-                    const Text(
-                      'Publications by Year',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      height: 300, // Fixed height for chart
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // 40 pixels per bar to ensure they don't get too thin on mobile
-                          final minChartWidth =
-                              provider.publicationsByYear.length * 40.0;
-                          final chartWidth =
-                              minChartWidth > constraints.maxWidth
-                              ? minChartWidth
-                              : constraints.maxWidth;
-
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: SizedBox(
-                              width: chartWidth,
-                              child: TrendChart(
-                                data: provider.publicationsByYear,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Ranking Section
-                    const Text(
-                      'Yearly Ranking',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: YearRankingList(
-                          rankedYears: provider.rankedYears,
+                padding: const EdgeInsets.all(12),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final minWidth = provider.publicationsByYear.length * 44.0;
+                    final chartWidth = minWidth > constraints.maxWidth
+                        ? minWidth
+                        : constraints.maxWidth;
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: chartWidth,
+                        child: TrendChart(
+                          data: provider.publicationsByYear,
+                          yearSort: PublicationYearSort.descending,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24), // Bottom padding
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 20),
+          Text('Year Ranking', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          YearRankingList(rankedYears: provider.yearsByPublicationCount),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildSummaryCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required MaterialColor color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+class _SummaryTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _SummaryTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.shade100),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color.shade400, size: 28),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color.shade900,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(icon, color: colorScheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.labelMedium),
+                  Text(value, style: Theme.of(context).textTheme.titleLarge),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: color.shade700,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

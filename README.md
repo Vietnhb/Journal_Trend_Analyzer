@@ -1,14 +1,16 @@
 # Journal Trend Analyzer
 
-A Flutter mobile app for searching research publications from OpenAlex and analyzing publication trends for a user-entered topic.
+A Flutter mobile app for searching OpenAlex research publications and analyzing publication trends for a user-entered topic.
 
 ## Features
 
 - Search OpenAlex works by topic with loading, error, and empty states.
+- Browse OpenAlex search results with numbered pages of 50 publications.
+- Sort loaded OpenAlex results by publication year, either high to low or low to high.
 - View publication title, year, citation count, journal/source, authors, DOI, and abstract when available.
-- Analyze publication counts by year with a bar chart.
-- Research dashboard with total publications, average citations, most active year, top journal, top author, and most influential paper.
-- Ranked lists for top influential papers, research journals, and contributing authors.
+- Analyze publication counts by year with a bar chart and ranked year list.
+- Review dashboard metrics for total publications, average citations, most active year, top journal, top author, and most influential paper.
+- Show ranked lists for influential papers, journals, and authors.
 
 ## Tech Stack
 
@@ -22,21 +24,18 @@ A Flutter mobile app for searching research publications from OpenAlex and analy
 ```text
 lib/
   main.dart
-
   core/
     constants/
     errors/
     widgets/
-    utils/ (tạo sau nếu cần)
-
   data/
-    models/ (Step 1)
-    services/ (Step 1)
-    repositories/ (Step 1)
-
+    models/
+    repositories/
+    services/
   presentation/
-    providers/ (Step 2)
+    providers/
     screens/
+    trends/
     widgets/
 ```
 
@@ -52,10 +51,11 @@ Run on an Android emulator or a physical Android device with internet access.
 ## API Used
 
 - Base URL: `https://api.openalex.org`
-- Endpoint: `GET /works?search=<topic>&per_page=100`
+- Search endpoint: `GET /works?search=<topic>&per-page=50&page=<page>&sort=publication_year:<direction>`
+- Analytics endpoint: `GET /works?search=<topic>&group_by=<field>`
 
 The app uses OpenAlex public data directly from the mobile client. No API key is required.
 
 ## Scope Notes
 
-This project has no backend, no authentication, no Firebase, no database, and no hardcoded publication dataset or fake fallback data.
+Publication records are read from OpenAlex when the user searches.
