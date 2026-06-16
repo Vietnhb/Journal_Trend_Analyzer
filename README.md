@@ -40,8 +40,6 @@ lib/
     widgets/
 ```
 
-> Ghi chú: Hiện tại bạn đang ở **Step 0** (khung UI + navigation skeleton). Các folder cho Step 1+ đã được chuẩn bị bằng README để team dễ theo dõi.
-
 ## How To Run
 
 ```bash

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class TrendChart extends StatelessWidget {
   final Map<int, int> data;
 
-  const TrendChart({Key? key, required this.data}) : super(key: key);
+  const TrendChart({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -16,9 +16,6 @@ class TrendChart extends StatelessWidget {
     final sortedEntries = data.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
-    final minYear = sortedEntries.first.key;
-    final maxYear = sortedEntries.last.key;
-
     // Find max value for Y axis scaling
     double maxY = 0;
     for (var entry in sortedEntries) {
@@ -26,7 +23,7 @@ class TrendChart extends StatelessWidget {
         maxY = entry.value.toDouble();
       }
     }
-    
+
     // Add some padding to top of chart
     maxY = (maxY * 1.2).ceilToDouble();
 
@@ -37,7 +34,7 @@ class TrendChart extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (group) => Colors.indigo.withOpacity(0.8),
+            getTooltipColor: (group) => Colors.indigo.withValues(alpha: 0.8),
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               return BarTooltipItem(
                 '${group.x.toInt()}\n',
@@ -92,10 +89,7 @@ class TrendChart extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 8.0),
                     child: Text(
                       value.toInt().toString(),
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
                       textAlign: TextAlign.right,
                     ),
                   );
@@ -118,14 +112,12 @@ class TrendChart extends StatelessWidget {
           horizontalInterval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
           getDrawingHorizontalLine: (value) {
             return FlLine(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withValues(alpha: 0.2),
               strokeWidth: 1,
             );
           },
         ),
-        borderData: FlBorderData(
-          show: false,
-        ),
+        borderData: FlBorderData(show: false),
         barGroups: sortedEntries.map((entry) {
           return BarChartGroupData(
             x: entry.key,

@@ -6,7 +6,7 @@ import '../widgets/trend_chart.dart';
 import '../widgets/year_ranking_list.dart';
 
 class TrendAnalysisScreen extends StatefulWidget {
-  const TrendAnalysisScreen({Key? key}) : super(key: key);
+  const TrendAnalysisScreen({super.key});
 
   @override
   State<TrendAnalysisScreen> createState() => _TrendAnalysisScreenState();
@@ -77,7 +77,7 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Chart Section
                     const Text(
                       'Publications by Year',
@@ -95,7 +95,7 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -104,21 +104,27 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           // 40 pixels per bar to ensure they don't get too thin on mobile
-                          final minChartWidth = provider.publicationsByYear.length * 40.0;
-                          final chartWidth = minChartWidth > constraints.maxWidth ? minChartWidth : constraints.maxWidth;
-                          
+                          final minChartWidth =
+                              provider.publicationsByYear.length * 40.0;
+                          final chartWidth =
+                              minChartWidth > constraints.maxWidth
+                              ? minChartWidth
+                              : constraints.maxWidth;
+
                           return SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: SizedBox(
                               width: chartWidth,
-                              child: TrendChart(data: provider.publicationsByYear),
+                              child: TrendChart(
+                                data: provider.publicationsByYear,
+                              ),
                             ),
                           );
                         },
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Ranking Section
                     const Text(
                       'Yearly Ranking',
@@ -134,7 +140,7 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -142,7 +148,9 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: YearRankingList(rankedYears: provider.rankedYears),
+                        child: YearRankingList(
+                          rankedYears: provider.rankedYears,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24), // Bottom padding

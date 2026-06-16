@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class YearRankingList extends StatelessWidget {
   final List<MapEntry<int, int>> rankedYears;
 
-  const YearRankingList({Key? key, required this.rankedYears}) : super(key: key);
+  const YearRankingList({super.key, required this.rankedYears});
 
   @override
   Widget build(BuildContext context) {
@@ -19,13 +19,18 @@ class YearRankingList extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = rankedYears[index];
         final rank = index + 1;
-        
+
         // Style top 3 ranks differently
         Color? avatarColor;
-        if (rank == 1) avatarColor = Colors.amber;
-        else if (rank == 2) avatarColor = Colors.grey[400];
-        else if (rank == 3) avatarColor = Colors.brown[300];
-        else avatarColor = Colors.indigo[100];
+        if (rank == 1) {
+          avatarColor = Colors.amber;
+        } else if (rank == 2) {
+          avatarColor = Colors.grey[400];
+        } else if (rank == 3) {
+          avatarColor = Colors.brown[300];
+        } else {
+          avatarColor = Colors.indigo[100];
+        }
 
         return ListTile(
           leading: CircleAvatar(
@@ -46,7 +51,7 @@ class YearRankingList extends StatelessWidget {
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.indigo.withOpacity(0.1),
+              color: Colors.indigo.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
