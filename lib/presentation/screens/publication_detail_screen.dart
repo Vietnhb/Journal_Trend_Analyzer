@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../data/models/publication.dart';
@@ -41,6 +42,13 @@ class PublicationDetailScreen extends StatelessWidget {
       backgroundColor: AppColors.primary,
       iconTheme: const IconThemeData(color: Colors.white),
       systemOverlayStyle: SystemUiOverlayStyle.light,
+      title: Text(
+        'Publication Details',
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -50,7 +58,7 @@ class PublicationDetailScreen extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
           ),
-          padding: const EdgeInsets.fromLTRB(20, 80, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 90, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.end,
@@ -90,16 +98,6 @@ class PublicationDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        titlePadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        title: Text(
-          'Publication Details',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Colors.white,
-              ),
         ),
       ),
     );
@@ -165,6 +163,57 @@ class _MetadataCard extends StatelessWidget {
               iconColor: AppColors.primary,
               label: 'DOI',
               value: publication.doi!,
+            ),
+          ],
+          if (publication.url != null) ...[
+            const Divider(height: 1, indent: 56),
+            InkWell(
+              onTap: () async {
+                final uri = Uri.tryParse(publication.url!);
+                if (uri != null && await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.open_in_new_rounded, size: 18, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Read Publication',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Open in Browser',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+                  ],
+                ),
+              ),
             ),
           ],
         ],

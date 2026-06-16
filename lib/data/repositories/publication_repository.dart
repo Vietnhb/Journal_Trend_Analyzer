@@ -1,3 +1,4 @@
+import '../models/publication.dart';
 import '../services/openalex_api_service.dart';
 
 export '../services/openalex_api_service.dart'
@@ -19,6 +20,14 @@ class PublicationRepository {
       yearSort: yearSort,
       page: page,
     );
+  }
+
+  Future<Map<int, int>> getPublicationsByYear(String topic) {
+    return _apiService.getPublicationsByYear(topic);
+  }
+
+  Future<List<Publication>> getTopPapers(String topic) {
+    return _apiService.getTopPapers(topic);
   }
 
   void dispose() {

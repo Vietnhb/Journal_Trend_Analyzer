@@ -64,6 +64,7 @@ class OpenAlexApiService {
         'per-page': safePerPage.toString(),
         'page': safePage.toString(),
         'sort': yearSort.apiSort,
+        'mailto': 'vietnhbse183457@fpt.edu.vn',
       },
     );
 
@@ -133,6 +134,108 @@ class OpenAlexApiService {
       return value.toInt();
     }
     return null;
+  }
+
+  Future<Map<int, int>> getPublicationsByYear(String topic) async {
+    final trimmedTopic = topic.trim();
+    if (trimmedTopic.isEmpty) {
+      throw AppError('Please enter a topic to search.');
+    }
+
+    final uri = _baseUri.replace(
+      path: '/works',
+      queryParameters: {
+        'search': trimmedTopic,
+        'group_by': 'publication_year',
+        'mailto': 'vietnhbse183457@fpt.edu.vn',
+      },
+    );
+
+    try {
+      final response = await _client.get(uri).timeout(timeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw AppError(
+          'OpenAlex request failed.',
+          details: 'HTTP ${response.statusCode}: ${response.reasonPhrase ?? ''}',
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Expected a JSON object.');
+      }
+
+      final groupByList = decoded['group_by'];
+      if (groupByList is! List) {
+        return {};
+      }
+
+      final map = <int, int>{};
+      for (final item in groupByList) {
+        if (item is! Map<String, dynamic>) continue;
+        final yearStr = item['key'];
+        final count = item['count'];
+        final year = int.tryParse(yearStr.toString());
+        if (year != null && count is int) {
+          // OpenAlex returns 'unknown' sometimes, ignore invalid years
+          if (year <= DateTime.now().year) {
+            map[year] = count;
+          }
+        }
+      }
+      return map;
+    } on TimeoutException {
+      throw AppError(
+        'Request timed out.',
+        details: 'OpenAlex did not respond within ${timeout.inSeconds}s.',
+      );
+    } on SocketException {
+      throw AppError(
+        'No internet connection.',
+        details: 'Please check your network and try again.',
+      );
+    } on FormatException catch (error) {
+      throw AppError('Invalid response from OpenAlex.', details: error.message);
+    } on http.ClientException catch (error) {
+      throw AppError('Could not connect to OpenAlex.', details: error.message);
+    }
+  }
+
+  Future<List<Publication>> getTopPapers(String topic) async {
+    final trimmedTopic = topic.trim();
+    if (trimmedTopic.isEmpty) return [];
+
+    final uri = _baseUri.replace(
+      path: '/works',
+      queryParameters: {
+        'search': trimmedTopic,
+        'per-page': '50',
+        'page': '1',
+        'sort': 'cited_by_count:desc',
+        'mailto': 'vietnhbse183457@fpt.edu.vn',
+      },
+    );
+
+    try {
+      final response = await _client.get(uri).timeout(timeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw AppError(
+          'OpenAlex request failed.',
+          details: 'HTTP ${response.statusCode}: ${response.reasonPhrase ?? ''}',
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      final results = decoded['results'];
+      if (results is! List) return [];
+
+      return results
+          .whereType<Map<String, dynamic>>()
+          .map(Publication.fromOpenAlexJson)
+          .toList(growable: false);
+    } catch (error) {
+      throw AppError('Failed to fetch top papers.', details: error.toString());
+    }
   }
 
   void dispose() {

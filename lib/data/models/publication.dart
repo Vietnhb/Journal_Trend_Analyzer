@@ -6,6 +6,7 @@ class Publication {
   final String journalName;
   final List<String> authors;
   final String? doi;
+  final String? url;
   final String? abstractText;
 
   const Publication({
@@ -16,6 +17,7 @@ class Publication {
     required this.journalName,
     required this.authors,
     this.doi,
+    this.url,
     this.abstractText,
   });
 
@@ -31,10 +33,23 @@ class Publication {
       journalName: _extractJournalName(json),
       authors: _extractAuthors(json),
       doi: _emptyToNull(_asString(json['doi'])),
+      url: _extractUrl(json),
       abstractText: _emptyToNull(
         _abstractFromInvertedIndex(json['abstract_inverted_index']),
       ),
     );
+  }
+
+  static String? _extractUrl(Map<String, dynamic> json) {
+    final landingPage = _asString((json['primary_location'] as Map?)?['landing_page_url']);
+    if (landingPage != null && landingPage.trim().isNotEmpty) {
+      return landingPage.trim();
+    }
+    final doiStr = _asString(json['doi']);
+    if (doiStr != null && doiStr.trim().isNotEmpty) {
+      return doiStr.trim();
+    }
+    return null;
   }
 
   static String _extractJournalName(Map<String, dynamic> json) {

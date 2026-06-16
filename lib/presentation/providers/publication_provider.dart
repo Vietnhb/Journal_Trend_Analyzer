@@ -22,6 +22,11 @@ class PublicationProvider extends ChangeNotifier {
   int _currentPage = 1;
   int _perPage = 50;
 
+  bool _isLoadingAnalytics = false;
+  AppError? _analyticsError;
+  Map<int, int> _analyticsPublicationsByYear = const {};
+  List<Publication> _topPapersData = const [];
+
   String get query => _query;
   bool get isLoading => _isLoading;
   bool get hasSearched => _hasSearched;
@@ -33,8 +38,8 @@ class PublicationProvider extends ChangeNotifier {
   int get totalAvailable => _totalAvailable;
   int get currentPage => _currentPage;
   int get perPage => _perPage;
-  bool get isLoadingAnalytics => false;
-  AppError? get analyticsError => null;
+  bool get isLoadingAnalytics => _isLoadingAnalytics;
+  AppError? get analyticsError => _analyticsError;
 
   int get totalPages {
     if (_totalAvailable <= 0) {
@@ -50,15 +55,14 @@ class PublicationProvider extends ChangeNotifier {
     return _totalAvailable > 0 ? _totalAvailable : _publications.length;
   }
 
-  double? get averageCitationCount {
-    if (_analysisPublications.isEmpty) {
+  int? get topCitationsCount {
+    if (_topPapersData.isEmpty) {
       return null;
     }
-    final total = _analysisPublications.fold<int>(
+    return _topPapersData.fold<int>(
       0,
       (sum, publication) => sum + publication.citationCount,
     );
-    return total / _analysisPublications.length;
   }
 
   int? get mostActiveYear {
@@ -81,17 +85,7 @@ class PublicationProvider extends ChangeNotifier {
     return authors.isEmpty ? null : authors.first.key;
   }
 
-  Map<int, int> get publicationsByYear {
-    final grouped = <int, int>{};
-    for (final publication in _analysisPublications) {
-      final year = publication.year;
-      if (year == null) {
-        continue;
-      }
-      grouped[year] = (grouped[year] ?? 0) + 1;
-    }
-    return grouped;
-  }
+  Map<int, int> get publicationsByYear => _analyticsPublicationsByYear;
 
   List<MapEntry<int, int>> get yearsByPublicationCount {
     final list = publicationsByYear.entries.toList();
@@ -103,14 +97,12 @@ class PublicationProvider extends ChangeNotifier {
   }
 
   List<Publication> get topPapers {
-    final sorted = _analysisPublications.toList()
-      ..sort((a, b) => b.citationCount.compareTo(a.citationCount));
-    return sorted.take(5).toList(growable: false);
+    return _topPapersData.take(5).toList(growable: false);
   }
 
   List<MapEntry<String, int>> get topJournals {
     return _rankByCount(
-      _analysisPublications
+      _topPapersData
           .map((publication) => publication.journalName)
           .where((journal) => journal.trim().isNotEmpty),
     );
@@ -118,7 +110,7 @@ class PublicationProvider extends ChangeNotifier {
 
   List<MapEntry<String, int>> get topAuthors {
     return _rankByCount(
-      _analysisPublications.expand((publication) => publication.authors),
+      _topPapersData.expand((publication) => publication.authors),
     );
   }
 
@@ -162,6 +154,36 @@ class PublicationProvider extends ChangeNotifier {
       }
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+    
+    if (_error == null) {
+      _loadAnalytics(trimmed);
+    }
+  }
+
+  Future<void> _loadAnalytics(String query) async {
+    _isLoadingAnalytics = true;
+    _analyticsError = null;
+    notifyListeners();
+    
+    try {
+      final results = await Future.wait([
+        _repository.getPublicationsByYear(query),
+        _repository.getTopPapers(query),
+      ]);
+      _analyticsPublicationsByYear = results[0] as Map<int, int>;
+      _topPapersData = results[1] as List<Publication>;
+    } on AppError catch (error) {
+      _analyticsError = error;
+      _analyticsPublicationsByYear = const {};
+      _topPapersData = const [];
+    } catch (error) {
+      _analyticsError = AppError('Analytics failed.', details: error.toString());
+      _analyticsPublicationsByYear = const {};
+      _topPapersData = const [];
+    } finally {
+      _isLoadingAnalytics = false;
       notifyListeners();
     }
   }
@@ -240,6 +262,8 @@ class PublicationProvider extends ChangeNotifier {
   void _clearResults() {
     _publications = const [];
     _analysisPublications = const [];
+    _analyticsPublicationsByYear = const {};
+    _topPapersData = const [];
     _totalAvailable = 0;
     _currentPage = 1;
   }

@@ -231,6 +231,12 @@ class _MetricRow extends StatelessWidget {
   final PublicationProvider provider;
   const _MetricRow({required this.provider});
 
+  String _formatCitations(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
+    return count.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -255,9 +261,10 @@ class _MetricRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _MetricCard(
-            title: 'Avg Citations',
-            value:
-                provider.averageCitationCount?.toStringAsFixed(1) ?? '—',
+            title: 'Top 50 Citations',
+            value: provider.topCitationsCount != null
+                ? _formatCitations(provider.topCitationsCount!)
+                : '—',
             icon: Icons.trending_up_rounded,
             color: AppColors.success,
           ),
