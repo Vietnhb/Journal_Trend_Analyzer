@@ -37,7 +37,7 @@ class PublicationDetailScreen extends StatelessWidget {
 
   Widget _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 180,
+      expandedHeight: 230,
       pinned: true,
       backgroundColor: AppColors.primary,
       iconTheme: const IconThemeData(color: Colors.white),
@@ -45,9 +45,9 @@ class PublicationDetailScreen extends StatelessWidget {
       title: Text(
         'Publication Details',
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
@@ -58,7 +58,7 @@ class PublicationDetailScreen extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
           ),
-          padding: const EdgeInsets.fromLTRB(20, 90, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 92, 20, 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.end,
@@ -85,15 +85,18 @@ class PublicationDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                publication.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 84),
+                child: Text(
+                  publication.title,
+                  maxLines: 4,
+                  overflow: TextOverflow.fade,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
                 ),
               ),
             ],
@@ -176,14 +179,19 @@ class _MetadataCard extends StatelessWidget {
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Could not open the link.')),
+                        const SnackBar(
+                          content: Text('Could not open the link.'),
+                        ),
                       );
                     }
                   }
                 }
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -194,7 +202,11 @@ class _MetadataCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       alignment: Alignment.center,
-                      child: const Icon(Icons.open_in_new_rounded, size: 18, color: AppColors.primary),
+                      child: const Icon(
+                        Icons.open_in_new_rounded,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -203,14 +215,14 @@ class _MetadataCard extends StatelessWidget {
                         children: [
                           Text(
                             'Read Publication',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Open in Browser',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -218,7 +230,11 @@ class _MetadataCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: AppColors.textHint,
+                    ),
                   ],
                 ),
               ),
@@ -270,8 +286,8 @@ class _InfoRow extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 if (valueWidget != null)
@@ -279,11 +295,10 @@ class _InfoRow extends StatelessWidget {
                 else
                   Text(
                     value,
-                    style:
-                        Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
               ],
             ),
@@ -303,8 +318,8 @@ class _CitationBadge extends StatelessWidget {
     final color = count > 100
         ? AppColors.gold
         : count > 50
-            ? AppColors.success
-            : AppColors.textSecondary;
+        ? AppColors.success
+        : AppColors.textSecondary;
 
     return Row(
       children: [
@@ -333,9 +348,9 @@ class _CitationBadge extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           'citations',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -348,7 +363,8 @@ class _AbstractSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasAbstract = publication.abstractText != null &&
+    final hasAbstract =
+        publication.abstractText != null &&
         publication.abstractText!.isNotEmpty;
 
     return Column(
@@ -372,9 +388,9 @@ class _AbstractSection extends StatelessWidget {
             Text(
               'Abstract',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -390,11 +406,10 @@ class _AbstractSection extends StatelessWidget {
           child: hasAbstract
               ? Text(
                   publication.abstractText!,
-                  style:
-                      Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                            height: 1.7,
-                          ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    height: 1.7,
+                  ),
                 )
               : Row(
                   children: [
@@ -406,11 +421,10 @@ class _AbstractSection extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       'No abstract available.',
-                      style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontStyle: FontStyle.italic,
-                              ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ],
                 ),

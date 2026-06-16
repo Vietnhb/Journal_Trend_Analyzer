@@ -34,9 +34,10 @@ class TrendChart extends StatelessWidget {
       if (entry.value > maxY) maxY = entry.value.toDouble();
     }
 
-    final chartMaxY = maxY == 0 ? 10.0 : (maxY * 1.18).ceilToDouble();
-    final horizontalInterval =
-        chartMaxY > 10 ? (chartMaxY / 4).ceilToDouble() : 1.0;
+    final chartMaxY = maxY == 0 ? 10.0 : (maxY * 1.38).ceilToDouble();
+    final horizontalInterval = chartMaxY > 10
+        ? (chartMaxY / 4).ceilToDouble()
+        : 1.0;
 
     return BarChart(
       BarChartData(
@@ -45,22 +46,29 @@ class TrendChart extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            tooltipPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
+            tooltipMargin: 6,
             getTooltipColor: (group) =>
                 AppColors.primary.withValues(alpha: 0.92),
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               return BarTooltipItem(
-                '${group.x.toInt()}\n',
+                '${group.x.toInt()}  ',
                 const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: 13,
+                  fontSize: 11,
                 ),
                 children: <TextSpan>[
                   TextSpan(
-                    text: '${rod.toY.toInt()} publications',
+                    text: _formatCount(rod.toY),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

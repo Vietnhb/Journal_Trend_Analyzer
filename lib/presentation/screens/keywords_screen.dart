@@ -10,7 +10,6 @@ import '../providers/publication_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
 import 'publication_detail_screen.dart';
-import 'journal_screen.dart';
 
 class KeywordsScreen extends StatelessWidget {
   const KeywordsScreen({super.key});
@@ -41,16 +40,16 @@ class KeywordsScreen extends StatelessWidget {
           Text(
             'Analytics',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             'Publication trends & rankings',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 12),
           const Divider(height: 1),
@@ -69,8 +68,7 @@ class _KeywordsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!provider.hasSearched) {
       return const AppEmptyView(
-        message:
-            'Search a topic from Home\nto view trends and rankings.',
+        message: 'Search a topic from Home\nto view trends and rankings.',
         icon: Icons.query_stats_outlined,
       );
     }
@@ -86,8 +84,7 @@ class _KeywordsBody extends StatelessWidget {
 
     if (provider.publicationsByYear.isEmpty) {
       return const AppEmptyView(
-        message:
-            'The loaded publications do not include publication years.',
+        message: 'The loaded publications do not include publication years.',
         icon: Icons.event_busy_outlined,
       );
     }
@@ -174,14 +171,6 @@ class _KeywordsBody extends StatelessWidget {
                     label: entry.key,
                     value: entry.value,
                     valueLabel: '${entry.value} pubs',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => JournalScreen(journalFilter: entry.key),
-                        ),
-                      );
-                    },
                   ),
                 )
                 .toList(),
@@ -197,14 +186,6 @@ class _KeywordsBody extends StatelessWidget {
                     label: entry.key,
                     value: entry.value,
                     valueLabel: '${entry.value} pubs',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => JournalScreen(authorFilter: entry.key),
-                        ),
-                      );
-                    },
                   ),
                 )
                 .toList(),
@@ -240,9 +221,9 @@ class _QueryBadge extends StatelessWidget {
             child: Text(
               '"$query"',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -274,7 +255,7 @@ class _MetricRow extends StatelessWidget {
             color: AppColors.primary,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: _MetricCard(
             title: 'Top Year',
@@ -283,10 +264,11 @@ class _MetricRow extends StatelessWidget {
             color: AppColors.gold,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: _MetricCard(
             title: 'Avg Citations',
+            subtitle: 'Top 50 pubs',
             value: provider.avgCitationCount != null
                 ? _formatCitations(provider.avgCitationCount!)
                 : '—',
@@ -301,12 +283,14 @@ class _MetricRow extends StatelessWidget {
 
 class _MetricCard extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final String value;
   final IconData icon;
   final Color color;
 
   const _MetricCard({
     required this.title,
+    this.subtitle,
     required this.value,
     required this.icon,
     required this.color,
@@ -315,7 +299,8 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      constraints: const BoxConstraints(minHeight: 106),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
@@ -331,32 +316,65 @@ class _MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textSecondary,
+          Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: color, size: 15),
+              ),
+              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 26,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 30,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textHint,
+                        fontSize: 10,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -378,9 +396,7 @@ class _AnalyticsBanner extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.info.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: AppColors.info.withValues(alpha: 0.2),
-          ),
+          border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -396,9 +412,9 @@ class _AnalyticsBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 'Loading full OpenAlex analytics...',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.info,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.info),
               ),
             ),
           ],
@@ -410,9 +426,7 @@ class _AnalyticsBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.danger.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -425,10 +439,9 @@ class _AnalyticsBanner extends StatelessWidget {
           Expanded(
             child: Text(
               errorMessage ?? 'Analytics unavailable.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.danger),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.danger),
             ),
           ),
         ],
@@ -458,9 +471,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
         ),
       ],
     );
@@ -474,7 +487,7 @@ class _TrendChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 300,
+      height: 330,
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -599,11 +612,7 @@ class _HorizontalBarSection extends StatelessWidget {
                 for (int i = 0; i < items.length; i++) ...[
                   if (i > 0)
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                  _BarRow(
-                    item: items[i],
-                    rank: i + 1,
-                    maxValue: maxValue,
-                  ),
+                  _BarRow(item: items[i], rank: i + 1, maxValue: maxValue),
                 ],
               ],
             ),
@@ -653,9 +662,7 @@ class _BarRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: rank == 1
-                        ? AppColors.gold
-                        : AppColors.textSecondary,
+                    color: rank == 1 ? AppColors.gold : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -669,29 +676,25 @@ class _BarRow extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     if (item.details != null)
                       Text(
                         item.details!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textSecondary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -699,9 +702,9 @@ class _BarRow extends StatelessWidget {
                 child: Text(
                   item.valueLabel,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -712,8 +715,7 @@ class _BarRow extends StatelessWidget {
             child: LinearProgressIndicator(
               minHeight: 6,
               value: ratio,
-              backgroundColor:
-                  AppColors.primary.withValues(alpha: 0.08),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.08),
               valueColor: AlwaysStoppedAnimation<Color>(
                 rank == 1 ? AppColors.gold : AppColors.primary,
               ),
@@ -724,10 +726,7 @@ class _BarRow extends StatelessWidget {
     );
 
     if (item.onTap != null) {
-      return InkWell(
-        onTap: item.onTap,
-        child: content,
-      );
+      return InkWell(onTap: item.onTap, child: content);
     }
     return content;
   }

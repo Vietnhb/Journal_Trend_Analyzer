@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -28,9 +29,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<PublicationProvider>();
 
-    return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+      ),
+      child: Scaffold(
+        body: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _buildHeader(context, provider)),
             SliverToBoxAdapter(
@@ -54,15 +58,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(BuildContext context, PublicationProvider provider) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    final colorScheme = Theme.of(context).colorScheme;
+    final inputSurface = colorScheme.surface;
+    final inputText = colorScheme.onSurface;
+    final inputHint = colorScheme.onSurfaceVariant;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 28),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primary, AppColors.accent],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,9 +95,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 'Journal Trends',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -95,20 +105,20 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             'Explore Research\nTopics & Trends',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
           ),
           const SizedBox(height: 20),
           // Search bar
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: inputSurface,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
+                  color: Colors.black.withValues(alpha: 0.14),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -118,15 +128,15 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: _searchController,
               focusNode: _focusNode,
               textInputAction: TextInputAction.search,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: inputText,
                 fontWeight: FontWeight.w500,
                 fontSize: 15,
               ),
               decoration: InputDecoration(
                 hintText: 'e.g. deep learning, climate change...',
                 hintStyle: TextStyle(
-                  color: AppColors.textHint,
+                  color: inputHint,
                   fontWeight: FontWeight.w400,
                   fontSize: 14,
                 ),
@@ -136,11 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: AppColors.textSecondary,
-                          size: 20,
-                        ),
+                        icon: const Icon(Icons.close_rounded, size: 20),
                         onPressed: () {
                           _searchController.clear();
                           context.read<PublicationProvider>().clear();
@@ -165,8 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed:
-                  provider.isLoading ? null : () => _search(context),
+              onPressed: provider.isLoading ? null : () => _search(context),
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary,
@@ -217,9 +222,8 @@ class _HomeScreenState extends State<HomeScreen> {
           error: provider.error!,
           onRetry: provider.query.isEmpty
               ? null
-              : () => context.read<PublicationProvider>().search(
-                    provider.query,
-                  ),
+              : () =>
+                    context.read<PublicationProvider>().search(provider.query),
         ),
       );
     }
@@ -239,23 +243,21 @@ class _HomeScreenState extends State<HomeScreen> {
     PublicationProvider provider,
   ) {
     final recentSearches = provider.recentSearches;
+    final colorScheme = Theme.of(context).colorScheme;
+    final mutedText = colorScheme.onSurfaceVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Icon(
-              Icons.history_rounded,
-              size: 18,
-              color: AppColors.textSecondary,
-            ),
+            Icon(Icons.history_rounded, size: 18, color: mutedText),
             const SizedBox(width: 6),
             Text(
               'Recent Searches',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
             ),
           ],
         ),
@@ -265,24 +267,20 @@ class _HomeScreenState extends State<HomeScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderLight),
+              border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.manage_search_rounded,
-                  size: 36,
-                  color: AppColors.textHint,
-                ),
+                Icon(Icons.manage_search_rounded, size: 36, color: mutedText),
                 const SizedBox(height: 8),
                 Text(
                   'No recent searches yet.\nStart by searching a research topic above.',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: mutedText),
                 ),
               ],
             ),
@@ -300,20 +298,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     size: 16,
                     color: AppColors.primary,
                   ),
-                  backgroundColor: AppColors.surface,
-                  side: const BorderSide(color: AppColors.borderLight),
-                  labelStyle: const TextStyle(
+                  backgroundColor: colorScheme.surface,
+                  side: BorderSide(color: colorScheme.outlineVariant),
+                  labelStyle: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                   onPressed: provider.isLoading
                       ? null
                       : () {
                           _searchController.text = query;
-                          context
-                              .read<PublicationProvider>()
-                              .search(query);
+                          context.read<PublicationProvider>().search(query);
                         },
                 ),
             ],
@@ -324,9 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _search(BuildContext context) {
     _focusNode.unfocus();
-    context
-        .read<PublicationProvider>()
-        .search(_searchController.text);
+    context.read<PublicationProvider>().search(_searchController.text);
   }
 }
 
@@ -337,16 +331,23 @@ class _SearchResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final mutedText = colorScheme.onSurfaceVariant;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.06),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.06,
+            ),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -374,9 +375,9 @@ class _SearchResultCard extends StatelessWidget {
                 child: Text(
                   '"${provider.query}"',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
@@ -399,28 +400,21 @@ class _SearchResultCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  size: 14,
-                  color: AppColors.textSecondary,
-                ),
+                Icon(Icons.info_outline_rounded, size: 14, color: mutedText),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Open the Journals tab to browse publications.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: mutedText),
                   ),
                 ),
               ],
@@ -445,24 +439,27 @@ class _ResultStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final mutedText = colorScheme.onSurfaceVariant;
+
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.textSecondary),
+        Icon(icon, size: 16, color: mutedText),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: mutedText),
           ),
         ),
         Text(
           value,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );

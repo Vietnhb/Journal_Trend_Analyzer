@@ -156,7 +156,8 @@ class OpenAlexApiService {
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw AppError(
           'OpenAlex request failed.',
-          details: 'HTTP ${response.statusCode}: ${response.reasonPhrase ?? ''}',
+          details:
+              'HTTP ${response.statusCode}: ${response.reasonPhrase ?? ''}',
         );
       }
 
@@ -177,10 +178,7 @@ class OpenAlexApiService {
         final count = item['count'];
         final year = int.tryParse(yearStr.toString());
         if (year != null && count is int) {
-          // OpenAlex returns 'unknown' sometimes, ignore invalid years
-          if (year <= DateTime.now().year) {
-            map[year] = count;
-          }
+          map[year] = count;
         }
       }
       return map;
@@ -221,7 +219,8 @@ class OpenAlexApiService {
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw AppError(
           'OpenAlex request failed.',
-          details: 'HTTP ${response.statusCode}: ${response.reasonPhrase ?? ''}',
+          details:
+              'HTTP ${response.statusCode}: ${response.reasonPhrase ?? ''}',
         );
       }
 

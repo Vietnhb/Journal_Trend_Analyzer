@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../providers/publication_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<PublicationProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
+    final mutedText = colorScheme.onSurfaceVariant;
+
     return Scaffold(
       body: SafeArea(
         child: ListView(
@@ -20,18 +26,17 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   Text(
                     'Settings',
-                    style:
-                        Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                            ),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Preferences & app information',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: mutedText),
                   ),
                 ],
               ),
@@ -50,14 +55,32 @@ class ProfileScreen extends StatelessWidget {
             _SettingsCard(
               children: [
                 _SettingsTile(
-                  icon: Icons.event_available_outlined,
+                  icon: provider.isDarkMode
+                      ? Icons.dark_mode_outlined
+                      : Icons.light_mode_outlined,
                   iconColor: AppColors.primary,
+                  title: 'Dark mode',
+                  subtitle: provider.isDarkMode
+                      ? 'Use the darker app theme.'
+                      : 'Use the brighter app theme.',
+                  trailing: Switch(
+                    value: provider.isDarkMode,
+                    onChanged: context.read<PublicationProvider>().setDarkMode,
+                    activeThumbColor: AppColors.primary,
+                  ),
+                ),
+                const Divider(height: 1, indent: 56),
+                _SettingsTile(
+                  icon: Icons.event_available_outlined,
+                  iconColor: AppColors.info,
                   title: 'Filter future publication metadata',
                   subtitle: 'Uses the current year from the device.',
                   trailing: Switch(
-                    value: true,
-                    onChanged: null,
-                    activeColor: AppColors.primary,
+                    value: provider.filterFuturePublicationMetadata,
+                    onChanged: context
+                        .read<PublicationProvider>()
+                        .setFilterFuturePublicationMetadata,
+                    activeThumbColor: AppColors.primary,
                   ),
                 ),
               ],
@@ -127,15 +150,15 @@ class ProfileScreen extends StatelessWidget {
                   Text(
                     'Journal Trend Analyzer',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Powered by OpenAlex · Built with Flutter',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textHint,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: mutedText),
                   ),
                 ],
               ),
@@ -191,16 +214,16 @@ class _AppIdentityCard extends StatelessWidget {
                 Text(
                   'Journal Trend Analyzer',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Research analytics powered by OpenAlex',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
                 ),
               ],
             ),
@@ -222,10 +245,10 @@ class _SectionLabel extends StatelessWidget {
       child: Text(
         label.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-              letterSpacing: 1.0,
-              fontWeight: FontWeight.w700,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          letterSpacing: 1.0,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -237,14 +260,20 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.04,
+            ),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -273,6 +302,8 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -295,16 +326,16 @@ class _SettingsTile extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -331,6 +362,8 @@ class _AboutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -354,17 +387,17 @@ class _AboutTile extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        letterSpacing: 0.2,
-                      ),
+                    color: colorScheme.onSurfaceVariant,
+                    letterSpacing: 0.2,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),

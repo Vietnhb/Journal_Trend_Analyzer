@@ -5,6 +5,8 @@ import '../../data/models/publication.dart';
 import '../../data/repositories/publication_repository.dart';
 
 class PublicationProvider extends ChangeNotifier {
+  static const int _maxDirectPage = 200;
+
   final PublicationRepository _repository;
 
   PublicationProvider({PublicationRepository? repository})
@@ -21,6 +23,8 @@ class PublicationProvider extends ChangeNotifier {
   int _totalAvailable = 0;
   int _currentPage = 1;
   int _perPage = 50;
+  bool _isDarkMode = false;
+  bool _filterFuturePublicationMetadata = true;
 
   bool _isLoadingAnalytics = false;
   AppError? _analyticsError;
@@ -38,6 +42,8 @@ class PublicationProvider extends ChangeNotifier {
   int get totalAvailable => _totalAvailable;
   int get currentPage => _currentPage;
   int get perPage => _perPage;
+  bool get isDarkMode => _isDarkMode;
+  bool get filterFuturePublicationMetadata => _filterFuturePublicationMetadata;
   bool get isLoadingAnalytics => _isLoadingAnalytics;
   AppError? get analyticsError => _analyticsError;
 
@@ -86,7 +92,18 @@ class PublicationProvider extends ChangeNotifier {
     return authors.isEmpty ? null : authors.first.key;
   }
 
-  Map<int, int> get publicationsByYear => _analyticsPublicationsByYear;
+  Map<int, int> get publicationsByYear {
+    if (!_filterFuturePublicationMetadata) {
+      return _analyticsPublicationsByYear;
+    }
+
+    final currentYear = DateTime.now().year;
+    return Map<int, int>.fromEntries(
+      _analyticsPublicationsByYear.entries.where(
+        (entry) => entry.key <= currentYear,
+      ),
+    );
+  }
 
   List<MapEntry<int, int>> get yearsByPublicationCount {
     final list = publicationsByYear.entries.toList();
@@ -157,7 +174,7 @@ class PublicationProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-    
+
     if (_error == null) {
       _loadAnalytics(trimmed);
     }
@@ -167,7 +184,7 @@ class PublicationProvider extends ChangeNotifier {
     _isLoadingAnalytics = true;
     _analyticsError = null;
     notifyListeners();
-    
+
     try {
       final results = await Future.wait([
         _repository.getPublicationsByYear(query),
@@ -180,7 +197,10 @@ class PublicationProvider extends ChangeNotifier {
       _analyticsPublicationsByYear = const {};
       _topPapersData = const [];
     } catch (error) {
-      _analyticsError = AppError('Analytics failed.', details: error.toString());
+      _analyticsError = AppError(
+        'Analytics failed.',
+        details: error.toString(),
+      );
       _analyticsPublicationsByYear = const {};
       _topPapersData = const [];
     } finally {
@@ -204,11 +224,7 @@ class PublicationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final page = await _repository.searchPublicationsPage(
-        _query,
-        yearSort: _yearSort,
-        page: targetPage,
-      );
+      final page = await _loadRequestedPage(targetPage);
       _applySearchPage(page);
     } on AppError catch (error) {
       _error = error;
@@ -223,6 +239,40 @@ class PublicationProvider extends ChangeNotifier {
     }
   }
 
+  Future<PublicationSearchPage> _loadRequestedPage(int targetPage) async {
+    final reversePage = totalPages - targetPage + 1;
+    final shouldLoadFromEnd =
+        targetPage > _maxDirectPage && reversePage <= _maxDirectPage;
+
+    if (shouldLoadFromEnd) {
+      final page = await _repository.searchPublicationsPage(
+        _query,
+        yearSort: _reverseYearSort(_yearSort),
+        page: reversePage,
+      );
+
+      return PublicationSearchPage(
+        publications: page.publications,
+        totalCount: page.totalCount,
+        page: targetPage,
+        perPage: page.perPage,
+      );
+    }
+
+    return await _repository.searchPublicationsPage(
+      _query,
+      yearSort: _yearSort,
+      page: targetPage,
+    );
+  }
+
+  PublicationYearSort _reverseYearSort(PublicationYearSort yearSort) {
+    return switch (yearSort) {
+      PublicationYearSort.descending => PublicationYearSort.ascending,
+      PublicationYearSort.ascending => PublicationYearSort.descending,
+    };
+  }
+
   Future<void> setYearSort(PublicationYearSort yearSort) async {
     if (_yearSort == yearSort) {
       return;
@@ -234,6 +284,23 @@ class PublicationProvider extends ChangeNotifier {
       return;
     }
     await goToPage(1, force: true);
+  }
+
+  void setDarkMode(bool enabled) {
+    if (_isDarkMode == enabled) {
+      return;
+    }
+    _isDarkMode = enabled;
+    notifyListeners();
+  }
+
+  void setFilterFuturePublicationMetadata(bool enabled) {
+    if (_filterFuturePublicationMetadata == enabled) {
+      return;
+    }
+    _filterFuturePublicationMetadata = enabled;
+    _sortAnalysisPublications();
+    notifyListeners();
   }
 
   void clear() {
@@ -272,6 +339,9 @@ class PublicationProvider extends ChangeNotifier {
   void _sortAnalysisPublications() {
     final sorted = _publications.where((publication) {
       final year = publication.year;
+      if (!_filterFuturePublicationMetadata) {
+        return true;
+      }
       return year == null || year <= DateTime.now().year;
     }).toList();
     sorted.sort(_comparePublicationsByYear);

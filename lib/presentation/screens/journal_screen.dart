@@ -26,11 +26,12 @@ class JournalScreen extends StatelessWidget {
           children: [
             _buildHeader(context, provider),
             Expanded(
-                child: _PublicationResults(
-              provider: provider,
-              journalFilter: journalFilter,
-              authorFilter: authorFilter,
-            )),
+              child: _PublicationResults(
+                provider: provider,
+                journalFilter: journalFilter,
+                authorFilter: authorFilter,
+              ),
+            ),
           ],
         ),
       ),
@@ -53,54 +54,54 @@ class JournalScreen extends StatelessWidget {
                       journalFilter != null
                           ? 'Journal: $journalFilter'
                           : authorFilter != null
-                              ? 'Author: $authorFilter'
-                              : 'Journals',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w800,
-                              ),
+                          ? 'Author: $authorFilter'
+                          : 'Journals',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     if (provider.hasSearched && provider.error == null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Builder(builder: (ctx) {
-                          if (journalFilter != null || authorFilter != null) {
-                            final all = provider.analysisPublications;
-                            final filtered = all.where((p) {
-                              if (journalFilter != null) {
-                                return p.journalName
-                                    .toLowerCase()
-                                    .contains(journalFilter!.toLowerCase());
-                              }
-                              if (authorFilter != null) {
-                                return p.authors.any((a) =>
-                                    a.toLowerCase().contains(authorFilter!.toLowerCase()));
-                              }
-                              return true;
-                            }).toList();
-                            return Text(
-                              '${filtered.length} publications',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary),
+                        child: Builder(
+                          builder: (ctx) {
+                            if (journalFilter != null || authorFilter != null) {
+                              final all = provider.analysisPublications;
+                              final filtered = all.where((p) {
+                                if (journalFilter != null) {
+                                  return p.journalName.toLowerCase().contains(
+                                    journalFilter!.toLowerCase(),
+                                  );
+                                }
+                                if (authorFilter != null) {
+                                  return p.authors.any(
+                                    (a) => a.toLowerCase().contains(
+                                      authorFilter!.toLowerCase(),
+                                    ),
+                                  );
+                                }
+                                return true;
+                              }).toList();
+                              return Text(
+                                '${filtered.length} publications',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                provider.totalAvailable > 0
+                                    ? '${provider.totalAvailable} publications · Page ${provider.currentPage}/${provider.totalPages}'
+                                    : '${provider.publications.length} publications loaded',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
                             );
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              provider.totalAvailable > 0
-                                  ? '${provider.totalAvailable} publications · Page ${provider.currentPage}/${provider.totalPages}'
-                                  : '${provider.publications.length} publications loaded',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                      color: AppColors.textSecondary),
-                            ),
-                          );
-                        }),
+                          },
+                        ),
                       ),
                   ],
                 ),
@@ -157,8 +158,7 @@ class _SortChipControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDesc =
-        provider.yearSort == PublicationYearSort.descending;
+    final isDesc = provider.yearSort == PublicationYearSort.descending;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -174,9 +174,9 @@ class _SortChipControl extends StatelessWidget {
           selected: isDesc,
           onTap: provider.isLoading
               ? null
-              : () => context
-                    .read<PublicationProvider>()
-                    .setYearSort(PublicationYearSort.descending),
+              : () => context.read<PublicationProvider>().setYearSort(
+                  PublicationYearSort.descending,
+                ),
         ),
         const SizedBox(width: 4),
         _SortChip(
@@ -184,9 +184,9 @@ class _SortChipControl extends StatelessWidget {
           selected: !isDesc,
           onTap: provider.isLoading
               ? null
-              : () => context
-                    .read<PublicationProvider>()
-                    .setYearSort(PublicationYearSort.ascending),
+              : () => context.read<PublicationProvider>().setYearSort(
+                  PublicationYearSort.ascending,
+                ),
         ),
       ],
     );
@@ -212,9 +212,7 @@ class _SortChip extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary
-              : AppColors.surfaceVariant,
+          color: selected ? AppColors.primary : AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.borderLight,
@@ -238,22 +236,23 @@ class _PublicationResults extends StatelessWidget {
   final String? journalFilter;
   final String? authorFilter;
 
-  const _PublicationResults({required this.provider, this.journalFilter, this.authorFilter});
+  const _PublicationResults({
+    required this.provider,
+    this.journalFilter,
+    this.authorFilter,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (!provider.hasSearched) {
       return const AppEmptyView(
-        message:
-            'Search a research topic from Home\nto browse publications.',
+        message: 'Search a research topic from Home\nto browse publications.',
         icon: Icons.article_outlined,
       );
     }
 
     if (provider.isLoading) {
-      return const AppLoading(
-        message: 'Loading OpenAlex publications...',
-      );
+      return const AppLoading(message: 'Loading OpenAlex publications...');
     }
 
     final error = provider.error;
@@ -262,17 +261,28 @@ class _PublicationResults extends StatelessWidget {
         error: error,
         onRetry: provider.query.isEmpty
             ? null
-            : () =>
-                context.read<PublicationProvider>().search(provider.query),
+            : () => context.read<PublicationProvider>().search(provider.query),
       );
     }
 
     final all = provider.analysisPublications;
     final results = (journalFilter != null)
-        ? all.where((p) => p.journalName.toLowerCase().contains(journalFilter!.toLowerCase())).toList()
+        ? all
+              .where(
+                (p) => p.journalName.toLowerCase().contains(
+                  journalFilter!.toLowerCase(),
+                ),
+              )
+              .toList()
         : (authorFilter != null)
-            ? all.where((p) => p.authors.any((a) => a.toLowerCase().contains(authorFilter!.toLowerCase()))).toList()
-            : all;
+        ? all
+              .where(
+                (p) => p.authors.any(
+                  (a) => a.toLowerCase().contains(authorFilter!.toLowerCase()),
+                ),
+              )
+              .toList()
+        : all;
     if (results.isEmpty) {
       return const AppEmptyView(
         message: 'No publications found.',
@@ -293,8 +303,7 @@ class _PublicationResults extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        PublicationDetailScreen(publication: pub),
+                    builder: (_) => PublicationDetailScreen(publication: pub),
                   ),
                 ),
               );
@@ -311,10 +320,7 @@ class _PublicationCard extends StatelessWidget {
   final dynamic publication;
   final VoidCallback onTap;
 
-  const _PublicationCard({
-    required this.publication,
-    required this.onTap,
-  });
+  const _PublicationCard({required this.publication, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -346,19 +352,19 @@ class _PublicationCard extends StatelessWidget {
               Text(
                 publication.title as String,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                      height: 1.4,
-                    ),
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  height: 1.4,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
               Text(
                 publication.journalName as String,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -445,72 +451,83 @@ class _PaginationBar extends StatelessWidget {
     }
 
     final pages = _visiblePages(provider.currentPage, provider.totalPages);
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.borderLight)),
-        color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+        color: colorScheme.surface,
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _PagIconBtn(
-              icon: Icons.chevron_left_rounded,
-              tooltip: 'Previous page',
-              enabled: provider.canGoPrevious,
-              onPressed: () =>
-                  provider.goToPage(provider.currentPage - 1),
-            ),
-            for (final page in pages)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: page == null
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          '···',
-                          style: TextStyle(color: AppColors.textHint),
-                        ),
-                      )
-                    : _PageButton(
-                        page: page,
-                        selected: page == provider.currentPage,
-                        onPressed: provider.isLoading
-                            ? null
-                            : () => provider.goToPage(page),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _PagIconBtn(
+            icon: Icons.first_page_rounded,
+            tooltip: 'First page',
+            enabled: provider.canGoPrevious,
+            onPressed: () => provider.goToPage(1),
+          ),
+          _PagIconBtn(
+            icon: Icons.chevron_left_rounded,
+            tooltip: 'Previous page',
+            enabled: provider.canGoPrevious,
+            onPressed: () => provider.goToPage(provider.currentPage - 1),
+          ),
+          for (final page in pages)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: page == null
+                  ? const Padding(
+                      padding: EdgeInsets.zero,
+                      child: Text(
+                        '···',
+                        style: TextStyle(color: AppColors.textHint),
                       ),
-              ),
-            _PagIconBtn(
-              icon: Icons.chevron_right_rounded,
-              tooltip: 'Next page',
-              enabled: provider.canGoNext,
-              onPressed: () =>
-                  provider.goToPage(provider.currentPage + 1),
+                    )
+                  : _PageButton(
+                      page: page,
+                      selected: page == provider.currentPage,
+                      onPressed: provider.isLoading
+                          ? null
+                          : () => provider.goToPage(page),
+                    ),
             ),
-          ],
-        ),
+          _PagIconBtn(
+            icon: Icons.chevron_right_rounded,
+            tooltip: 'Next page',
+            enabled: provider.canGoNext,
+            onPressed: () => provider.goToPage(provider.currentPage + 1),
+          ),
+          _PagIconBtn(
+            icon: Icons.last_page_rounded,
+            tooltip: 'Last page',
+            enabled: provider.canGoNext,
+            onPressed: () => provider.goToPage(provider.totalPages),
+          ),
+        ],
       ),
     );
   }
 
   List<int?> _visiblePages(int currentPage, int totalPages) {
-    if (totalPages <= 7) {
+    if (totalPages <= 5) {
       return [for (var page = 1; page <= totalPages; page++) page];
     }
-    final pages = <int?>{1, totalPages};
+
+    final pages = <int?>[1];
+    if (currentPage > 2) {
+      pages.add(null);
+    }
     for (var page = currentPage - 1; page <= currentPage + 1; page++) {
-      if (page > 1 && page < totalPages) pages.add(page);
-    }
-    final sorted = pages.toList()..sort((a, b) => a!.compareTo(b!));
-    final visible = <int?>[];
-    for (final page in sorted) {
-      if (visible.isNotEmpty && page! - visible.last! > 1) {
-        visible.add(null);
+      if (page > 1 && page < totalPages) {
+        pages.add(page);
       }
-      visible.add(page);
     }
-    return visible;
+    if (currentPage < totalPages - 1) {
+      pages.add(null);
+    }
+    pages.add(totalPages);
+    return pages;
   }
 }
 
@@ -529,17 +546,20 @@ class _PagIconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Tooltip(
       message: tooltip,
       child: InkWell(
         onTap: enabled ? onPressed : null,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(6),
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 30,
+          height: 34,
           child: Icon(
             icon,
-            size: 20,
-            color: enabled ? AppColors.primary : AppColors.textHint,
+            size: 19,
+            color: enabled ? AppColors.primary : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -560,18 +580,21 @@ class _PageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return InkWell(
       onTap: onPressed,
+      borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        constraints: const BoxConstraints(minWidth: 34),
+        constraints: const BoxConstraints(minWidth: 32),
         height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 7),
         decoration: BoxDecoration(
           color: selected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.borderLight,
+            color: selected ? AppColors.primary : colorScheme.outlineVariant,
           ),
         ),
         alignment: Alignment.center,
@@ -580,7 +603,7 @@ class _PageButton extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppColors.textSecondary,
+            color: selected ? Colors.white : colorScheme.onSurfaceVariant,
           ),
         ),
       ),

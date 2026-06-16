@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/constants/app_colors.dart';
 import '../screens/home_screen.dart';
 import '../screens/journal_screen.dart';
 import '../screens/keywords_screen.dart';
@@ -49,10 +48,10 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark.copyWith(
-        statusBarColor: Colors.transparent,
-      ),
+      value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+          .copyWith(statusBarColor: Colors.transparent),
       child: Scaffold(
         body: IndexedStack(index: index, children: _screens),
         bottomNavigationBar: _BottomNavBar(
@@ -90,12 +89,13 @@ class _BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.07),
+            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.07),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -137,7 +137,7 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final activeColor = colorScheme.primary;
-    final inactiveColor = AppColors.textSecondary;
+    final inactiveColor = colorScheme.onSurfaceVariant;
     final color = isSelected ? activeColor : inactiveColor;
 
     return InkWell(
