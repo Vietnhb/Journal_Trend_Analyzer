@@ -170,8 +170,16 @@ class _MetadataCard extends StatelessWidget {
             InkWell(
               onTap: () async {
                 final uri = Uri.tryParse(publication.url!);
-                if (uri != null && await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                if (uri != null) {
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not open the link.')),
+                      );
+                    }
+                  }
                 }
               },
               child: Padding(
