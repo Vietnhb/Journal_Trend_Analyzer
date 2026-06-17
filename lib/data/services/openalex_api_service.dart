@@ -49,23 +49,30 @@ class OpenAlexApiService {
     PublicationYearSort yearSort = PublicationYearSort.descending,
     int page = 1,
     int perPage = defaultPerPage,
+    bool excludeFuturePublications = false,
   }) async {
     final trimmedTopic = topic.trim();
     if (trimmedTopic.isEmpty) {
-      throw AppError('Please enter a topic to search.');
+      throw AppError('Please enter a search term.');
     }
 
     final safePage = page < 1 ? 1 : page;
     final safePerPage = perPage.clamp(1, defaultPerPage);
+    final queryParameters = {
+      'search': trimmedTopic,
+      'per-page': safePerPage.toString(),
+      'page': safePage.toString(),
+      'sort': yearSort.apiSort,
+      'mailto': 'vietnhbse183457@fpt.edu.vn',
+    };
+    if (excludeFuturePublications) {
+      queryParameters['filter'] =
+          'to_publication_date:${_currentPublicationDateFilter()}';
+    }
+
     final uri = _baseUri.replace(
       path: '/works',
-      queryParameters: {
-        'search': trimmedTopic,
-        'per-page': safePerPage.toString(),
-        'page': safePage.toString(),
-        'sort': yearSort.apiSort,
-        'mailto': 'vietnhbse183457@fpt.edu.vn',
-      },
+      queryParameters: queryParameters,
     );
 
     try {
@@ -136,19 +143,28 @@ class OpenAlexApiService {
     return null;
   }
 
-  Future<Map<int, int>> getPublicationsByYear(String topic) async {
+  Future<Map<int, int>> getPublicationsByYear(
+    String topic, {
+    bool excludeFuturePublications = false,
+  }) async {
     final trimmedTopic = topic.trim();
     if (trimmedTopic.isEmpty) {
-      throw AppError('Please enter a topic to search.');
+      throw AppError('Please enter a search term.');
+    }
+
+    final queryParameters = {
+      'search': trimmedTopic,
+      'group_by': 'publication_year',
+      'mailto': 'vietnhbse183457@fpt.edu.vn',
+    };
+    if (excludeFuturePublications) {
+      queryParameters['filter'] =
+          'to_publication_date:${_currentPublicationDateFilter()}';
     }
 
     final uri = _baseUri.replace(
       path: '/works',
-      queryParameters: {
-        'search': trimmedTopic,
-        'group_by': 'publication_year',
-        'mailto': 'vietnhbse183457@fpt.edu.vn',
-      },
+      queryParameters: queryParameters,
     );
 
     try {
@@ -199,19 +215,28 @@ class OpenAlexApiService {
     }
   }
 
-  Future<List<Publication>> getTopPapers(String topic) async {
+  Future<List<Publication>> getTopPapers(
+    String topic, {
+    bool excludeFuturePublications = false,
+  }) async {
     final trimmedTopic = topic.trim();
     if (trimmedTopic.isEmpty) return [];
 
+    final queryParameters = {
+      'search': trimmedTopic,
+      'per-page': '50',
+      'page': '1',
+      'sort': 'cited_by_count:desc',
+      'mailto': 'vietnhbse183457@fpt.edu.vn',
+    };
+    if (excludeFuturePublications) {
+      queryParameters['filter'] =
+          'to_publication_date:${_currentPublicationDateFilter()}';
+    }
+
     final uri = _baseUri.replace(
       path: '/works',
-      queryParameters: {
-        'search': trimmedTopic,
-        'per-page': '50',
-        'page': '1',
-        'sort': 'cited_by_count:desc',
-        'mailto': 'vietnhbse183457@fpt.edu.vn',
-      },
+      queryParameters: queryParameters,
     );
 
     try {
@@ -239,5 +264,12 @@ class OpenAlexApiService {
 
   void dispose() {
     _client.close();
+  }
+
+  String _currentPublicationDateFilter() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '${now.year}-$month-$day';
   }
 }

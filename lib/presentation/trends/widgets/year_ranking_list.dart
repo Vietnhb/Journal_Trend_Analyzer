@@ -9,10 +9,17 @@ class YearRankingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (rankedYears.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: Text('No ranking available')),
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Text(
+            'No ranking available',
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+          ),
+        ),
       );
     }
 
@@ -45,10 +52,7 @@ class YearRankingList extends StatelessWidget {
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
               // Rank avatar
@@ -67,7 +71,7 @@ class YearRankingList extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textSecondary,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
               ),
@@ -78,24 +82,22 @@ class YearRankingList extends StatelessWidget {
                   children: [
                     Text(
                       'Year ${entry.key}',
-                      style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                     Text(
                       rank == 1
                           ? 'Most active year'
                           : rank == 2
-                              ? '2nd most active'
-                              : rank == 3
-                                  ? '3rd most active'
-                                  : 'Rank #$rank',
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          ? '2nd most active'
+                          : rank == 3
+                          ? '3rd most active'
+                          : 'Rank #$rank',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -106,9 +108,7 @@ class YearRankingList extends StatelessWidget {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: medalColor.withValues(
-                    alpha: rank <= 3 ? 0.12 : 0.06,
-                  ),
+                  color: medalColor.withValues(alpha: rank <= 3 ? 0.12 : 0.06),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -116,7 +116,9 @@ class YearRankingList extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: rank <= 3 ? medalColor : AppColors.textSecondary,
+                    color: rank <= 3
+                        ? medalColor
+                        : colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

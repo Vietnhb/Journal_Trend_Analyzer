@@ -158,6 +158,7 @@ class PublicationProvider extends ChangeNotifier {
         trimmed,
         yearSort: _yearSort,
         page: 1,
+        excludeFuturePublications: _filterFuturePublicationMetadata,
       );
       _applySearchPage(page);
     } on AppError catch (error) {
@@ -187,8 +188,14 @@ class PublicationProvider extends ChangeNotifier {
 
     try {
       final results = await Future.wait([
-        _repository.getPublicationsByYear(query),
-        _repository.getTopPapers(query),
+        _repository.getPublicationsByYear(
+          query,
+          excludeFuturePublications: _filterFuturePublicationMetadata,
+        ),
+        _repository.getTopPapers(
+          query,
+          excludeFuturePublications: _filterFuturePublicationMetadata,
+        ),
       ]);
       _analyticsPublicationsByYear = results[0] as Map<int, int>;
       _topPapersData = results[1] as List<Publication>;
@@ -249,6 +256,7 @@ class PublicationProvider extends ChangeNotifier {
         _query,
         yearSort: _reverseYearSort(_yearSort),
         page: reversePage,
+        excludeFuturePublications: _filterFuturePublicationMetadata,
       );
 
       return PublicationSearchPage(
@@ -263,6 +271,7 @@ class PublicationProvider extends ChangeNotifier {
       _query,
       yearSort: _yearSort,
       page: targetPage,
+      excludeFuturePublications: _filterFuturePublicationMetadata,
     );
   }
 
@@ -294,13 +303,17 @@ class PublicationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setFilterFuturePublicationMetadata(bool enabled) {
+  Future<void> setFilterFuturePublicationMetadata(bool enabled) async {
     if (_filterFuturePublicationMetadata == enabled) {
       return;
     }
     _filterFuturePublicationMetadata = enabled;
     _sortAnalysisPublications();
     notifyListeners();
+    if (_query.isNotEmpty && _hasSearched) {
+      await goToPage(1, force: true);
+      _loadAnalytics(_query);
+    }
   }
 
   void clear() {
@@ -337,15 +350,29 @@ class PublicationProvider extends ChangeNotifier {
   }
 
   void _sortAnalysisPublications() {
-    final sorted = _publications.where((publication) {
-      final year = publication.year;
-      if (!_filterFuturePublicationMetadata) {
-        return true;
-      }
-      return year == null || year <= DateTime.now().year;
-    }).toList();
+    final sorted = _publications.where(_isPublicationCurrent).toList();
     sorted.sort(_comparePublicationsByYear);
     _analysisPublications = sorted;
+  }
+
+  bool _isPublicationCurrent(Publication publication) {
+    if (!_filterFuturePublicationMetadata) {
+      return true;
+    }
+
+    final publicationDate = publication.publicationDate;
+    if (publicationDate != null) {
+      final parsed = DateTime.tryParse(publicationDate);
+      if (parsed != null) {
+        final today = DateTime.now();
+        final todayOnly = DateTime(today.year, today.month, today.day);
+        final publishedDate = DateTime(parsed.year, parsed.month, parsed.day);
+        return !publishedDate.isAfter(todayOnly);
+      }
+    }
+
+    final year = publication.year;
+    return year == null || year <= DateTime.now().year;
   }
 
   int _comparePublicationsByYear(Publication a, Publication b) {

@@ -134,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 15,
               ),
               decoration: InputDecoration(
-                hintText: 'e.g. deep learning, climate change...',
+                hintText: 'Title, author, journal, DOI',
                 hintStyle: TextStyle(
                   color: inputHint,
                   fontWeight: FontWeight.w400,
@@ -191,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : const Icon(Icons.search_rounded, size: 20),
               label: Text(
-                provider.isLoading ? 'Searching...' : 'Search Topic',
+                provider.isLoading ? 'Searching...' : 'Search Publications',
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -276,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(Icons.manage_search_rounded, size: 36, color: mutedText),
                 const SizedBox(height: 8),
                 Text(
-                  'No recent searches yet.\nStart by searching a research topic above.',
+                  'No recent searches yet.\nSearch by title, abstract, author, journal, or DOI.',
                   textAlign: TextAlign.center,
                   style: Theme.of(
                     context,

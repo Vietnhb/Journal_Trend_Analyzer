@@ -39,6 +39,8 @@ class JournalScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, PublicationProvider provider) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(
@@ -58,7 +60,7 @@ class JournalScreen extends StatelessWidget {
                           : 'Journals',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
-                            color: AppColors.textPrimary,
+                            color: colorScheme.onSurface,
                             fontWeight: FontWeight.w800,
                           ),
                     ),
@@ -87,7 +89,9 @@ class JournalScreen extends StatelessWidget {
                               return Text(
                                 '${filtered.length} publications',
                                 style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: AppColors.textSecondary),
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                               );
                             }
                             return Padding(
@@ -97,7 +101,9 @@ class JournalScreen extends StatelessWidget {
                                     ? '${provider.totalAvailable} publications · Page ${provider.currentPage}/${provider.totalPages}'
                                     : '${provider.publications.length} publications loaded',
                                 style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: AppColors.textSecondary),
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                               ),
                             );
                           },
@@ -159,15 +165,12 @@ class _SortChipControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDesc = provider.yearSort == PublicationYearSort.descending;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.sort_rounded,
-          size: 16,
-          color: AppColors.textSecondary,
-        ),
+        Icon(Icons.sort_rounded, size: 16, color: mutedColor),
         const SizedBox(width: 4),
         _SortChip(
           label: 'Newest',
@@ -206,16 +209,20 @@ class _SortChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.surfaceVariant,
+          color: selected
+              ? AppColors.primary
+              : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.borderLight,
+            color: selected ? AppColors.primary : colorScheme.outlineVariant,
           ),
         ),
         child: Text(
@@ -223,7 +230,7 @@ class _SortChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppColors.textSecondary,
+            color: selected ? Colors.white : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -246,7 +253,8 @@ class _PublicationResults extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!provider.hasSearched) {
       return const AppEmptyView(
-        message: 'Search a research topic from Home\nto browse publications.',
+        message:
+            'Search by title, abstract, author, journal, or DOI\nfrom Home to browse publications.',
         icon: Icons.article_outlined,
       );
     }
@@ -326,16 +334,21 @@ class _PublicationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final year = publication.year;
     final citations = publication.citationCount as int;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.04,
+            ),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -353,7 +366,7 @@ class _PublicationCard extends StatelessWidget {
                 publication.title as String,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: colorScheme.onSurface,
                   height: 1.4,
                 ),
                 maxLines: 2,
@@ -362,9 +375,9 @@ class _PublicationCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 publication.journalName as String,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -383,7 +396,7 @@ class _PublicationCard extends StatelessWidget {
                     label: '$citations citations',
                     color: citations > 50
                         ? AppColors.success
-                        : AppColors.textSecondary,
+                        : colorScheme.onSurfaceVariant,
                   ),
                   const Spacer(),
                   const Icon(

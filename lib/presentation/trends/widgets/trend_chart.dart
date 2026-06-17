@@ -12,11 +12,13 @@ class TrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (data.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'No data available',
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -87,8 +89,8 @@ class TrendChart extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     value.toInt().toString(),
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                       fontSize: 11,
                     ),
@@ -113,8 +115,8 @@ class TrendChart extends StatelessWidget {
                       alignment: Alignment.centerRight,
                       child: Text(
                         _formatCount(value),
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
                           fontSize: 11,
                         ),
                         maxLines: 1,
@@ -139,7 +141,7 @@ class TrendChart extends StatelessWidget {
           drawVerticalLine: false,
           horizontalInterval: horizontalInterval,
           getDrawingHorizontalLine: (value) => FlLine(
-            color: AppColors.borderLight.withValues(alpha: 0.8),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.8),
             strokeWidth: 1,
             dashArray: [4, 4],
           ),

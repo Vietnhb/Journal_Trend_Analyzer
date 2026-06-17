@@ -2,6 +2,7 @@ class Publication {
   final String id;
   final String title;
   final int? year;
+  final String? publicationDate;
   final int citationCount;
   final String journalName;
   final List<String> authors;
@@ -13,6 +14,7 @@ class Publication {
     required this.id,
     required this.title,
     required this.year,
+    this.publicationDate,
     required this.citationCount,
     required this.journalName,
     required this.authors,
@@ -29,6 +31,7 @@ class Publication {
           _asString(json['display_name']) ??
           'Untitled publication',
       year: _asInt(json['publication_year']),
+      publicationDate: _emptyToNull(_asString(json['publication_date'])),
       citationCount: _asInt(json['cited_by_count']) ?? 0,
       journalName: _extractJournalName(json),
       authors: _extractAuthors(json),

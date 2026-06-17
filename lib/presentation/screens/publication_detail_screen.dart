@@ -141,8 +141,8 @@ class _MetadataCard extends StatelessWidget {
           _InfoRow(
             icon: Icons.calendar_today_outlined,
             iconColor: AppColors.info,
-            label: 'Year',
-            value: publication.year?.toString() ?? 'Unknown',
+            label: 'Publication date',
+            value: _formatPublicationDate(publication),
           ),
           const Divider(height: 1, indent: 56),
           _InfoRow(
@@ -243,6 +243,22 @@ class _MetadataCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatPublicationDate(Publication publication) {
+    final rawDate = publication.publicationDate;
+    if (rawDate == null || rawDate.isEmpty) {
+      return publication.year?.toString() ?? 'Unknown';
+    }
+
+    final parsed = DateTime.tryParse(rawDate);
+    if (parsed == null) {
+      return rawDate;
+    }
+
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = parsed.month.toString().padLeft(2, '0');
+    return '$day/$month/${parsed.year}';
   }
 }
 

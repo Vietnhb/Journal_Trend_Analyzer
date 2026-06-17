@@ -14,20 +14,34 @@ class PublicationRepository {
     String topic, {
     PublicationYearSort yearSort = PublicationYearSort.descending,
     int page = 1,
+    bool excludeFuturePublications = false,
   }) {
     return _apiService.searchWorksPage(
       topic: topic,
       yearSort: yearSort,
       page: page,
+      excludeFuturePublications: excludeFuturePublications,
     );
   }
 
-  Future<Map<int, int>> getPublicationsByYear(String topic) {
-    return _apiService.getPublicationsByYear(topic);
+  Future<Map<int, int>> getPublicationsByYear(
+    String topic, {
+    bool excludeFuturePublications = false,
+  }) {
+    return _apiService.getPublicationsByYear(
+      topic,
+      excludeFuturePublications: excludeFuturePublications,
+    );
   }
 
-  Future<List<Publication>> getTopPapers(String topic) {
-    return _apiService.getTopPapers(topic);
+  Future<List<Publication>> getTopPapers(
+    String topic, {
+    bool excludeFuturePublications = false,
+  }) {
+    return _apiService.getTopPapers(
+      topic,
+      excludeFuturePublications: excludeFuturePublications,
+    );
   }
 
   void dispose() {

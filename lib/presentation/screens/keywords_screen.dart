@@ -32,6 +32,8 @@ class KeywordsScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Column(
@@ -40,16 +42,16 @@ class KeywordsScreen extends StatelessWidget {
           Text(
             'Analytics',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: AppColors.textPrimary,
+              color: colorScheme.onSurface,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             'Publication trends & rankings',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           const Divider(height: 1),
@@ -68,13 +70,14 @@ class _KeywordsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!provider.hasSearched) {
       return const AppEmptyView(
-        message: 'Search a topic from Home\nto view trends and rankings.',
+        message:
+            'Search by title, abstract, author, journal, or DOI\nfrom Home to view trends and rankings.',
         icon: Icons.query_stats_outlined,
       );
     }
 
     if (provider.isLoading && provider.analysisPublications.isEmpty) {
-      return const AppLoading(message: 'Building topic analysis...');
+      return const AppLoading(message: 'Building publication analysis...');
     }
 
     final error = provider.error;
@@ -298,16 +301,22 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       constraints: const BoxConstraints(minHeight: 106),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.03),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.03,
+            ),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -340,7 +349,7 @@ class _MetricCard extends StatelessWidget {
               child: Text(
                 value,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: colorScheme.onSurface,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -359,7 +368,7 @@ class _MetricCard extends StatelessWidget {
                     title,
                     maxLines: 1,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -368,7 +377,9 @@ class _MetricCard extends StatelessWidget {
                       subtitle!,
                       maxLines: 1,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textHint,
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.72,
+                        ),
                         fontSize: 10,
                       ),
                     ),
@@ -458,6 +469,8 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       children: [
         Container(
@@ -473,7 +486,7 @@ class _SectionHeader extends StatelessWidget {
           title,
           style: Theme.of(
             context,
-          ).textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+          ).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
         ),
       ],
     );
@@ -486,16 +499,22 @@ class _TrendChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       height: 330,
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.04,
+            ),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -529,14 +548,20 @@ class _YearRankingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.04,
+            ),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -582,6 +607,7 @@ class _HorizontalBarSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
+    final colorScheme = Theme.of(context).colorScheme;
 
     final maxValue = items
         .map((e) => e.value)
@@ -596,12 +622,16 @@ class _HorizontalBarSection extends StatelessWidget {
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderLight),
+              border: Border.all(color: colorScheme.outlineVariant),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.textPrimary.withValues(alpha: 0.04),
+                  color: Colors.black.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.18
+                        : 0.04,
+                  ),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -637,6 +667,7 @@ class _BarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ratio = maxValue == 0 ? 0.0 : item.value / maxValue;
+    final colorScheme = Theme.of(context).colorScheme;
 
     Widget content = Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -654,7 +685,7 @@ class _BarRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: rank == 1
                       ? AppColors.gold.withValues(alpha: 0.15)
-                      : AppColors.surfaceVariant,
+                      : colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -662,7 +693,9 @@ class _BarRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: rank == 1 ? AppColors.gold : AppColors.textSecondary,
+                    color: rank == 1
+                        ? AppColors.gold
+                        : colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -677,7 +710,7 @@ class _BarRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     if (item.details != null)
@@ -686,7 +719,7 @@ class _BarRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                   ],
