@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../data/repositories/publication_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 
 class TrendChart extends StatelessWidget {
   final Map<int, int> data;

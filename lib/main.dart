@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_typography.dart';
-import 'presentation/providers/publication_provider.dart';
+import 'presentation/providers/journal_provider.dart';
 import 'presentation/widgets/app_bottom_nav_shell.dart';
 
 void main() {
@@ -16,8 +16,8 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => PublicationProvider(),
-      child: Consumer<PublicationProvider>(
+      create: (_) => JournalProvider(),
+      child: Consumer<JournalProvider>(
         builder: (context, provider, child) {
           return MaterialApp(
             title: 'Journal Trend Analyzer',

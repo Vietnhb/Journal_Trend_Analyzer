@@ -3,16 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/errors/app_errors.dart';
-import '../../core/widgets/app_error_view.dart';
-import '../../core/widgets/app_loading.dart';
-import '../../data/models/publication.dart';
-import '../providers/publication_provider.dart';
-import 'publication_detail_screen.dart';
+import '../../data/models/ranked_entity.dart';
+import '../providers/journal_provider.dart';
 
-enum TopEntityType { journal, author }
+enum TopEntityType { journal }
 
-class TopEntityDetailScreen extends StatefulWidget {
+class TopEntityDetailScreen extends StatelessWidget {
   final TopEntityType type;
   final String entityId;
   final String name;
@@ -29,78 +25,44 @@ class TopEntityDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<TopEntityDetailScreen> createState() => _TopEntityDetailScreenState();
-}
-
-class _TopEntityDetailScreenState extends State<TopEntityDetailScreen> {
-  bool _isLoading = true;
-  AppError? _error;
-  List<Publication> _publications = const [];
-  int _totalCount = 0;
-
-  bool get _isJournal => widget.type == TopEntityType.journal;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final page = await context.read<PublicationProvider>().loadEntityPublications(
-        sourceId: _isJournal ? widget.entityId : null,
-        authorId: _isJournal ? null : widget.entityId,
-      );
-      if (!mounted) return;
-      setState(() {
-        _publications = page.publications;
-        _totalCount = page.totalCount;
-        _isLoading = false;
-      });
-    } on AppError catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error;
-        _isLoading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = AppError('Failed to load publications.', details: error.toString());
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final provider = context.watch<JournalProvider>();
+    final matches = provider.journals.where((item) => item.id == entityId);
+    final journal = matches.isNotEmpty
+        ? matches.first
+        : provider.selectedJournal ??
+              RankedEntity(id: entityId, name: name, worksCount: worksCount);
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(context),
-          if (!_isLoading && _error == null && _publications.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                child: _StatsCard(
-                  totalWorks: _totalCount,
-                  loaded: _publications,
-                ),
-              ),
+          _AppBar(journal: journal, topic: topic),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate.fixed([
+                _OverviewCard(journal: journal),
+                const SizedBox(height: 14),
+                _JournalMetaCard(journal: journal),
+                const SizedBox(height: 14),
+                _TopicsCard(topics: journal.topics),
+              ]),
             ),
-          _buildBody(context),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildAppBar(BuildContext context) {
+class _AppBar extends StatelessWidget {
+  final RankedEntity journal;
+  final String topic;
+
+  const _AppBar({required this.journal, required this.topic});
+
+  @override
+  Widget build(BuildContext context) {
     return SliverAppBar(
       expandedHeight: 196,
       pinned: true,
@@ -108,7 +70,7 @@ class _TopEntityDetailScreenState extends State<TopEntityDetailScreen> {
       iconTheme: const IconThemeData(color: Colors.white),
       systemOverlayStyle: SystemUiOverlayStyle.light,
       title: Text(
-        _isJournal ? 'Journal' : 'Author',
+        'Journal Source',
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -129,7 +91,10 @@ class _TopEntityDetailScreenState extends State<TopEntityDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
@@ -137,16 +102,14 @@ class _TopEntityDetailScreenState extends State<TopEntityDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      _isJournal
-                          ? Icons.book_outlined
-                          : Icons.person_outline_rounded,
+                    const Icon(
+                      Icons.book_outlined,
                       size: 13,
                       color: Colors.white,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${widget.worksCount} publications on "${widget.topic}"',
+                      '${journal.worksCount} source works for "$topic"',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -158,7 +121,7 @@ class _TopEntityDetailScreenState extends State<TopEntityDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                widget.name,
+                journal.name,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -174,79 +137,118 @@ class _TopEntityDetailScreenState extends State<TopEntityDetailScreen> {
       ),
     );
   }
+}
 
-  Widget _buildBody(BuildContext context) {
-    if (_isLoading) {
-      return const SliverFillRemaining(
-        hasScrollBody: false,
-        child: AppLoading(message: 'Loading publications...'),
-      );
-    }
+class _OverviewCard extends StatelessWidget {
+  final RankedEntity journal;
 
-    if (_error != null) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: AppErrorView(error: _error!, onRetry: _load),
-      );
-    }
+  const _OverviewCard({required this.journal});
 
-    if (_publications.isEmpty) {
-      return const SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(child: Text('No publications found.')),
-      );
-    }
-
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      sliver: SliverList.separated(
-        itemCount: _publications.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final pub = _publications[index];
-          return _PublicationTile(
-            publication: pub,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PublicationDetailScreen(publication: pub),
-              ),
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'Journal Dashboard',
+      children: [
+        Row(
+          children: [
+            _Stat(
+              icon: Icons.article_rounded,
+              color: AppColors.primary,
+              label: 'Works',
+              value: '${journal.worksCount}',
             ),
-          );
-        },
-      ),
+            _Stat(
+              icon: Icons.format_quote_rounded,
+              color: AppColors.success,
+              label: 'Citations',
+              value: '${journal.citedByCount}',
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            _Stat(
+              icon: Icons.insights_rounded,
+              color: AppColors.info,
+              label: 'H-index',
+              value: journal.hIndex?.toString() ?? '-',
+            ),
+            _Stat(
+              icon: Icons.stacked_bar_chart_rounded,
+              color: AppColors.gold,
+              label: 'i10-index',
+              value: journal.i10Index?.toString() ?? '-',
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-class _StatsCard extends StatelessWidget {
-  final int totalWorks;
-  final List<Publication> loaded;
+class _JournalMetaCard extends StatelessWidget {
+  final RankedEntity journal;
 
-  const _StatsCard({
-    required this.totalWorks,
-    required this.loaded,
-  });
+  const _JournalMetaCard({required this.journal});
+
+  @override
+  Widget build(BuildContext context) {
+    final years = [
+      journal.firstPublicationYear,
+      journal.lastPublicationYear,
+    ].whereType<int>().toList();
+
+    return _Card(
+      title: 'Source Metadata',
+      children: [
+        _MetaRow(label: 'Publisher', value: journal.publisher ?? '-'),
+        _MetaRow(label: 'ISSN-L', value: journal.issnL ?? '-'),
+        _MetaRow(
+          label: 'Year range',
+          value: years.length == 2 ? '${years.first}-${years.last}' : '-',
+        ),
+        _MetaRow(label: 'Homepage', value: journal.homepageUrl ?? '-'),
+      ],
+    );
+  }
+}
+
+class _TopicsCard extends StatelessWidget {
+  final List<RankedEntity> topics;
+
+  const _TopicsCard({required this.topics});
+
+  @override
+  Widget build(BuildContext context) {
+    if (topics.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return _Card(
+      title: 'Source Topics',
+      children: [
+        for (var i = 0; i < topics.take(10).length; i++) ...[
+          if (i > 0) const Divider(height: 18),
+          _MetaRow(
+            label: topics[i].name,
+            value: '${topics[i].worksCount} works',
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _Card extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _Card({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    final loadedCitations = loaded.fold<int>(
-      0,
-      (sum, pub) => sum + pub.citationCount,
-    );
-    final avgCitations = loaded.isEmpty ? 0 : loadedCitations ~/ loaded.length;
-    final years = loaded
-        .map((pub) => pub.year)
-        .whereType<int>()
-        .toList(growable: false);
-    final yearRange = years.isEmpty
-        ? '—'
-        : years.reduce((a, b) => a < b ? a : b) ==
-              years.reduce((a, b) => a > b ? a : b)
-        ? '${years.first}'
-        : '${years.reduce((a, b) => a < b ? a : b)}–${years.reduce((a, b) => a > b ? a : b)}';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -259,46 +261,14 @@ class _StatsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Overview',
+            title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              _Stat(
-                icon: Icons.article_rounded,
-                color: AppColors.primary,
-                label: 'Total works',
-                value: '$totalWorks',
-              ),
-              _Stat(
-                icon: Icons.download_done_rounded,
-                color: AppColors.info,
-                label: 'Loaded',
-                value: '${loaded.length}',
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _Stat(
-                icon: Icons.format_quote_rounded,
-                color: AppColors.success,
-                label: 'Avg cites (loaded)',
-                value: '$avgCitations',
-              ),
-              _Stat(
-                icon: Icons.date_range_rounded,
-                color: AppColors.gold,
-                label: 'Year range',
-                value: yearRange,
-              ),
-            ],
-          ),
+          ...children,
         ],
       ),
     );
@@ -342,6 +312,8 @@ class _Stat extends StatelessWidget {
               children: [
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w800,
@@ -364,97 +336,42 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _PublicationTile extends StatelessWidget {
-  final Publication publication;
-  final VoidCallback onTap;
+class _MetaRow extends StatelessWidget {
+  final String label;
+  final String value;
 
-  const _PublicationTile({required this.publication, required this.onTap});
+  const _MetaRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final year = publication.year;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                publication.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface,
-                  height: 1.4,
-                ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(height: 6),
-              Text(
-                publication.authors.isEmpty
-                    ? publication.journalName
-                    : publication.authors.take(3).join(', '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  if (year != null) ...[
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: 12,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$year',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Icon(
-                    Icons.format_quote_rounded,
-                    size: 12,
-                    color: publication.citationCount > 50
-                        ? AppColors.success
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${publication.citationCount} citations',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: publication.citationCount > 50
-                          ? AppColors.success
-                          : colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const Spacer(),
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 12,
-                    color: AppColors.textHint,
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

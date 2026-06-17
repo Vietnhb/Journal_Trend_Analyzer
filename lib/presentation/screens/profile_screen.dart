@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../providers/publication_provider.dart';
+import '../providers/journal_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<PublicationProvider>();
+    final provider = context.watch<JournalProvider>();
     final colorScheme = Theme.of(context).colorScheme;
     final mutedText = colorScheme.onSurfaceVariant;
 
@@ -65,7 +65,7 @@ class ProfileScreen extends StatelessWidget {
                       : 'Use the brighter app theme.',
                   trailing: Switch(
                     value: provider.isDarkMode,
-                    onChanged: context.read<PublicationProvider>().setDarkMode,
+                    onChanged: context.read<JournalProvider>().setDarkMode,
                     activeThumbColor: AppColors.primary,
                   ),
                 ),
@@ -73,13 +73,13 @@ class ProfileScreen extends StatelessWidget {
                 _SettingsTile(
                   icon: Icons.event_available_outlined,
                   iconColor: AppColors.info,
-                  title: 'Filter future publication metadata',
+                  title: 'Filter future source years',
                   subtitle: 'Uses the current year from the device.',
                   trailing: Switch(
-                    value: provider.filterFuturePublicationMetadata,
+                    value: provider.filterFutureSourceYears,
                     onChanged: context
-                        .read<PublicationProvider>()
-                        .setFilterFuturePublicationMetadata,
+                        .read<JournalProvider>()
+                        .setFilterFutureSourceYears,
                     activeThumbColor: AppColors.primary,
                   ),
                 ),
@@ -118,8 +118,7 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.category_outlined,
                   iconColor: AppColors.accent,
                   label: 'Scope',
-                  value:
-                      'Search, publications, trends,\nauthors, journals, dashboard',
+                  value: 'Sources, journals, trends,\ntopics, dashboard',
                 ),
               ],
             ),

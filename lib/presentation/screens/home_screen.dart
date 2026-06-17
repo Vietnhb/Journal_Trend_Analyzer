@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
-import '../providers/publication_provider.dart';
+import '../providers/journal_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<PublicationProvider>();
+    final provider = context.watch<JournalProvider>();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, PublicationProvider provider) {
+  Widget _buildHeader(BuildContext context, JournalProvider provider) {
     final topInset = MediaQuery.paddingOf(context).top;
     final colorScheme = Theme.of(context).colorScheme;
     final inputSurface = colorScheme.surface;
@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Explore Research\nTopics & Trends',
+            'Find Journals\nby Topic',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w800,
@@ -134,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 15,
               ),
               decoration: InputDecoration(
-                hintText: 'Title, author, journal, DOI',
+                hintText: 'Search topic to find journals',
                 hintStyle: TextStyle(
                   color: inputHint,
                   fontWeight: FontWeight.w400,
@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: const Icon(Icons.close_rounded, size: 20),
                         onPressed: () {
                           _searchController.clear();
-                          context.read<PublicationProvider>().clear();
+                          context.read<JournalProvider>().clear();
                           setState(() {});
                         },
                       )
@@ -191,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : const Icon(Icons.search_rounded, size: 20),
               label: Text(
-                provider.isLoading ? 'Searching...' : 'Search Publications',
+                provider.isLoading ? 'Searching...' : 'Search Journals',
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -204,26 +204,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStateSection(
-    BuildContext context,
-    PublicationProvider provider,
-  ) {
+  Widget _buildStateSection(BuildContext context, JournalProvider provider) {
     if (provider.isLoading) {
       return const Padding(
         padding: EdgeInsets.only(top: 24),
-        child: AppLoading(message: 'Loading OpenAlex publications...'),
+        child: AppLoading(message: 'Loading OpenAlex journals...'),
       );
     }
 
-    if (provider.error != null && provider.publications.isEmpty) {
+    if (provider.error != null && provider.journals.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 24),
         child: AppErrorView(
           error: provider.error!,
           onRetry: provider.query.isEmpty
               ? null
-              : () =>
-                    context.read<PublicationProvider>().search(provider.query),
+              : () => context.read<JournalProvider>().search(provider.query),
         ),
       );
     }
@@ -238,10 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return const SizedBox.shrink();
   }
 
-  Widget _buildRecentSearches(
-    BuildContext context,
-    PublicationProvider provider,
-  ) {
+  Widget _buildRecentSearches(BuildContext context, JournalProvider provider) {
     final recentSearches = provider.recentSearches;
     final colorScheme = Theme.of(context).colorScheme;
     final mutedText = colorScheme.onSurfaceVariant;
@@ -276,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(Icons.manage_search_rounded, size: 36, color: mutedText),
                 const SizedBox(height: 8),
                 Text(
-                  'No recent searches yet.\nSearch by title, abstract, author, journal, or DOI.',
+                  'No recent searches yet.\nSearch a topic to find related journals.',
                   textAlign: TextAlign.center,
                   style: Theme.of(
                     context,
@@ -309,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? null
                       : () {
                           _searchController.text = query;
-                          context.read<PublicationProvider>().search(query);
+                          context.read<JournalProvider>().search(query);
                         },
                 ),
             ],
@@ -320,12 +313,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _search(BuildContext context) {
     _focusNode.unfocus();
-    context.read<PublicationProvider>().search(_searchController.text);
+    context.read<JournalProvider>().search(_searchController.text);
   }
 }
 
 class _SearchResultCard extends StatelessWidget {
-  final PublicationProvider provider;
+  final JournalProvider provider;
 
   const _SearchResultCard({required this.provider});
 
@@ -388,15 +381,9 @@ class _SearchResultCard extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 14),
           _ResultStat(
-            icon: Icons.article_outlined,
-            label: 'Publications found',
-            value: '${provider.totalAvailable}',
-          ),
-          const SizedBox(height: 8),
-          _ResultStat(
-            icon: Icons.star_outline_rounded,
-            label: 'Most active year',
-            value: provider.mostActiveYear?.toString() ?? '-',
+            icon: Icons.book_outlined,
+            label: 'Journals found',
+            value: '${provider.journals.length}',
           ),
           const SizedBox(height: 14),
           Container(
@@ -411,7 +398,7 @@ class _SearchResultCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Open the Journals tab to browse publications.',
+                    'Open the Journals tab to choose a journal for analytics.',
                     style: Theme.of(
                       context,
                     ).textTheme.bodySmall?.copyWith(color: mutedText),
