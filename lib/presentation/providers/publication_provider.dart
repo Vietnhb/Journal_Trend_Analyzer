@@ -30,6 +30,9 @@ class PublicationProvider extends ChangeNotifier {
   AppError? _analyticsError;
   Map<int, int> _analyticsPublicationsByYear = const {};
   List<Publication> _topPapersData = const [];
+  List<RankedEntity> _topJournalsData = const [];
+  List<RankedEntity> _topAuthorsData = const [];
+  int? _averageCitations;
 
   String get query => _query;
   bool get isLoading => _isLoading;
@@ -61,16 +64,7 @@ class PublicationProvider extends ChangeNotifier {
     return _totalAvailable > 0 ? _totalAvailable : _publications.length;
   }
 
-  int? get avgCitationCount {
-    if (_topPapersData.isEmpty) {
-      return null;
-    }
-    final total = _topPapersData.fold<int>(
-      0,
-      (sum, publication) => sum + publication.citationCount,
-    );
-    return total ~/ _topPapersData.length;
-  }
+  int? get avgCitationCount => _averageCitations;
 
   int? get mostActiveYear {
     final ranked = yearsByPublicationCount;
@@ -83,13 +77,11 @@ class PublicationProvider extends ChangeNotifier {
   }
 
   String? get topJournal {
-    final journals = topJournals;
-    return journals.isEmpty ? null : journals.first.key;
+    return _topJournalsData.isEmpty ? null : _topJournalsData.first.name;
   }
 
   String? get topAuthor {
-    final authors = topAuthors;
-    return authors.isEmpty ? null : authors.first.key;
+    return _topAuthorsData.isEmpty ? null : _topAuthorsData.first.name;
   }
 
   Map<int, int> get publicationsByYear {
@@ -118,18 +110,12 @@ class PublicationProvider extends ChangeNotifier {
     return _topPapersData.take(5).toList(growable: false);
   }
 
-  List<MapEntry<String, int>> get topJournals {
-    return _rankByCount(
-      _topPapersData
-          .map((publication) => publication.journalName)
-          .where((journal) => journal.trim().isNotEmpty),
-    );
+  List<RankedEntity> get topJournals {
+    return _topJournalsData.take(5).toList(growable: false);
   }
 
-  List<MapEntry<String, int>> get topAuthors {
-    return _rankByCount(
-      _topPapersData.expand((publication) => publication.authors),
-    );
+  List<RankedEntity> get topAuthors {
+    return _topAuthorsData.take(5).toList(growable: false);
   }
 
   Future<void> search(String query) async {
@@ -196,24 +182,60 @@ class PublicationProvider extends ChangeNotifier {
           query,
           excludeFuturePublications: _filterFuturePublicationMetadata,
         ),
+        _repository.getTopJournals(
+          query,
+          excludeFuturePublications: _filterFuturePublicationMetadata,
+        ),
+        _repository.getTopAuthors(
+          query,
+          excludeFuturePublications: _filterFuturePublicationMetadata,
+        ),
+        _repository.getAverageCitations(
+          query,
+          excludeFuturePublications: _filterFuturePublicationMetadata,
+        ),
       ]);
       _analyticsPublicationsByYear = results[0] as Map<int, int>;
       _topPapersData = results[1] as List<Publication>;
+      _topJournalsData = results[2] as List<RankedEntity>;
+      _topAuthorsData = results[3] as List<RankedEntity>;
+      _averageCitations = results[4] as int?;
     } on AppError catch (error) {
       _analyticsError = error;
-      _analyticsPublicationsByYear = const {};
-      _topPapersData = const [];
+      _clearAnalytics();
     } catch (error) {
       _analyticsError = AppError(
         'Analytics failed.',
         details: error.toString(),
       );
-      _analyticsPublicationsByYear = const {};
-      _topPapersData = const [];
+      _clearAnalytics();
     } finally {
       _isLoadingAnalytics = false;
       notifyListeners();
     }
+  }
+
+  Future<PublicationSearchPage> loadEntityPublications({
+    String? sourceId,
+    String? authorId,
+    int page = 1,
+  }) {
+    return _repository.searchPublicationsByEntity(
+      _query,
+      sourceId: sourceId,
+      authorId: authorId,
+      yearSort: _yearSort,
+      page: page,
+      excludeFuturePublications: _filterFuturePublicationMetadata,
+    );
+  }
+
+  void _clearAnalytics() {
+    _analyticsPublicationsByYear = const {};
+    _topPapersData = const [];
+    _topJournalsData = const [];
+    _topAuthorsData = const [];
+    _averageCitations = null;
   }
 
   Future<void> goToPage(int pageNumber, {bool force = false}) async {
@@ -343,8 +365,7 @@ class PublicationProvider extends ChangeNotifier {
   void _clearResults() {
     _publications = const [];
     _analysisPublications = const [];
-    _analyticsPublicationsByYear = const {};
-    _topPapersData = const [];
+    _clearAnalytics();
     _totalAvailable = 0;
     _currentPage = 1;
   }
@@ -395,20 +416,6 @@ class PublicationProvider extends ChangeNotifier {
       PublicationYearSort.descending => b.compareTo(a),
       PublicationYearSort.ascending => a.compareTo(b),
     };
-  }
-
-  List<MapEntry<String, int>> _rankByCount(Iterable<String> values) {
-    final counts = <String, int>{};
-    for (final value in values) {
-      final trimmed = value.trim();
-      if (trimmed.isEmpty || trimmed == 'Unknown journal') {
-        continue;
-      }
-      counts[trimmed] = (counts[trimmed] ?? 0) + 1;
-    }
-    final entries = counts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    return entries.take(5).toList(growable: false);
   }
 
   void _rememberSearch(String query) {

@@ -10,6 +10,7 @@ import '../providers/publication_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
 import 'publication_detail_screen.dart';
+import 'top_entity_detail_screen.dart';
 
 class KeywordsScreen extends StatelessWidget {
   const KeywordsScreen({super.key});
@@ -171,9 +172,21 @@ class _KeywordsBody extends StatelessWidget {
             items: provider.topJournals
                 .map(
                   (entry) => _BarItem(
-                    label: entry.key,
-                    value: entry.value,
-                    valueLabel: '${entry.value} pubs',
+                    label: entry.name,
+                    value: entry.worksCount,
+                    valueLabel: '${entry.worksCount} pubs',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TopEntityDetailScreen(
+                          type: TopEntityType.journal,
+                          entityId: entry.id,
+                          name: entry.name,
+                          worksCount: entry.worksCount,
+                          topic: provider.query,
+                        ),
+                      ),
+                    ),
                   ),
                 )
                 .toList(),
@@ -186,9 +199,21 @@ class _KeywordsBody extends StatelessWidget {
             items: provider.topAuthors
                 .map(
                   (entry) => _BarItem(
-                    label: entry.key,
-                    value: entry.value,
-                    valueLabel: '${entry.value} pubs',
+                    label: entry.name,
+                    value: entry.worksCount,
+                    valueLabel: '${entry.worksCount} pubs',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TopEntityDetailScreen(
+                          type: TopEntityType.author,
+                          entityId: entry.id,
+                          name: entry.name,
+                          worksCount: entry.worksCount,
+                          topic: provider.query,
+                        ),
+                      ),
+                    ),
                   ),
                 )
                 .toList(),
@@ -271,7 +296,7 @@ class _MetricRow extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             title: 'Avg Citations',
-            subtitle: 'Top 50 pubs',
+            subtitle: 'Across topic',
             value: provider.avgCitationCount != null
                 ? _formatCitations(provider.avgCitationCount!)
                 : '—',
@@ -740,6 +765,14 @@ class _BarRow extends StatelessWidget {
                   ),
                 ),
               ),
+              if (item.onTap != null) ...[
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 11,
+                  color: AppColors.textHint,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
