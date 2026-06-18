@@ -21,17 +21,41 @@ enum PublicationYearSort {
   }
 }
 
+enum PublicationListSort {
+  newest,
+  oldest,
+  mostCited;
+
+  String get apiSort {
+    return switch (this) {
+      PublicationListSort.newest => 'publication_year:desc',
+      PublicationListSort.oldest => 'publication_year:asc',
+      PublicationListSort.mostCited => 'cited_by_count:desc',
+    };
+  }
+
+  String get reverseApiSort {
+    return switch (this) {
+      PublicationListSort.newest => 'publication_year:asc',
+      PublicationListSort.oldest => 'publication_year:desc',
+      PublicationListSort.mostCited => 'cited_by_count:asc',
+    };
+  }
+}
+
 class PublicationSearchPage {
   final List<Publication> publications;
   final int totalCount;
   final int page;
   final int perPage;
+  final String? nextCursor;
 
   const PublicationSearchPage({
     required this.publications,
     required this.totalCount,
     required this.page,
     required this.perPage,
+    this.nextCursor,
   });
 }
 
@@ -77,12 +101,16 @@ class OpenAlexApiService {
     String keyword, {
     String? sourceId,
     int limit = 50,
+    bool excludeFuturePublications = true,
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) return const [];
 
     final safeLimit = limit.clamp(1, 200).toInt();
     final filters = _keywordWorkFilters(trimmedKeyword, sourceId: sourceId);
+    if (excludeFuturePublications) {
+      filters.add('to_publication_date:${_currentPublicationDateFilter()}');
+    }
 
     final uri = _openAlexUri('/works', {
       'search': trimmedKeyword,
@@ -153,11 +181,14 @@ class OpenAlexApiService {
   Future<PublicationSearchPage> getPublicationsByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     PublicationYearSort yearSort = PublicationYearSort.descending,
     int page = 1,
     int perPage = 50,
     bool excludeFuturePublications = true,
     String? sortOverride,
+    String? cursor,
+    PublicationListSort? publicationSort,
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) {
@@ -166,19 +197,28 @@ class OpenAlexApiService {
 
     final safePage = page < 1 ? 1 : page;
     final safePerPage = perPage.clamp(1, 50).toInt();
-    final filters = _keywordWorkFilters(trimmedKeyword, sourceId: sourceId);
+    final filters = _keywordWorkFilters(
+      trimmedKeyword,
+      sourceId: sourceId,
+      authorId: authorId,
+    );
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
 
-    final uri = _openAlexUri('/works', {
+    final queryParameters = <String, String>{
       'search': trimmedKeyword,
       'filter': filters.join(','),
-      'sort': sortOverride ?? yearSort.apiSort,
-      'page': safePage.toString(),
+      'sort': sortOverride ?? publicationSort?.apiSort ?? yearSort.apiSort,
       'per-page': safePerPage.toString(),
       'mailto': _contactEmail,
-    });
+    };
+    if (cursor == null) {
+      queryParameters['page'] = safePage.toString();
+    } else {
+      queryParameters['cursor'] = cursor;
+    }
+    final uri = _openAlexUri('/works', queryParameters);
 
     final decoded = await _getJsonObject(uri);
     final results = decoded['results'];
@@ -190,6 +230,9 @@ class OpenAlexApiService {
     final totalCount = meta is Map<String, dynamic>
         ? _asInt(meta['count']) ?? 0
         : 0;
+    final nextCursor = meta is Map<String, dynamic>
+        ? meta['next_cursor']?.toString()
+        : null;
 
     return PublicationSearchPage(
       publications: results
@@ -199,6 +242,7 @@ class OpenAlexApiService {
       totalCount: totalCount,
       page: safePage,
       perPage: safePerPage,
+      nextCursor: nextCursor == null || nextCursor.isEmpty ? null : nextCursor,
     );
   }
 
@@ -259,11 +303,13 @@ class OpenAlexApiService {
   Future<List<Publication>> getTopPapersByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     bool excludeFuturePublications = true,
   }) async {
     final page = await getPublicationsByKeyword(
       keyword,
       sourceId: sourceId,
+      authorId: authorId,
       page: 1,
       perPage: 50,
       excludeFuturePublications: excludeFuturePublications,
@@ -334,11 +380,16 @@ class OpenAlexApiService {
   Future<Map<int, int>> getPublicationTrendByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     bool excludeFuturePublications = true,
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) return const {};
-    final filters = _keywordWorkFilters(trimmedKeyword, sourceId: sourceId);
+    final filters = _keywordWorkFilters(
+      trimmedKeyword,
+      sourceId: sourceId,
+      authorId: authorId,
+    );
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
@@ -391,11 +442,16 @@ class OpenAlexApiService {
   Future<int?> getAverageCitationsByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     bool excludeFuturePublications = true,
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) return null;
-    final filters = _keywordWorkFilters(trimmedKeyword, sourceId: sourceId);
+    final filters = _keywordWorkFilters(
+      trimmedKeyword,
+      sourceId: sourceId,
+      authorId: authorId,
+    );
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
@@ -453,6 +509,9 @@ class OpenAlexApiService {
           ? meta['next_cursor']?.toString()
           : null;
       cursor = nextCursor == null || nextCursor.isEmpty ? null : nextCursor;
+      if (cursor != null) {
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+      }
     }
 
     return entities;
@@ -597,13 +656,23 @@ class OpenAlexApiService {
   /// Build filters for keyword-based work queries.
   /// Base filters: type:article, primary_location.source.type:journal
   /// Optional: primary_location.source.id for journal drill-down
-  List<String> _keywordWorkFilters(String keyword, {String? sourceId}) {
+  List<String> _keywordWorkFilters(
+    String keyword, {
+    String? sourceId,
+    String? authorId,
+  }) {
     final filters = ['type:article', 'primary_location.source.type:journal'];
 
     if (sourceId != null && sourceId.trim().isNotEmpty) {
       final sourceFilterValue = _openAlexIdFilterValue(sourceId);
       if (sourceFilterValue.isNotEmpty) {
         filters.add('primary_location.source.id:$sourceFilterValue');
+      }
+    }
+    if (authorId != null && authorId.trim().isNotEmpty) {
+      final authorFilterValue = _openAlexIdFilterValue(authorId);
+      if (authorFilterValue.isNotEmpty) {
+        filters.add('authorships.author.id:$authorFilterValue');
       }
     }
 

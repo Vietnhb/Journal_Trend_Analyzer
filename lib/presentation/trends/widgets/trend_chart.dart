@@ -119,7 +119,6 @@ class TrendChart extends StatelessWidget {
                           color: colorScheme.onSurfaceVariant,
                           fontSize: 11,
                         ),
-                        maxLines: 1,
                         textAlign: TextAlign.right,
                       ),
                     ),

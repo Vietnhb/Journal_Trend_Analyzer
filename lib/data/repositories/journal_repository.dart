@@ -7,7 +7,7 @@ export '../models/publication.dart' show Publication;
 export '../models/openalex_topic.dart' show OpenAlexTopic;
 export '../models/ranked_entity.dart' show RankedEntity;
 export '../services/openalex_api_service.dart'
-    show PublicationSearchPage, PublicationYearSort;
+    show PublicationListSort, PublicationSearchPage, PublicationYearSort;
 
 class JournalRepository {
   final OpenAlexApiService _apiService;
@@ -23,11 +23,13 @@ class JournalRepository {
     String keyword, {
     String? sourceId,
     int limit = 50,
+    bool excludeFuturePublications = true,
   }) {
     return _apiService.getTopJournalsByKeyword(
       keyword,
       sourceId: sourceId,
       limit: limit,
+      excludeFuturePublications: excludeFuturePublications,
     );
   }
 
@@ -36,16 +38,24 @@ class JournalRepository {
   Future<PublicationSearchPage> getPublicationsByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     PublicationYearSort yearSort = PublicationYearSort.descending,
     int page = 1,
     bool excludeFuturePublications = true,
+    String? cursor,
+    PublicationListSort? publicationSort,
+    String? sortOverride,
   }) {
     return _apiService.getPublicationsByKeyword(
       keyword,
       sourceId: sourceId,
+      authorId: authorId,
       yearSort: yearSort,
       page: page,
       excludeFuturePublications: excludeFuturePublications,
+      cursor: cursor,
+      publicationSort: publicationSort,
+      sortOverride: sortOverride,
     );
   }
 
@@ -53,11 +63,13 @@ class JournalRepository {
   Future<List<Publication>> getTopPapersByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     bool excludeFuturePublications = true,
   }) {
     return _apiService.getTopPapersByKeyword(
       keyword,
       sourceId: sourceId,
+      authorId: authorId,
       excludeFuturePublications: excludeFuturePublications,
     );
   }
@@ -81,11 +93,13 @@ class JournalRepository {
   Future<Map<int, int>> getPublicationTrendByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     bool excludeFuturePublications = true,
   }) {
     return _apiService.getPublicationTrendByKeyword(
       keyword,
       sourceId: sourceId,
+      authorId: authorId,
       excludeFuturePublications: excludeFuturePublications,
     );
   }
@@ -94,11 +108,13 @@ class JournalRepository {
   Future<int?> getAverageCitationsByKeyword(
     String keyword, {
     String? sourceId,
+    String? authorId,
     bool excludeFuturePublications = true,
   }) {
     return _apiService.getAverageCitationsByKeyword(
       keyword,
       sourceId: sourceId,
+      authorId: authorId,
       excludeFuturePublications: excludeFuturePublications,
     );
   }

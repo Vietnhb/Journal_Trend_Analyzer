@@ -1,6 +1,9 @@
+import '../../core/constants/app_text_sanitizer.dart';
+
 class Publication {
   final String id;
   final String title;
+  final String? titleMarkup;
   final int? year;
   final String? publicationDate;
   final int citationCount;
@@ -9,10 +12,12 @@ class Publication {
   final String? doi;
   final String? url;
   final String? abstractText;
+  final String? abstractMarkup;
 
   const Publication({
     required this.id,
     required this.title,
+    this.titleMarkup,
     required this.year,
     this.publicationDate,
     required this.citationCount,
@@ -21,15 +26,20 @@ class Publication {
     this.doi,
     this.url,
     this.abstractText,
+    this.abstractMarkup,
   });
 
   factory Publication.fromOpenAlexJson(Map<String, dynamic> json) {
+    final rawTitle = _emptyToNull(
+      _asString(json['title']) ?? _asString(json['display_name']),
+    );
+    final rawAbstract = _emptyToNull(
+      _abstractFromInvertedIndex(json['abstract_inverted_index']),
+    );
     return Publication(
       id: _asString(json['id']) ?? '',
-      title:
-          _asString(json['title']) ??
-          _asString(json['display_name']) ??
-          'Untitled publication',
+      title: AppTextSanitizer.clean(rawTitle, fallback: 'Untitled publication'),
+      titleMarkup: rawTitle,
       year: _asInt(json['publication_year']),
       publicationDate: _emptyToNull(_asString(json['publication_date'])),
       citationCount: _asInt(json['cited_by_count']) ?? 0,
@@ -37,9 +47,8 @@ class Publication {
       authors: _extractAuthors(json),
       doi: _emptyToNull(_asString(json['doi'])),
       url: _extractUrl(json),
-      abstractText: _emptyToNull(
-        _abstractFromInvertedIndex(json['abstract_inverted_index']),
-      ),
+      abstractText: AppTextSanitizer.cleanNullable(rawAbstract),
+      abstractMarkup: rawAbstract,
     );
   }
 
@@ -58,7 +67,7 @@ class Publication {
     if (primaryLocation is Map<String, dynamic>) {
       final source = primaryLocation['source'];
       if (source is Map<String, dynamic>) {
-        final name = _emptyToNull(_asString(source['display_name']));
+        final name = AppTextSanitizer.cleanNullable(source['display_name']);
         if (name != null) return name;
       }
     }
@@ -74,7 +83,7 @@ class Publication {
           if (authorship is! Map<String, dynamic>) return null;
           final author = authorship['author'];
           if (author is! Map<String, dynamic>) return null;
-          return _emptyToNull(_asString(author['display_name']));
+          return AppTextSanitizer.cleanNullable(author['display_name']);
         })
         .whereType<String>()
         .toList(growable: false);

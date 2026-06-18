@@ -1,3 +1,5 @@
+import '../../core/constants/app_text_sanitizer.dart';
+
 class OpenAlexTopic {
   final String id;
   final String name;
@@ -30,8 +32,8 @@ class OpenAlexTopic {
   factory OpenAlexTopic.fromJson(Map<String, dynamic> json) {
     return OpenAlexTopic(
       id: (json['id'] ?? '').toString(),
-      name: (json['display_name'] ?? '').toString().trim(),
-      description: _emptyToNull((json['description'] ?? '').toString()),
+      name: AppTextSanitizer.clean(json['display_name']),
+      description: AppTextSanitizer.cleanNullable(json['description']),
       domainName: _displayName(json['domain']),
       fieldName: _displayName(json['field']),
       subfieldName: _displayName(json['subfield']),
@@ -41,7 +43,7 @@ class OpenAlexTopic {
 
   static String? _displayName(Object? value) {
     if (value is! Map<String, dynamic>) return null;
-    return _emptyToNull((value['display_name'] ?? '').toString());
+    return AppTextSanitizer.cleanNullable(value['display_name']);
   }
 
   static int? _asInt(Object? value) {
@@ -49,10 +51,5 @@ class OpenAlexTopic {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
-  }
-
-  static String? _emptyToNull(String value) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
   }
 }

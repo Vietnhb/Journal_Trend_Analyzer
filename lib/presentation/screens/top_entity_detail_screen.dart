@@ -4,8 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_error_view.dart';
-import '../../data/models/publication.dart';
-import '../../data/models/ranked_entity.dart';
+import '../../core/widgets/app_loading.dart';
+import '../../core/widgets/app_markup_text.dart';
+import '../../data/repositories/journal_repository.dart';
 import '../providers/journal_provider.dart';
 import 'publication_detail_screen.dart';
 
@@ -43,16 +44,25 @@ class TopEntityDetailScreen extends StatelessWidget {
       const SizedBox(height: 14),
       _JournalMetaCard(journal: journal),
       const SizedBox(height: 14),
-      if (provider.analyticsError != null)
+      if (provider.isLoadingJournalPublications &&
+          provider.journalPublications.isEmpty)
+        const AppLoading(message: 'Loading journal publications...')
+      else if (provider.journalPublicationError != null &&
+          provider.journalPublications.isEmpty)
         AppErrorView(
-          error: provider.analyticsError!,
+          error: provider.journalPublicationError!,
           onRetry: () => provider.selectJournal(journal),
         )
-      else
+      else ...[
         _PublicationsCard(
           keyword: provider.selectedKeyword,
           publications: provider.journalPublications,
         ),
+        if (provider.totalPages > 1) ...[
+          const SizedBox(height: 14),
+          _PaginationCard(provider: provider),
+        ],
+      ],
     ];
 
     return Scaffold(
@@ -61,7 +71,7 @@ class TopEntityDetailScreen extends StatelessWidget {
           _AppBar(
             journal: journal,
             topic: topic,
-            relatedArticles: provider.totalWorks,
+            relatedArticles: provider.journalTotalAvailable,
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
@@ -147,8 +157,6 @@ class _AppBar extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 journal.name,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
@@ -172,7 +180,7 @@ class _OverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Journal Dashboard',
+      title: 'Journal Publications',
       children: [
         Row(
           children: [
@@ -180,22 +188,90 @@ class _OverviewCard extends StatelessWidget {
               icon: Icons.article_rounded,
               color: AppColors.primary,
               label: 'Related Articles',
-              value: '${provider.totalWorks}',
+              value: '${provider.journalTotalAvailable}',
             ),
             _Stat(
-              icon: Icons.format_quote_rounded,
-              color: AppColors.success,
-              label: 'Avg Citations per Article',
-              value: provider.avgCitationCount?.toString() ?? '-',
-            ),
-            _Stat(
-              icon: Icons.calendar_today_rounded,
-              color: AppColors.gold,
-              label: 'Most Active Year',
-              value: provider.mostActiveYear?.toString() ?? '-',
+              icon: Icons.menu_book_rounded,
+              color: AppColors.info,
+              label: 'Current Page',
+              value: '${provider.currentPage}/${provider.totalPages}',
             ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+class _PaginationCard extends StatelessWidget {
+  final JournalProvider provider;
+
+  const _PaginationCard({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'Browse all publications',
+      children: [
+        Row(
+          children: [
+            Text('Sort by year:', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('Newest'),
+              selected: provider.yearSort == PublicationYearSort.descending,
+              onSelected: (_) =>
+                  provider.setYearSort(PublicationYearSort.descending),
+            ),
+            const SizedBox(width: 6),
+            ChoiceChip(
+              label: const Text('Oldest'),
+              selected: provider.yearSort == PublicationYearSort.ascending,
+              onSelected: (_) =>
+                  provider.setYearSort(PublicationYearSort.ascending),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: provider.canGoPrevious
+                    ? () => provider.goToPage(provider.currentPage - 1)
+                    : null,
+                icon: const Icon(Icons.chevron_left_rounded),
+                label: const Text('Previous'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Page ${provider.currentPage} of ${provider.totalPages}',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: provider.canGoNext
+                    ? () => provider.goToPage(provider.currentPage + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right_rounded),
+                label: const Text('Next'),
+              ),
+            ),
+          ],
+        ),
+        if (provider.isLoadingJournalPublications) ...[
+          const SizedBox(height: 12),
+          const LinearProgressIndicator(),
+        ],
+        if (provider.journalPublicationError != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            provider.journalPublicationError!.message,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
       ],
     );
   }
@@ -299,10 +375,8 @@ class _PublicationTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    publication.title,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                  AppMarkupText(
+                    publication.titleMarkup ?? publication.title,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w700,
@@ -315,8 +389,6 @@ class _PublicationTile extends StatelessWidget {
                       '${publication.citationCount} citations',
                       publication.journalName,
                     ].join(' · '),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -408,8 +480,6 @@ class _Stat extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w800,
@@ -417,8 +487,6 @@ class _Stat extends StatelessWidget {
                 ),
                 Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),

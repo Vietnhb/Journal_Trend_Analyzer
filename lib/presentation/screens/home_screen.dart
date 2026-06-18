@@ -325,12 +325,6 @@ class _AnalysisSummaryCard extends StatelessWidget {
 
   const _AnalysisSummaryCard({required this.provider});
 
-  String _compact(num count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return count.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -380,8 +374,6 @@ class _AnalysisSummaryCard extends StatelessWidget {
                     color: AppColors.primary,
                     fontWeight: FontWeight.w700,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
                 ),
               ),
             ],
@@ -398,7 +390,7 @@ class _AnalysisSummaryCard extends StatelessWidget {
           _ResultStat(
             icon: Icons.article_outlined,
             label: 'Total related articles',
-            value: _compact(provider.totalWorks),
+            value: '${provider.totalWorks}',
           ),
           if (provider.avgCitationCount != null) ...[
             const SizedBox(height: 10),
@@ -502,8 +494,6 @@ class _TopicSuggestionsCard extends StatelessWidget {
                     color: AppColors.primary,
                     fontWeight: FontWeight.w700,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
                 ),
               ),
             ],
@@ -539,7 +529,7 @@ class _TopicSuggestionsCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 14),
-            for (final topic in provider.topicSuggestions.take(8)) ...[
+            for (final topic in provider.topicSuggestions) ...[
               _TopicOption(
                 topic: topic,
                 isSelected: provider.selectedTopic?.id == topic.id,
@@ -632,8 +622,6 @@ class _TopicOption extends StatelessWidget {
                 Expanded(
                   child: Text(
                     topic.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w700,
@@ -642,7 +630,7 @@ class _TopicOption extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _compact(topic.worksCount),
+                  '${topic.worksCount}',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w700,
@@ -654,8 +642,6 @@ class _TopicOption extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 taxonomy,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: mutedText),
@@ -665,8 +651,6 @@ class _TopicOption extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 topic.description!,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: mutedText),
@@ -676,12 +660,6 @@ class _TopicOption extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _compact(int count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return count.toString();
   }
 }
 

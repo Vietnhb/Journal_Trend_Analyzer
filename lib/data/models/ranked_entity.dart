@@ -1,3 +1,5 @@
+import '../../core/constants/app_text_sanitizer.dart';
+
 class RankedEntity {
   final String id;
   final String name;
@@ -44,7 +46,7 @@ class RankedEntity {
 
   factory RankedEntity.fromGroupByJson(Map<String, dynamic> json) {
     final key = (json['key'] ?? '').toString();
-    final displayName = (json['key_display_name'] ?? '').toString().trim();
+    final displayName = AppTextSanitizer.clean(json['key_display_name']);
     return RankedEntity(
       id: key,
       name: displayName.isEmpty ? key : displayName,
@@ -56,7 +58,7 @@ class RankedEntity {
     final summaryStats = json['summary_stats'];
     return RankedEntity(
       id: (json['id'] ?? '').toString(),
-      name: (json['display_name'] ?? '').toString().trim(),
+      name: AppTextSanitizer.clean(json['display_name']),
       worksCount: _asInt(json['works_count']) ?? 0,
       oaWorksCount: _asInt(json['oa_works_count']) ?? 0,
       citedByCount: _asInt(json['cited_by_count']) ?? 0,
@@ -71,9 +73,7 @@ class RankedEntity {
           : null,
       firstPublicationYear: _asInt(json['first_publication_year']),
       lastPublicationYear: _asInt(json['last_publication_year']),
-      publisher: _emptyToNull(
-        (json['host_organization_name'] ?? '').toString(),
-      ),
+      publisher: AppTextSanitizer.cleanNullable(json['host_organization_name']),
       homepageUrl: _emptyToNull((json['homepage_url'] ?? '').toString()),
       issnL: _emptyToNull((json['issn_l'] ?? '').toString()),
       countsByYear: _countsByYear(json['counts_by_year']),

@@ -5,10 +5,12 @@ import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_empty_view.dart';
 import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
+import '../../core/widgets/app_markup_text.dart';
 import '../../data/repositories/journal_repository.dart';
 import '../providers/journal_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
+import 'analytics_entity_detail_screen.dart';
 import 'publication_detail_screen.dart';
 
 class KeywordsScreen extends StatelessWidget {
@@ -40,7 +42,6 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasJournal = provider.selectedJournal != null;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -58,14 +59,10 @@ class _Header extends StatelessWidget {
           Text(
             provider.selectedKeyword.isEmpty
                 ? 'Search a keyword from Home to view analytics'
-                : hasJournal
-                ? '"${provider.selectedKeyword}" in ${provider.selectedJournal!.name}'
-                : 'Select a journal to analyze "${provider.selectedKeyword}"',
+                : '"${provider.selectedKeyword}" across all journals',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
           const Divider(height: 1),
@@ -89,16 +86,9 @@ class _TopicAnalyticsBody extends StatelessWidget {
       );
     }
 
-    if (provider.selectedJournal == null) {
-      return const AppEmptyView(
-        message: 'Select Analyze Journal from the Journal tab first.',
-        icon: Icons.book_outlined,
-      );
-    }
-
     if (provider.isLoadingAnalytics) {
       return const AppLoading(
-        message: 'Loading keyword and journal analytics...',
+        message: 'Loading analytics across all journals...',
       );
     }
 
@@ -106,21 +96,18 @@ class _TopicAnalyticsBody extends StatelessWidget {
     if (error != null) {
       return AppErrorView(
         error: error,
-        onRetry: () => provider.selectJournal(provider.selectedJournal!),
+        onRetry: provider.refreshKeywordAnalytics,
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () => provider.selectJournal(provider.selectedJournal!),
+      onRefresh: provider.refreshKeywordAnalytics,
       color: AppColors.primary,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          _QueryBadge(
-            keyword: provider.selectedKeyword,
-            journalName: provider.selectedJournal!.name,
-          ),
+          _QueryBadge(keyword: provider.selectedKeyword),
           const SizedBox(height: 16),
           _MetricRow(provider: provider),
           const SizedBox(height: 24),
@@ -151,6 +138,12 @@ class _TopicAnalyticsBody extends StatelessWidget {
                     label: journal.name,
                     value: journal.worksCount,
                     valueLabel: '${journal.worksCount} articles',
+                    onTap: () => _openEntityAnalytics(
+                      context,
+                      provider,
+                      AnalyticsEntityType.journal,
+                      journal,
+                    ),
                   ),
                 )
                 .toList(),
@@ -162,6 +155,7 @@ class _TopicAnalyticsBody extends StatelessWidget {
                 .map(
                   (paper) => _BarItem(
                     label: paper.title,
+                    markup: paper.titleMarkup,
                     details:
                         '${paper.year ?? 'No year'} · ${paper.citationCount} citations',
                     value: paper.citationCount,
@@ -186,6 +180,12 @@ class _TopicAnalyticsBody extends StatelessWidget {
                     label: author.name,
                     value: author.worksCount,
                     valueLabel: '${author.worksCount} articles',
+                    onTap: () => _openEntityAnalytics(
+                      context,
+                      provider,
+                      AnalyticsEntityType.author,
+                      author,
+                    ),
                   ),
                 )
                 .toList(),
@@ -198,9 +198,8 @@ class _TopicAnalyticsBody extends StatelessWidget {
 
 class _QueryBadge extends StatelessWidget {
   final String keyword;
-  final String? journalName;
 
-  const _QueryBadge({required this.keyword, this.journalName});
+  const _QueryBadge({required this.keyword});
 
   @override
   Widget build(BuildContext context) {
@@ -214,13 +213,11 @@ class _QueryBadge extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _BadgeLine(icon: Icons.search_rounded, text: 'Keyword: $keyword'),
-          if (journalName != null) ...[
-            const SizedBox(height: 4),
-            _BadgeLine(
-              icon: Icons.book_outlined,
-              text: 'Filtered by: $journalName',
-            ),
-          ],
+          const SizedBox(height: 4),
+          const _BadgeLine(
+            icon: Icons.library_books_outlined,
+            text: 'Scope: all related journals',
+          ),
         ],
       ),
     );
@@ -247,7 +244,6 @@ class _BadgeLine extends StatelessWidget {
               color: AppColors.primary,
               fontWeight: FontWeight.w600,
             ),
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -260,12 +256,6 @@ class _MetricRow extends StatelessWidget {
 
   const _MetricRow({required this.provider});
 
-  String _compact(num count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return count.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -273,7 +263,7 @@ class _MetricRow extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             title: 'Total Publications',
-            value: _compact(provider.totalWorks),
+            value: '${provider.totalWorks}',
             icon: Icons.article_rounded,
             color: AppColors.primary,
           ),
@@ -309,6 +299,8 @@ class _AnalyticsHighlights extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final paper = provider.mostInfluentialPaper;
+    final journal = provider.journals.firstOrNull;
+    final author = provider.topAuthors.firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,18 +316,35 @@ class _AnalyticsHighlights extends StatelessWidget {
               icon: Icons.book_outlined,
               label: 'Top Journal',
               value: provider.topJournal ?? '-',
+              onTap: journal == null
+                  ? null
+                  : () => _openEntityAnalytics(
+                      context,
+                      provider,
+                      AnalyticsEntityType.journal,
+                      journal,
+                    ),
             ),
             const Divider(height: 1),
             _HighlightRow(
               icon: Icons.person_outline_rounded,
               label: 'Top Author',
               value: provider.topAuthor ?? '-',
+              onTap: author == null
+                  ? null
+                  : () => _openEntityAnalytics(
+                      context,
+                      provider,
+                      AnalyticsEntityType.author,
+                      author,
+                    ),
             ),
             const Divider(height: 1),
             _HighlightRow(
               icon: Icons.auto_stories_outlined,
               label: 'Most Influential Paper',
               value: paper?.title ?? '-',
+              markup: paper?.titleMarkup,
               onTap: paper == null
                   ? null
                   : () => Navigator.push(
@@ -351,6 +360,25 @@ class _AnalyticsHighlights extends StatelessWidget {
       ],
     );
   }
+}
+
+void _openEntityAnalytics(
+  BuildContext context,
+  JournalProvider provider,
+  AnalyticsEntityType type,
+  RankedEntity entity,
+) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => AnalyticsEntityDetailScreen(
+        type: type,
+        entity: entity,
+        keyword: provider.selectedKeyword,
+        excludeFuturePublications: provider.filterFutureSourceYears,
+      ),
+    ),
+  );
 }
 
 class _HighlightCard extends StatelessWidget {
@@ -378,12 +406,14 @@ class _HighlightRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final String? markup;
   final VoidCallback? onTap;
 
   const _HighlightRow({
     required this.icon,
     required this.label,
     required this.value,
+    this.markup,
     this.onTap,
   });
 
@@ -409,10 +439,8 @@ class _HighlightRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            child: AppMarkupText(
+              markup ?? value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.w700,
@@ -476,8 +504,6 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
@@ -583,6 +609,7 @@ class _YearRankingCard extends StatelessWidget {
 
 class _BarItem {
   final String label;
+  final String? markup;
   final String? details;
   final int value;
   final String valueLabel;
@@ -590,6 +617,7 @@ class _BarItem {
 
   const _BarItem({
     required this.label,
+    this.markup,
     this.details,
     required this.value,
     required this.valueLabel,
@@ -682,10 +710,8 @@ class _BarRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    AppMarkupText(
+                      item.markup ?? item.label,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,
@@ -694,8 +720,6 @@ class _BarRow extends StatelessWidget {
                     if (item.details != null)
                       Text(
                         item.details!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),

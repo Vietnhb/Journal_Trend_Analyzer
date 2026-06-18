@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/app_markup_text.dart';
 import '../../data/models/publication.dart';
 
 class PublicationDetailScreen extends StatelessWidget {
@@ -16,7 +17,7 @@ class PublicationDetailScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 220,
+            expandedHeight: 140,
             pinned: true,
             backgroundColor: AppColors.primary,
             iconTheme: const IconThemeData(color: Colors.white),
@@ -37,19 +38,6 @@ class PublicationDetailScreen extends StatelessWidget {
                     end: Alignment.bottomRight,
                   ),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 92, 20, 18),
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  publication.title,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                  ),
-                ),
               ),
             ),
           ),
@@ -57,6 +45,14 @@ class PublicationDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
             sliver: SliverList(
               delegate: SliverChildListDelegate.fixed([
+                AppMarkupText(
+                  publication.titleMarkup ?? publication.title,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 _InfoCard(publication: publication),
                 const SizedBox(height: 14),
                 _AbstractCard(publication: publication),
@@ -89,7 +85,7 @@ class _InfoCard extends StatelessWidget {
           label: 'Authors',
           value: publication.authors.isEmpty
               ? '-'
-              : publication.authors.take(8).join(', '),
+              : publication.authors.join(', '),
         ),
         if (publication.url != null)
           _UrlRow(label: 'URL', value: publication.url!),
@@ -177,10 +173,10 @@ class _AbstractCard extends StatelessWidget {
     return _Card(
       title: 'Abstract',
       children: [
-        Text(
-          publication.abstractText?.isNotEmpty == true
-              ? publication.abstractText!
-              : 'No abstract available.',
+        AppMarkupText(
+          publication.abstractMarkup ??
+              publication.abstractText ??
+              'No abstract available.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.55),
         ),
       ],
