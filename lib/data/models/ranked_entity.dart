@@ -13,7 +13,6 @@ class RankedEntity {
   final String? homepageUrl;
   final String? issnL;
   final Map<int, int> countsByYear;
-  final List<RankedEntity> topics;
 
   const RankedEntity({
     required this.id,
@@ -30,7 +29,6 @@ class RankedEntity {
     this.homepageUrl,
     this.issnL,
     this.countsByYear = const {},
-    this.topics = const [],
   });
 
   /// OpenAlex group_by keys come as full URLs (e.g.
@@ -45,9 +43,11 @@ class RankedEntity {
   }
 
   factory RankedEntity.fromGroupByJson(Map<String, dynamic> json) {
+    final key = (json['key'] ?? '').toString();
+    final displayName = (json['key_display_name'] ?? '').toString().trim();
     return RankedEntity(
-      id: (json['key'] ?? '').toString(),
-      name: (json['key_display_name'] ?? '').toString().trim(),
+      id: key,
+      name: displayName.isEmpty ? key : displayName,
       worksCount: _asInt(json['count']) ?? 0,
     );
   }
@@ -77,8 +77,34 @@ class RankedEntity {
       homepageUrl: _emptyToNull((json['homepage_url'] ?? '').toString()),
       issnL: _emptyToNull((json['issn_l'] ?? '').toString()),
       countsByYear: _countsByYear(json['counts_by_year']),
-      topics: _topics(json['topics']),
     );
+  }
+
+  RankedEntity mergeSourceMetadata(RankedEntity source) {
+    return RankedEntity(
+      id: id,
+      name: source.name.isEmpty ? name : source.name,
+      worksCount: worksCount,
+      oaWorksCount: source.oaWorksCount,
+      citedByCount: source.citedByCount,
+      twoYearMeanCitedness: source.twoYearMeanCitedness,
+      hIndex: source.hIndex,
+      i10Index: source.i10Index,
+      firstPublicationYear: source.firstPublicationYear,
+      lastPublicationYear: source.lastPublicationYear,
+      publisher: source.publisher,
+      homepageUrl: source.homepageUrl,
+      issnL: source.issnL,
+      countsByYear: source.countsByYear,
+    );
+  }
+
+  bool get hasMetadata {
+    return publisher != null ||
+        issnL != null ||
+        homepageUrl != null ||
+        firstPublicationYear != null ||
+        lastPublicationYear != null;
   }
 
   static int? _asInt(Object? value) {
@@ -122,24 +148,6 @@ class RankedEntity {
       }
     }
     return counts;
-  }
-
-  static List<RankedEntity> _topics(Object? value) {
-    if (value is! List) {
-      return const [];
-    }
-
-    return value
-        .whereType<Map<String, dynamic>>()
-        .map(
-          (topic) => RankedEntity(
-            id: (topic['id'] ?? '').toString(),
-            name: (topic['display_name'] ?? '').toString().trim(),
-            worksCount: _asInt(topic['count']) ?? 0,
-          ),
-        )
-        .where((topic) => topic.id.isNotEmpty && topic.name.isNotEmpty)
-        .toList(growable: false);
   }
 
   static String? _emptyToNull(String value) {

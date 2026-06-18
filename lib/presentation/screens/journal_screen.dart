@@ -56,13 +56,13 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            provider.hasSearched
-                ? '${provider.journals.length} journals for "${provider.query}"'
-                : 'Search a topic from Home to find journals',
+            provider.selectedKeyword.isEmpty
+                ? 'Search a keyword from Home to find top journals'
+                : 'Journals with the most articles related to "${provider.selectedKeyword}"',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           if (provider.selectedJournal != null) ...[
@@ -84,7 +84,7 @@ class _Header extends StatelessWidget {
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      'Selected: ${provider.selectedJournal!.name}',
+                      'Viewing: ${provider.selectedJournal!.name}',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -111,31 +111,33 @@ class _JournalResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!provider.hasSearched) {
+    if (provider.selectedKeyword.isEmpty) {
       return const AppEmptyView(
-        message: 'Search topic to find journals.',
+        message: 'Search a keyword from Home first.',
         icon: Icons.book_outlined,
       );
     }
 
     if (provider.isLoadingJournals) {
-      return const AppLoading(message: 'Loading OpenAlex journals...');
+      return const AppLoading(message: 'Loading top journals...');
     }
 
     final error = provider.journalError;
     if (error != null && provider.journals.isEmpty) {
       return AppErrorView(
         error: error,
-        onRetry: provider.query.isEmpty
+        onRetry: provider.selectedKeyword.isEmpty
             ? null
-            : () => context.read<JournalProvider>().search(provider.query),
+            : () => context.read<JournalProvider>().analyzeKeyword(
+                provider.selectedKeyword,
+              ),
       );
     }
 
     final journals = provider.journals;
     if (journals.isEmpty) {
       return const AppEmptyView(
-        message: 'No journals found for this topic.',
+        message: 'No journals found for this keyword.',
         icon: Icons.search_off_rounded,
       );
     }
@@ -160,7 +162,7 @@ class _JournalResults extends StatelessWidget {
                   entityId: journal.id,
                   name: journal.name,
                   worksCount: journal.worksCount,
-                  topic: provider.query,
+                  topic: provider.selectedKeyword,
                 ),
               ),
             );
@@ -250,7 +252,7 @@ class _JournalCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     _MetaBadge(
                       icon: Icons.article_outlined,
-                      label: '${journal.worksCount} source works',
+                      label: '${journal.worksCount} related articles',
                       color: AppColors.info,
                     ),
                   ],

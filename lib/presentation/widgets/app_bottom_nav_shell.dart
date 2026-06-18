@@ -25,17 +25,17 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
     _NavDestination(
       icon: Icons.article_outlined,
       selectedIcon: Icons.article_rounded,
-      label: 'Journals',
+      label: 'Journal',
     ),
     _NavDestination(
       icon: Icons.query_stats_outlined,
       selectedIcon: Icons.query_stats,
-      label: 'Analytics',
+      label: 'Keywords',
     ),
     _NavDestination(
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings_rounded,
-      label: 'Settings',
+      label: 'Profile',
     ),
   ];
 

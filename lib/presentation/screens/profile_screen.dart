@@ -25,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Settings',
+                    'Profile',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w800,
@@ -73,7 +73,7 @@ class ProfileScreen extends StatelessWidget {
                 _SettingsTile(
                   icon: Icons.event_available_outlined,
                   iconColor: AppColors.info,
-                  title: 'Filter future source years',
+                  title: 'Filter future years',
                   subtitle: 'Uses the current year from the device.',
                   trailing: Switch(
                     value: provider.filterFutureSourceYears,
@@ -118,7 +118,7 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.category_outlined,
                   iconColor: AppColors.accent,
                   label: 'Scope',
-                  value: 'Sources, journals, trends,\ntopics, dashboard',
+                  value: 'Topics, journals, trends,\nauthors, publications',
                 ),
               ],
             ),

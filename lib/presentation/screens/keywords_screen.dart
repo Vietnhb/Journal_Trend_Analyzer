@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_empty_view.dart';
 import '../../core/widgets/app_error_view.dart';
+import '../../core/widgets/app_loading.dart';
 import '../../data/repositories/journal_repository.dart';
 import '../providers/journal_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
+import 'publication_detail_screen.dart';
 
 class KeywordsScreen extends StatelessWidget {
   const KeywordsScreen({super.key});
@@ -22,7 +24,7 @@ class KeywordsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Header(provider: provider),
-            Expanded(child: _SourceAnalyticsBody(provider: provider)),
+            Expanded(child: _TopicAnalyticsBody(provider: provider)),
           ],
         ),
       ),
@@ -38,6 +40,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hasJournal = provider.selectedJournal != null;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -45,7 +48,7 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Journal Source Analytics',
+            'Keyword Analytics',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w800,
@@ -53,13 +56,15 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            provider.selectedJournal == null
-                ? 'Source metrics for selected journal'
-                : 'Source metrics for ${provider.selectedJournal!.name}',
+            provider.selectedKeyword.isEmpty
+                ? 'Search a keyword from Home to view analytics'
+                : hasJournal
+                ? '"${provider.selectedKeyword}" in ${provider.selectedJournal!.name}'
+                : 'Select a journal to analyze "${provider.selectedKeyword}"',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
@@ -70,30 +75,39 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _SourceAnalyticsBody extends StatelessWidget {
+class _TopicAnalyticsBody extends StatelessWidget {
   final JournalProvider provider;
 
-  const _SourceAnalyticsBody({required this.provider});
+  const _TopicAnalyticsBody({required this.provider});
 
   @override
   Widget build(BuildContext context) {
-    if (!provider.hasSearched) {
+    if (provider.selectedKeyword.isEmpty) {
       return const AppEmptyView(
-        message: 'Search a topic from Home, then select a journal.',
+        message: 'Search a keyword from Home first.',
         icon: Icons.query_stats_outlined,
       );
     }
 
     if (provider.selectedJournal == null) {
       return const AppEmptyView(
-        message: 'Please select a journal to view journal source analytics.',
+        message: 'Select Analyze Journal from the Journal tab first.',
         icon: Icons.book_outlined,
+      );
+    }
+
+    if (provider.isLoadingAnalytics) {
+      return const AppLoading(
+        message: 'Loading keyword and journal analytics...',
       );
     }
 
     final error = provider.analyticsError;
     if (error != null) {
-      return AppErrorView(error: error);
+      return AppErrorView(
+        error: error,
+        onRetry: () => provider.selectJournal(provider.selectedJournal!),
+      );
     }
 
     return RefreshIndicator(
@@ -104,16 +118,18 @@ class _SourceAnalyticsBody extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           _QueryBadge(
-            query: provider.query,
+            keyword: provider.selectedKeyword,
             journalName: provider.selectedJournal!.name,
           ),
           const SizedBox(height: 16),
           _MetricRow(provider: provider),
           const SizedBox(height: 24),
+          _AnalyticsHighlights(provider: provider),
+          const SizedBox(height: 24),
           if (provider.sourceWorksByYear.isNotEmpty) ...[
             _SectionHeader(
               icon: Icons.bar_chart_rounded,
-              title: 'Source Works Trend',
+              title: 'Publication Trend',
             ),
             const SizedBox(height: 12),
             _TrendChartCard(provider: provider),
@@ -127,14 +143,49 @@ class _SourceAnalyticsBody extends StatelessWidget {
             const SizedBox(height: 24),
           ],
           _HorizontalBarSection(
-            title: 'Source Topics',
-            icon: Icons.topic_outlined,
-            items: provider.journalTopics
+            title: 'Top Journals',
+            icon: Icons.book_outlined,
+            items: provider.journals
                 .map(
-                  (topic) => _BarItem(
-                    label: topic.name,
-                    value: topic.worksCount,
-                    valueLabel: '${topic.worksCount} works',
+                  (journal) => _BarItem(
+                    label: journal.name,
+                    value: journal.worksCount,
+                    valueLabel: '${journal.worksCount} articles',
+                  ),
+                )
+                .toList(),
+          ),
+          _HorizontalBarSection(
+            title: 'Top Influential Papers',
+            icon: Icons.auto_stories_rounded,
+            items: provider.topPapers
+                .map(
+                  (paper) => _BarItem(
+                    label: paper.title,
+                    details:
+                        '${paper.year ?? 'No year'} · ${paper.citationCount} citations',
+                    value: paper.citationCount,
+                    valueLabel: '${paper.citationCount} cites',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            PublicationDetailScreen(publication: paper),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          _HorizontalBarSection(
+            title: 'Top Authors',
+            icon: Icons.group_outlined,
+            items: provider.topAuthors
+                .map(
+                  (author) => _BarItem(
+                    label: author.name,
+                    value: author.worksCount,
+                    valueLabel: '${author.worksCount} articles',
                   ),
                 )
                 .toList(),
@@ -146,10 +197,10 @@ class _SourceAnalyticsBody extends StatelessWidget {
 }
 
 class _QueryBadge extends StatelessWidget {
-  final String query;
-  final String journalName;
+  final String keyword;
+  final String? journalName;
 
-  const _QueryBadge({required this.query, required this.journalName});
+  const _QueryBadge({required this.keyword, this.journalName});
 
   @override
   Widget build(BuildContext context) {
@@ -162,12 +213,14 @@ class _QueryBadge extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _BadgeLine(icon: Icons.search_rounded, text: 'Topic: $query'),
-          const SizedBox(height: 4),
-          _BadgeLine(
-            icon: Icons.book_outlined,
-            text: 'Selected journal: $journalName',
-          ),
+          _BadgeLine(icon: Icons.search_rounded, text: 'Keyword: $keyword'),
+          if (journalName != null) ...[
+            const SizedBox(height: 4),
+            _BadgeLine(
+              icon: Icons.book_outlined,
+              text: 'Filtered by: $journalName',
+            ),
+          ],
         ],
       ),
     );
@@ -215,73 +268,167 @@ class _MetricRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final journal = provider.selectedJournal!;
+    return Row(
+      children: [
+        Expanded(
+          child: _MetricCard(
+            title: 'Total Publications',
+            value: _compact(provider.totalWorks),
+            icon: Icons.article_rounded,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MetricCard(
+            title: 'Avg Citations',
+            value: provider.avgCitationCount?.toString() ?? '-',
+            icon: Icons.format_quote_rounded,
+            color: AppColors.success,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MetricCard(
+            title: 'Most Active Year',
+            value: provider.mostActiveYear?.toString() ?? '-',
+            icon: Icons.leaderboard_rounded,
+            color: AppColors.gold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AnalyticsHighlights extends StatelessWidget {
+  final JournalProvider provider;
+
+  const _AnalyticsHighlights({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final paper = provider.mostInfluentialPaper;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _MetricCard(
-                title: 'Works',
-                value: _compact(journal.worksCount),
-                icon: Icons.article_rounded,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _MetricCard(
-                title: 'Citations',
-                value: _compact(journal.citedByCount),
-                icon: Icons.format_quote_rounded,
-                color: AppColors.success,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _MetricCard(
-                title: 'Top Year',
-                value: provider.mostActiveYear?.toString() ?? '-',
-                icon: Icons.leaderboard_rounded,
-                color: AppColors.gold,
-              ),
-            ),
-          ],
+        const _SectionHeader(
+          icon: Icons.insights_rounded,
+          title: 'Analytics Highlights',
         ),
-        const SizedBox(height: 8),
-        Row(
+        const SizedBox(height: 12),
+        _HighlightCard(
           children: [
-            Expanded(
-              child: _MetricCard(
-                title: 'H-index',
-                value: journal.hIndex?.toString() ?? '-',
-                icon: Icons.insights_rounded,
-                color: AppColors.info,
-              ),
+            _HighlightRow(
+              icon: Icons.book_outlined,
+              label: 'Top Journal',
+              value: provider.topJournal ?? '-',
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _MetricCard(
-                title: 'i10-index',
-                value: journal.i10Index?.toString() ?? '-',
-                icon: Icons.stacked_bar_chart_rounded,
-                color: AppColors.accent,
-              ),
+            const Divider(height: 1),
+            _HighlightRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Top Author',
+              value: provider.topAuthor ?? '-',
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _MetricCard(
-                title: '2yr Mean',
-                value: journal.twoYearMeanCitedness?.toStringAsFixed(2) ?? '-',
-                icon: Icons.trending_up_rounded,
-                color: AppColors.success,
-              ),
+            const Divider(height: 1),
+            _HighlightRow(
+              icon: Icons.auto_stories_outlined,
+              label: 'Most Influential Paper',
+              value: paper?.title ?? '-',
+              onTap: paper == null
+                  ? null
+                  : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            PublicationDetailScreen(publication: paper),
+                      ),
+                    ),
             ),
           ],
         ),
       ],
     );
+  }
+}
+
+class _HighlightCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _HighlightCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: children),
+    );
+  }
+}
+
+class _HighlightRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+
+  const _HighlightRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: AppColors.primary),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 112,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (onTap != null)
+            Icon(
+              Icons.chevron_right_rounded,
+              color: colorScheme.onSurfaceVariant,
+            ),
+        ],
+      ),
+    );
+
+    return onTap == null ? content : InkWell(onTap: onTap, child: content);
   }
 }
 
@@ -436,13 +583,17 @@ class _YearRankingCard extends StatelessWidget {
 
 class _BarItem {
   final String label;
+  final String? details;
   final int value;
   final String valueLabel;
+  final VoidCallback? onTap;
 
   const _BarItem({
     required this.label,
+    this.details,
     required this.value,
     required this.valueLabel,
+    this.onTap,
   });
 }
 
@@ -510,7 +661,7 @@ class _BarRow extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final ratio = maxValue == 0 ? 0.0 : item.value / maxValue;
 
-    return Padding(
+    final content = Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,14 +679,28 @@ class _BarRow extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: Text(
-                  item.label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    if (item.details != null)
+                      Text(
+                        item.details!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -563,5 +728,7 @@ class _BarRow extends StatelessWidget {
         ],
       ),
     );
+    if (item.onTap == null) return content;
+    return InkWell(onTap: item.onTap, child: content);
   }
 }
