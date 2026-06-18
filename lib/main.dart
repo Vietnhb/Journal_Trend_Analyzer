@@ -7,6 +7,7 @@ import 'presentation/providers/journal_provider.dart';
 import 'presentation/widgets/app_bottom_nav_shell.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const JournalTrendAnalyzerApp());
 }
 

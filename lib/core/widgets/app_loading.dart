@@ -21,8 +21,7 @@ class AppLoading extends StatelessWidget {
               child: CircularProgressIndicator(
                 strokeWidth: 3,
                 color: AppColors.primary,
-                backgroundColor:
-                    AppColors.primary.withValues(alpha: 0.12),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
               ),
             ),
             if (message != null) ...[
@@ -30,8 +29,8 @@ class AppLoading extends StatelessWidget {
               Text(
                 message!,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  color: AppColors.textSecondary,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

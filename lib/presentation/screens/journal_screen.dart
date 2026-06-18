@@ -107,7 +107,7 @@ class _Header extends StatelessWidget {
           Text(
             provider.selectedKeyword.isEmpty
                 ? 'Search a keyword from Home first'
-                : 'All journal articles related to "${provider.selectedKeyword}"',
+                : provider.selectedKeyword,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),

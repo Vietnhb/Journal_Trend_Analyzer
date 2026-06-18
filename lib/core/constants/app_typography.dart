@@ -17,9 +17,7 @@ class AppTypography {
       headlineMedium: theme.headlineMedium?.copyWith(
         fontWeight: FontWeight.w700,
       ),
-      headlineSmall: theme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
+      headlineSmall: theme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
       titleLarge: theme.titleLarge?.copyWith(
         fontWeight: FontWeight.w700,
         letterSpacing: 0,
@@ -48,9 +46,7 @@ class AppTypography {
         fontWeight: FontWeight.w600,
         letterSpacing: 0.1,
       ),
-      labelMedium: theme.labelMedium?.copyWith(
-        fontWeight: FontWeight.w500,
-      ),
+      labelMedium: theme.labelMedium?.copyWith(fontWeight: FontWeight.w500),
       labelSmall: theme.labelSmall?.copyWith(
         fontWeight: FontWeight.w500,
         letterSpacing: 0.3,

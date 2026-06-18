@@ -1,29 +1,34 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/constants/app_limits.dart';
 import '../../core/errors/app_errors.dart';
 import '../../data/repositories/journal_repository.dart';
 
 class JournalProvider extends ChangeNotifier {
+  static const _recentSearchesKey = 'recent_searches';
+  static const _maxRecentSearches = 10;
+
   final JournalRepository _repository;
 
   JournalProvider({JournalRepository? repository})
-    : _repository = repository ?? JournalRepository();
+    : _repository = repository ?? JournalRepository() {
+    unawaited(_loadRecentSearches());
+    unawaited(loadTrendingKeywords());
+  }
 
-  String _query = '';
   String _selectedKeyword = '';
   bool _isLoading = false;
-  bool _hasSearched = false;
   AppError? _error;
-  PublicationYearSort _yearSort = PublicationYearSort.descending;
   PublicationListSort _publicationSort = PublicationListSort.newest;
   List<String> _recentSearches = const [];
-  List<OpenAlexTopic> _topicSuggestions = const [];
-  OpenAlexTopic? _selectedTopic;
+  List<RankedEntity> _trendingKeywords = const [];
+  bool _isLoadingTrendingKeywords = false;
+  AppError? _trendingKeywordError;
 
   List<RankedEntity> _journals = const [];
-  RankedEntity? _selectedJournal;
-  bool _isLoadingJournals = false;
-  AppError? _journalError;
 
   bool _isLoadingAnalytics = false;
   AppError? _analyticsError;
@@ -38,32 +43,32 @@ class JournalProvider extends ChangeNotifier {
   List<Publication> _journalPublications = const [];
   int _journalPublicationTotal = 0;
   int _currentPage = 1;
-  int _perPage = 50;
+  int _perPage = AppLimits.publicationPageSize;
   int? _loadingPage;
 
   bool _isDarkMode = false;
   bool _filterFutureSourceYears = true;
+  bool _isDisposed = false;
 
-  String get query => _query;
   String get selectedKeyword => _selectedKeyword;
   bool get isLoading => _isLoading;
-  bool get hasSearched => _hasSearched;
   AppError? get error => _error;
-  PublicationYearSort get yearSort => _yearSort;
   PublicationListSort get publicationSort => _publicationSort;
   List<String> get recentSearches => _recentSearches;
-  List<OpenAlexTopic> get topicSuggestions => _topicSuggestions;
-  OpenAlexTopic? get selectedTopic => _selectedTopic;
+  List<RankedEntity> get trendingKeywords => _trendingKeywords;
+  bool get isLoadingTrendingKeywords => _isLoadingTrendingKeywords;
+  AppError? get trendingKeywordError => _trendingKeywordError;
 
   List<RankedEntity> get journals => _journals;
-  RankedEntity? get selectedJournal => _selectedJournal;
-  bool get isLoadingJournals => _isLoadingJournals;
-  AppError? get journalError => _journalError;
 
   bool get isLoadingAnalytics => _isLoadingAnalytics;
   AppError? get analyticsError => _analyticsError;
-  List<Publication> get topPapers => List.unmodifiable(_topPapers);
-  List<RankedEntity> get topAuthors => List.unmodifiable(_topAuthors);
+  List<RankedEntity> get keywordAnalyticsJournals =>
+      List.unmodifiable(_journals.take(AppLimits.keywordAnalyticsCardLimit));
+  List<Publication> get keywordAnalyticsTopPapers =>
+      List.unmodifiable(_topPapers.take(AppLimits.keywordAnalyticsCardLimit));
+  List<RankedEntity> get keywordAnalyticsTopAuthors =>
+      List.unmodifiable(_topAuthors.take(AppLimits.keywordAnalyticsCardLimit));
 
   bool get isLoadingJournalPublications => _isLoadingJournalPublications;
   AppError? get journalPublicationError => _journalPublicationError;
@@ -71,13 +76,14 @@ class JournalProvider extends ChangeNotifier {
   int get journalTotalAvailable => _journalPublicationTotal;
   int get currentPage => _currentPage;
   int? get loadingPage => _loadingPage;
-  int get perPage => _perPage;
   int get totalPages {
     if (_journalPublicationTotal <= 0) return 1;
     return (_journalPublicationTotal / _perPage).ceil();
   }
 
-  int get directPageLimit => totalPages < 200 ? totalPages : 200;
+  int get directPageLimit => totalPages < AppLimits.directPageNavigationLimit
+      ? totalPages
+      : AppLimits.directPageNavigationLimit;
 
   bool get canGoPrevious =>
       _canNavigateTo(_currentPage - 1) && !_isLoadingJournalPublications;
@@ -117,33 +123,29 @@ class JournalProvider extends ChangeNotifier {
     return list;
   }
 
+  List<MapEntry<int, int>> get keywordAnalyticsYearsByWorkCount =>
+      yearsByWorkCount.take(AppLimits.keywordAnalyticsCardLimit).toList();
+
   Future<void> analyzeKeyword(String keyword) async {
     final trimmed = keyword.trim();
     if (trimmed.isEmpty || _isLoading) return;
 
-    _query = trimmed;
     _selectedKeyword = trimmed;
-    _rememberSearch(trimmed);
+    _rememberSearchInMemory(trimmed);
     _isLoading = true;
-    _isLoadingJournals = true;
     _isLoadingAnalytics = true;
-    _hasSearched = true;
     _error = null;
-    _journalError = null;
     _analyticsError = null;
-    _topicSuggestions = const [];
-    _selectedTopic = null;
-    _selectedJournal = null;
     _journals = const [];
     _clearKeywordAnalytics();
     _clearJournalPublications();
     notifyListeners();
+    await _saveRecentSearches();
 
     try {
-      await _loadKeywordAnalytics(trimmed, includeJournals: true);
+      await _loadKeywordAnalytics(trimmed);
     } on AppError catch (error) {
       _error = error;
-      _journalError = error;
       _analyticsError = error;
     } catch (error) {
       final appError = AppError(
@@ -151,11 +153,9 @@ class JournalProvider extends ChangeNotifier {
         details: error.toString(),
       );
       _error = appError;
-      _journalError = appError;
       _analyticsError = appError;
     } finally {
       _isLoading = false;
-      _isLoadingJournals = false;
       _isLoadingAnalytics = false;
       notifyListeners();
     }
@@ -168,7 +168,7 @@ class JournalProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _loadKeywordAnalytics(_selectedKeyword, includeJournals: true);
+      await _loadKeywordAnalytics(_selectedKeyword);
     } on AppError catch (error) {
       _analyticsError = error;
     } catch (error) {
@@ -182,30 +182,51 @@ class JournalProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadKeywordAnalytics(
-    String keyword, {
-    required bool includeJournals,
-  }) async {
-    final initialRequests = <Future<Object?>>[
-      if (includeJournals)
-        _repository.getTopJournalsByKeyword(
-          keyword,
-          limit: 50,
-          excludeFuturePublications: _filterFutureSourceYears,
-        ),
+  Future<void> loadTrendingKeywords({bool force = false}) async {
+    if (_isLoadingTrendingKeywords) return;
+    if (!force && _trendingKeywords.isNotEmpty) return;
+
+    _isLoadingTrendingKeywords = true;
+    _trendingKeywordError = null;
+    notifyListeners();
+
+    try {
+      final keywords = await _repository.getTrendingKeywords();
+      if (_isDisposed) return;
+      _trendingKeywords = keywords;
+    } on AppError catch (error) {
+      if (_isDisposed) return;
+      _trendingKeywordError = error;
+    } catch (error) {
+      if (_isDisposed) return;
+      _trendingKeywordError = AppError(
+        'Could not load trending keywords.',
+        details: error.toString(),
+      );
+    } finally {
+      if (!_isDisposed) {
+        _isLoadingTrendingKeywords = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _loadKeywordAnalytics(String keyword) async {
+    final initial = await Future.wait([
+      _repository.getTopJournalsByKeyword(
+        keyword,
+        limit: AppLimits.topJournalResults,
+        excludeFuturePublications: _filterFutureSourceYears,
+      ),
       _repository.getPublicationsByKeyword(
         keyword,
         page: 1,
         excludeFuturePublications: _filterFutureSourceYears,
         publicationSort: _publicationSort,
       ),
-    ];
-    final initial = await Future.wait(initialRequests);
-    var resultIndex = 0;
-    if (includeJournals) {
-      _journals = initial[resultIndex++] as List<RankedEntity>;
-    }
-    final countPage = initial[resultIndex] as PublicationSearchPage;
+    ]);
+    _journals = initial[0] as List<RankedEntity>;
+    final countPage = initial[1] as PublicationSearchPage;
     _keywordPublicationTotal = countPage.totalCount;
     _applyJournalPublicationPage(countPage);
     notifyListeners();
@@ -218,7 +239,7 @@ class JournalProvider extends ChangeNotifier {
       ),
       _repository.getTopAuthorsByKeyword(
         keyword,
-        limit: 50,
+        limit: AppLimits.topAuthorResults,
         excludeFuturePublications: _filterFutureSourceYears,
       ),
     ]);
@@ -241,52 +262,6 @@ class JournalProvider extends ChangeNotifier {
     _averageCitations = trends[1] as int?;
   }
 
-  Future<void> selectJournal(RankedEntity journal) async {
-    if (_selectedKeyword.isEmpty || _isLoadingJournalPublications) return;
-    _selectedJournal = journal;
-    _journalPublicationError = null;
-    _isLoadingJournalPublications = true;
-    _clearJournalPublications(keepSelectedCount: true);
-    notifyListeners();
-
-    try {
-      final results = await Future.wait([
-        _getJournalSourceDetailOrNull(journal),
-        _repository.getPublicationsByKeyword(
-          _selectedKeyword,
-          sourceId: journal.id,
-          yearSort: _yearSort,
-          page: 1,
-          excludeFuturePublications: _filterFutureSourceYears,
-          cursor: '*',
-        ),
-      ]);
-
-      final sourceDetail = results[0] as RankedEntity?;
-      if (sourceDetail != null) {
-        _selectedJournal = journal.mergeSourceMetadata(sourceDetail);
-        _journals = _journals
-            .map(
-              (item) => item.id == journal.id
-                  ? item.mergeSourceMetadata(sourceDetail)
-                  : item,
-            )
-            .toList(growable: false);
-      }
-      _applyJournalPublicationPage(results[1] as PublicationSearchPage);
-    } on AppError catch (error) {
-      _journalPublicationError = error;
-    } catch (error) {
-      _journalPublicationError = AppError(
-        'Could not load journal publications.',
-        details: error.toString(),
-      );
-    } finally {
-      _isLoadingJournalPublications = false;
-      notifyListeners();
-    }
-  }
-
   Future<void> goToPage(int pageNumber, {bool force = false}) async {
     if (_selectedKeyword.isEmpty || _isLoadingJournalPublications) {
       return;
@@ -306,7 +281,6 @@ class JournalProvider extends ChangeNotifier {
       final apiPage = useReverseOrder ? reversePage : targetPage;
       final result = await _repository.getPublicationsByKeyword(
         _selectedKeyword,
-        yearSort: _yearSort,
         page: apiPage,
         excludeFuturePublications: _filterFutureSourceYears,
         publicationSort: _publicationSort,
@@ -337,89 +311,18 @@ class JournalProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> goToFirstPage() => goToPage(1);
-
-  Future<void> goToLastPage() => goToPage(totalPages);
-
   bool _canNavigateTo(int page) {
     if (page < 1 || page > totalPages) return false;
     return page <= directPageLimit || totalPages - page + 1 <= directPageLimit;
   }
 
-  Future<void> setYearSort(PublicationYearSort yearSort) async {
-    if (_yearSort == yearSort) return;
-    _yearSort = yearSort;
-    if (_selectedKeyword.isNotEmpty) {
-      await goToPage(1, force: true);
-    } else {
-      notifyListeners();
-    }
-  }
-
   Future<void> setPublicationSort(PublicationListSort sort) async {
     if (_publicationSort == sort) return;
     _publicationSort = sort;
-    _yearSort = switch (sort) {
-      PublicationListSort.oldest => PublicationYearSort.ascending,
-      _ => PublicationYearSort.descending,
-    };
     if (_selectedKeyword.isNotEmpty) {
       await goToPage(1, force: true);
     } else {
       notifyListeners();
-    }
-  }
-
-  void clearJournalSelection() {
-    _selectedJournal = null;
-    _clearJournalPublications();
-    notifyListeners();
-  }
-
-  @Deprecated('Use analyzeKeyword instead')
-  Future<void> search(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
-    _query = trimmed;
-    _rememberSearch(trimmed);
-    _isLoading = true;
-    _hasSearched = true;
-    _error = null;
-    _topicSuggestions = const [];
-    notifyListeners();
-    try {
-      _topicSuggestions = await _repository.searchTopics(trimmed);
-    } on AppError catch (error) {
-      _error = error;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  @Deprecated('Topic selection is optional. Use analyzeKeyword for main flow.')
-  Future<void> selectTopic(OpenAlexTopic topic) async {
-    _selectedTopic = topic;
-    _isLoadingJournals = true;
-    _journalError = null;
-    notifyListeners();
-    try {
-      _journals = await _repository.getTopJournalsByTopicId(topic.id);
-    } on AppError catch (error) {
-      _journalError = error;
-    } finally {
-      _isLoadingJournals = false;
-      notifyListeners();
-    }
-  }
-
-  Future<RankedEntity?> _getJournalSourceDetailOrNull(
-    RankedEntity journal,
-  ) async {
-    try {
-      return await _repository.getJournalSourceDetail(journal.id);
-    } catch (_) {
-      return null;
     }
   }
 
@@ -439,20 +342,11 @@ class JournalProvider extends ChangeNotifier {
   }
 
   void clear() {
-    _query = '';
     _selectedKeyword = '';
     _isLoading = false;
-    _hasSearched = false;
     _error = null;
-    _yearSort = PublicationYearSort.descending;
     _publicationSort = PublicationListSort.newest;
-    _recentSearches = const [];
-    _topicSuggestions = const [];
-    _selectedTopic = null;
     _journals = const [];
-    _selectedJournal = null;
-    _isLoadingJournals = false;
-    _journalError = null;
     _isLoadingAnalytics = false;
     _analyticsError = null;
     _isLoadingJournalPublications = false;
@@ -462,14 +356,71 @@ class JournalProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _rememberSearch(String query) {
+  Future<void> clearRecentSearches() async {
+    if (_recentSearches.isEmpty) return;
+    _recentSearches = const [];
+    notifyListeners();
+    await _saveRecentSearches();
+  }
+
+  void _rememberSearchInMemory(String query) {
     final updated = [
       query,
       ..._recentSearches.where(
         (item) => item.toLowerCase() != query.toLowerCase(),
       ),
-    ];
+    ].take(_maxRecentSearches);
     _recentSearches = List.unmodifiable(updated);
+  }
+
+  Future<void> _loadRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getStringList(_recentSearchesKey) ?? const [];
+      final sanitized = _sanitizeRecentSearches(stored);
+      if (_isDisposed) return;
+
+      final merged = _mergeRecentSearches(_recentSearches, sanitized);
+      if (listEquals(_recentSearches, merged)) return;
+
+      _recentSearches = List.unmodifiable(merged);
+      notifyListeners();
+      if (!listEquals(sanitized, merged)) {
+        await _saveRecentSearches();
+      }
+    } catch (error) {
+      debugPrint('Could not load recent searches: $error');
+    }
+  }
+
+  Future<void> _saveRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_recentSearchesKey, _recentSearches);
+    } catch (error) {
+      debugPrint('Could not save recent searches: $error');
+    }
+  }
+
+  List<String> _sanitizeRecentSearches(List<String> searches) {
+    final result = <String>[];
+    final seen = <String>{};
+    for (final search in searches) {
+      final trimmed = search.trim();
+      final key = trimmed.toLowerCase();
+      if (trimmed.isEmpty || seen.contains(key)) continue;
+      result.add(trimmed);
+      seen.add(key);
+      if (result.length >= _maxRecentSearches) break;
+    }
+    return result;
+  }
+
+  List<String> _mergeRecentSearches(
+    List<String> priority,
+    List<String> fallback,
+  ) {
+    return _sanitizeRecentSearches([...priority, ...fallback]);
   }
 
   void _applyJournalPublicationPage(PublicationSearchPage page) {
@@ -487,18 +438,17 @@ class JournalProvider extends ChangeNotifier {
     _keywordPublicationTotal = 0;
   }
 
-  void _clearJournalPublications({bool keepSelectedCount = false}) {
+  void _clearJournalPublications() {
     _journalPublications = const [];
-    _journalPublicationTotal = keepSelectedCount
-        ? _selectedJournal?.worksCount ?? 0
-        : 0;
+    _journalPublicationTotal = 0;
     _currentPage = 1;
-    _perPage = 50;
+    _perPage = AppLimits.publicationPageSize;
     _loadingPage = null;
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     _repository.dispose();
     super.dispose();
   }

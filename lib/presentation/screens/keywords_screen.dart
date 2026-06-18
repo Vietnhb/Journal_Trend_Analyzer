@@ -59,7 +59,7 @@ class _Header extends StatelessWidget {
           Text(
             provider.selectedKeyword.isEmpty
                 ? 'Search a keyword from Home to view analytics'
-                : '"${provider.selectedKeyword}" across all journals',
+                : provider.selectedKeyword,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -132,7 +132,7 @@ class _TopicAnalyticsBody extends StatelessWidget {
           _HorizontalBarSection(
             title: 'Top Journals',
             icon: Icons.book_outlined,
-            items: provider.journals
+            items: provider.keywordAnalyticsJournals
                 .map(
                   (journal) => _BarItem(
                     label: journal.name,
@@ -151,13 +151,13 @@ class _TopicAnalyticsBody extends StatelessWidget {
           _HorizontalBarSection(
             title: 'Top Influential Papers',
             icon: Icons.auto_stories_rounded,
-            items: provider.topPapers
+            items: provider.keywordAnalyticsTopPapers
                 .map(
                   (paper) => _BarItem(
                     label: paper.title,
                     markup: paper.titleMarkup,
                     details:
-                        '${paper.year ?? 'No year'} · ${paper.citationCount} citations',
+                        '${paper.year ?? 'No year'} - ${paper.journalName}',
                     value: paper.citationCount,
                     valueLabel: '${paper.citationCount} cites',
                     onTap: () => Navigator.push(
@@ -174,7 +174,7 @@ class _TopicAnalyticsBody extends StatelessWidget {
           _HorizontalBarSection(
             title: 'Top Authors',
             icon: Icons.group_outlined,
-            items: provider.topAuthors
+            items: provider.keywordAnalyticsTopAuthors
                 .map(
                   (author) => _BarItem(
                     label: author.name,
@@ -213,11 +213,6 @@ class _QueryBadge extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _BadgeLine(icon: Icons.search_rounded, text: 'Keyword: $keyword'),
-          const SizedBox(height: 4),
-          const _BadgeLine(
-            icon: Icons.library_books_outlined,
-            text: 'Scope: all related journals',
-          ),
         ],
       ),
     );
@@ -300,7 +295,7 @@ class _AnalyticsHighlights extends StatelessWidget {
   Widget build(BuildContext context) {
     final paper = provider.mostInfluentialPaper;
     final journal = provider.journals.firstOrNull;
-    final author = provider.topAuthors.firstOrNull;
+    final author = provider.keywordAnalyticsTopAuthors.firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -602,7 +597,9 @@ class _YearRankingCard extends StatelessWidget {
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
-      child: YearRankingList(rankedYears: provider.yearsByWorkCount),
+      child: YearRankingList(
+        rankedYears: provider.keywordAnalyticsYearsByWorkCount,
+      ),
     );
   }
 }

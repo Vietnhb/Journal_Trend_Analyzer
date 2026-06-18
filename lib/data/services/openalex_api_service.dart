@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/app_limits.dart';
 import '../../core/errors/app_errors.dart';
-import '../models/openalex_topic.dart';
 import '../models/publication.dart';
 import '../models/ranked_entity.dart';
 
@@ -48,14 +48,12 @@ class PublicationSearchPage {
   final int totalCount;
   final int page;
   final int perPage;
-  final String? nextCursor;
 
   const PublicationSearchPage({
     required this.publications,
     required this.totalCount,
     required this.page,
     required this.perPage,
-    this.nextCursor,
   });
 }
 
@@ -70,44 +68,51 @@ class OpenAlexApiService {
   OpenAlexApiService({http.Client? client, this.timeout = defaultTimeout})
     : _client = client ?? http.Client();
 
-  Future<List<OpenAlexTopic>> searchTopics(
-    String keyword, {
-    int limit = 50,
+  Future<List<RankedEntity>> getTrendingKeywords({
+    int limit = AppLimits.trendingKeywordResults,
   }) async {
-    final trimmedKeyword = keyword.trim();
-    if (trimmedKeyword.isEmpty) return const [];
-
-    final safeLimit = limit.clamp(1, 50).toInt();
-    final uri = _openAlexUri('/topics', {
-      'search': trimmedKeyword,
+    final now = DateTime.now();
+    final fromDate = _oneMonthAgo(now);
+    final safeLimit = limit.clamp(1, AppLimits.openAlexGroupPageSize).toInt();
+    final uri = _openAlexUri('/works', {
+      'filter':
+          'from_publication_date:${_formatDate(fromDate)},'
+          'to_publication_date:${_formatDate(now)},'
+          'type:article',
+      'group_by': 'keywords.id',
       'per-page': safeLimit.toString(),
       'mailto': _contactEmail,
     });
 
     final decoded = await _getJsonObject(uri);
-    final results = decoded['results'];
-    if (results is! List) return const [];
+    final groups = decoded['group_by'];
+    if (groups is! List) return const [];
 
-    return results
-        .whereType<Map<String, dynamic>>()
-        .map(OpenAlexTopic.fromJson)
-        .where((topic) => topic.id.isNotEmpty && topic.name.isNotEmpty)
-        .toList(growable: false);
+    final keywords = <RankedEntity>[];
+    for (final item in groups) {
+      if (item is! Map<String, dynamic>) continue;
+      final keyword = RankedEntity.fromGroupByJson(item);
+      final key = keyword.id.toLowerCase();
+      if (keyword.id.isEmpty || key == 'unknown' || keyword.name.isEmpty) {
+        continue;
+      }
+      keywords.add(keyword);
+    }
+    return keywords;
   }
 
   /// Get top journals by keyword search.
   /// Returns journals with the most articles related to the keyword.
   Future<List<RankedEntity>> getTopJournalsByKeyword(
     String keyword, {
-    String? sourceId,
-    int limit = 50,
+    int limit = AppLimits.topJournalResults,
     bool excludeFuturePublications = true,
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) return const [];
 
-    final safeLimit = limit.clamp(1, 200).toInt();
-    final filters = _keywordWorkFilters(trimmedKeyword, sourceId: sourceId);
+    final safeLimit = limit.clamp(1, AppLimits.openAlexGroupPageSize).toInt();
+    final filters = _keywordWorkFilters(trimmedKeyword);
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
@@ -134,60 +139,16 @@ class OpenAlexApiService {
     return journals;
   }
 
-  @Deprecated('Use getTopJournalsByKeyword instead')
-  Future<List<RankedEntity>> getTopJournalsByTopicId(
-    String topicId, {
-    int limit = 50,
-  }) async {
-    final topicFilterValue = _openAlexIdFilterValue(topicId);
-    if (topicFilterValue.isEmpty) return const [];
-
-    final safeLimit = limit.clamp(1, 200).toInt();
-    final uri = _openAlexUri('/works', {
-      'filter':
-          'type:article,primary_location.source.type:journal,topics.id:$topicFilterValue',
-      'group_by': 'primary_location.source.id',
-      'per-page': safeLimit.toString(),
-      'mailto': _contactEmail,
-    });
-
-    final decoded = await _getJsonObject(uri);
-    final groups = decoded['group_by'];
-    if (groups is! List) return const [];
-
-    final journals = <RankedEntity>[];
-    for (final item in groups) {
-      if (item is! Map<String, dynamic>) continue;
-      final journal = RankedEntity.fromGroupByJson(item);
-      if (journal.id.isEmpty || journal.name.isEmpty) continue;
-      journals.add(journal);
-    }
-    return journals;
-  }
-
-  Future<RankedEntity> getJournalSourceDetail(String sourceId) async {
-    final shortId = _openAlexIdFilterValue(sourceId);
-    if (shortId.isEmpty) {
-      throw AppError('Please select a journal first.');
-    }
-
-    final uri = _openAlexUri('/sources/$shortId', {'mailto': _contactEmail});
-    final decoded = await _getJsonObject(uri);
-    return RankedEntity.fromSourceJson(decoded);
-  }
-
   /// Get publications by keyword search.
   /// Optionally filter by sourceId for journal drill-down.
   Future<PublicationSearchPage> getPublicationsByKeyword(
     String keyword, {
     String? sourceId,
     String? authorId,
-    PublicationYearSort yearSort = PublicationYearSort.descending,
     int page = 1,
-    int perPage = 50,
+    int perPage = AppLimits.publicationPageSize,
     bool excludeFuturePublications = true,
     String? sortOverride,
-    String? cursor,
     PublicationListSort? publicationSort,
   }) async {
     final trimmedKeyword = keyword.trim();
@@ -196,7 +157,9 @@ class OpenAlexApiService {
     }
 
     final safePage = page < 1 ? 1 : page;
-    final safePerPage = perPage.clamp(1, 50).toInt();
+    final safePerPage = perPage
+        .clamp(1, AppLimits.openAlexListPageSize)
+        .toInt();
     final filters = _keywordWorkFilters(
       trimmedKeyword,
       sourceId: sourceId,
@@ -209,15 +172,14 @@ class OpenAlexApiService {
     final queryParameters = <String, String>{
       'search': trimmedKeyword,
       'filter': filters.join(','),
-      'sort': sortOverride ?? publicationSort?.apiSort ?? yearSort.apiSort,
+      'sort':
+          sortOverride ??
+          publicationSort?.apiSort ??
+          PublicationListSort.newest.apiSort,
       'per-page': safePerPage.toString(),
       'mailto': _contactEmail,
+      'page': safePage.toString(),
     };
-    if (cursor == null) {
-      queryParameters['page'] = safePage.toString();
-    } else {
-      queryParameters['cursor'] = cursor;
-    }
     final uri = _openAlexUri('/works', queryParameters);
 
     final decoded = await _getJsonObject(uri);
@@ -230,63 +192,6 @@ class OpenAlexApiService {
     final totalCount = meta is Map<String, dynamic>
         ? _asInt(meta['count']) ?? 0
         : 0;
-    final nextCursor = meta is Map<String, dynamic>
-        ? meta['next_cursor']?.toString()
-        : null;
-
-    return PublicationSearchPage(
-      publications: results
-          .whereType<Map<String, dynamic>>()
-          .map(Publication.fromOpenAlexJson)
-          .toList(growable: false),
-      totalCount: totalCount,
-      page: safePage,
-      perPage: safePerPage,
-      nextCursor: nextCursor == null || nextCursor.isEmpty ? null : nextCursor,
-    );
-  }
-
-  @Deprecated('Use getPublicationsByKeyword instead')
-  Future<PublicationSearchPage> getJournalPublicationsByTopicId(
-    String topicId, {
-    required String sourceId,
-    PublicationYearSort yearSort = PublicationYearSort.descending,
-    int page = 1,
-    int perPage = 50,
-    bool excludeFuturePublications = true,
-    String? sortOverride,
-  }) async {
-    final topicFilterValue = _openAlexIdFilterValue(topicId);
-    if (topicFilterValue.isEmpty) {
-      throw AppError('Please select a topic first.');
-    }
-
-    final safePage = page < 1 ? 1 : page;
-    final safePerPage = perPage.clamp(1, 50).toInt();
-    final filters = _journalTopicWorkFilters(topicFilterValue, sourceId);
-    if (excludeFuturePublications) {
-      filters.add('to_publication_date:${_currentPublicationDateFilter()}');
-    }
-
-    final uri = _openAlexUri('/works', {
-      'filter': filters.join(','),
-      'sort': sortOverride ?? yearSort.apiSort,
-      'page': safePage.toString(),
-      'per-page': safePerPage.toString(),
-      'mailto': _contactEmail,
-    });
-
-    final decoded = await _getJsonObject(uri);
-    final results = decoded['results'];
-    if (results is! List) {
-      throw const FormatException('Expected "results" to be a list.');
-    }
-
-    final meta = decoded['meta'];
-    final totalCount = meta is Map<String, dynamic>
-        ? _asInt(meta['count']) ?? 0
-        : 0;
-
     return PublicationSearchPage(
       publications: results
           .whereType<Map<String, dynamic>>()
@@ -302,33 +207,12 @@ class OpenAlexApiService {
   /// Sorted by citation count descending.
   Future<List<Publication>> getTopPapersByKeyword(
     String keyword, {
-    String? sourceId,
-    String? authorId,
     bool excludeFuturePublications = true,
   }) async {
     final page = await getPublicationsByKeyword(
       keyword,
-      sourceId: sourceId,
-      authorId: authorId,
       page: 1,
-      perPage: 50,
-      excludeFuturePublications: excludeFuturePublications,
-      sortOverride: 'cited_by_count:desc',
-    );
-    return page.publications;
-  }
-
-  @Deprecated('Use getTopPapersByKeyword instead')
-  Future<List<Publication>> getJournalTopPapersByTopicId(
-    String topicId, {
-    required String sourceId,
-    bool excludeFuturePublications = true,
-  }) async {
-    final page = await getJournalPublicationsByTopicId(
-      topicId,
-      sourceId: sourceId,
-      page: 1,
-      perPage: 50,
+      perPage: AppLimits.topPaperResults,
       excludeFuturePublications: excludeFuturePublications,
       sortOverride: 'cited_by_count:desc',
     );
@@ -338,38 +222,17 @@ class OpenAlexApiService {
   /// Get top authors by keyword search.
   Future<List<RankedEntity>> getTopAuthorsByKeyword(
     String keyword, {
-    String? sourceId,
-    int limit = 10,
+    int limit = AppLimits.rankedEntityResults,
     bool excludeFuturePublications = true,
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) return const [];
-    final filters = _keywordWorkFilters(trimmedKeyword, sourceId: sourceId);
+    final filters = _keywordWorkFilters(trimmedKeyword);
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
     return _getRankedEntities(
       keyword: trimmedKeyword,
-      groupBy: 'authorships.author.id',
-      filters: filters,
-      limit: limit,
-    );
-  }
-
-  @Deprecated('Use getTopAuthorsByKeyword instead')
-  Future<List<RankedEntity>> getJournalTopAuthorsByTopicId(
-    String topicId, {
-    required String sourceId,
-    int limit = 10,
-    bool excludeFuturePublications = true,
-  }) async {
-    final topicFilterValue = _openAlexIdFilterValue(topicId);
-    if (topicFilterValue.isEmpty) return const [];
-    final filters = _journalTopicWorkFilters(topicFilterValue, sourceId);
-    if (excludeFuturePublications) {
-      filters.add('to_publication_date:${_currentPublicationDateFilter()}');
-    }
-    return _getJournalRankedEntities(
       groupBy: 'authorships.author.id',
       filters: filters,
       limit: limit,
@@ -397,35 +260,7 @@ class OpenAlexApiService {
       keyword: trimmedKeyword,
       groupBy: 'publication_year',
       filters: filters,
-      limit: 200,
-    );
-
-    final counts = <int, int>{};
-    for (final group in groups) {
-      final year = int.tryParse(group.id);
-      if (year != null) {
-        counts[year] = group.worksCount;
-      }
-    }
-    return counts;
-  }
-
-  @Deprecated('Use getPublicationTrendByKeyword instead')
-  Future<Map<int, int>> getJournalPublicationsByYearByTopicId(
-    String topicId, {
-    required String sourceId,
-    bool excludeFuturePublications = true,
-  }) async {
-    final topicFilterValue = _openAlexIdFilterValue(topicId);
-    if (topicFilterValue.isEmpty) return const {};
-    final filters = _journalTopicWorkFilters(topicFilterValue, sourceId);
-    if (excludeFuturePublications) {
-      filters.add('to_publication_date:${_currentPublicationDateFilter()}');
-    }
-    final groups = await _getJournalRankedEntities(
-      groupBy: 'publication_year',
-      filters: filters,
-      limit: 200,
+      limit: AppLimits.openAlexGroupPageSize,
     );
 
     final counts = <int, int>{};
@@ -485,7 +320,7 @@ class OpenAlexApiService {
         'search': keyword,
         'filter': filters.join(','),
         'group_by': groupBy,
-        'per-page': '200',
+        'per-page': AppLimits.openAlexGroupPageSize.toString(),
         'cursor': cursor,
         'mailto': _contactEmail,
       });
@@ -517,76 +352,17 @@ class OpenAlexApiService {
     return entities;
   }
 
-  @Deprecated('Use getAverageCitationsByKeyword instead')
-  Future<int?> getJournalAverageCitationsByTopicId(
-    String topicId, {
-    required String sourceId,
-    bool excludeFuturePublications = true,
-  }) async {
-    final topicFilterValue = _openAlexIdFilterValue(topicId);
-    if (topicFilterValue.isEmpty) return null;
-    final filters = _journalTopicWorkFilters(topicFilterValue, sourceId);
-    if (excludeFuturePublications) {
-      filters.add('to_publication_date:${_currentPublicationDateFilter()}');
-    }
-    final groups = await _getJournalRankedEntities(
-      groupBy: 'cited_by_count',
-      filters: filters,
-      limit: 200,
-    );
-
-    var totalCitations = 0;
-    var totalWorks = 0;
-    for (final group in groups) {
-      final citations = int.tryParse(group.id);
-      if (citations == null) continue;
-      totalCitations += citations * group.worksCount;
-      totalWorks += group.worksCount;
-    }
-    return totalWorks == 0 ? null : totalCitations ~/ totalWorks;
-  }
-
   Future<List<RankedEntity>> _getRankedEntities({
     required String keyword,
     required String groupBy,
     required List<String> filters,
-    int limit = 10,
+    int limit = AppLimits.rankedEntityResults,
   }) async {
     final uri = _openAlexUri('/works', {
       'search': keyword,
       'filter': filters.join(','),
       'group_by': groupBy,
-      'per-page': '200',
-      'mailto': _contactEmail,
-    });
-
-    final decoded = await _getJsonObject(uri);
-    final groupByList = decoded['group_by'];
-    if (groupByList is! List) return const [];
-
-    final entities = <RankedEntity>[];
-    for (final item in groupByList) {
-      if (item is! Map<String, dynamic>) continue;
-      final entity = RankedEntity.fromGroupByJson(item);
-      final key = entity.id.toLowerCase();
-      if (entity.id.isEmpty || key == 'unknown' || entity.name.isEmpty) {
-        continue;
-      }
-      entities.add(entity);
-      if (entities.length >= limit) break;
-    }
-    return entities;
-  }
-
-  Future<List<RankedEntity>> _getJournalRankedEntities({
-    required String groupBy,
-    required List<String> filters,
-    int limit = 10,
-  }) async {
-    final uri = _openAlexUri('/works', {
-      'filter': filters.join(','),
-      'group_by': groupBy,
-      'per-page': '200',
+      'per-page': AppLimits.openAlexGroupPageSize.toString(),
       'mailto': _contactEmail,
     });
 
@@ -679,19 +455,6 @@ class OpenAlexApiService {
     return filters;
   }
 
-  List<String> _journalTopicWorkFilters(String topicId, String sourceId) {
-    final sourceFilterValue = _openAlexIdFilterValue(sourceId);
-    if (sourceFilterValue.isEmpty) {
-      throw AppError('Please select a journal first.');
-    }
-    return [
-      'type:article',
-      'primary_location.source.type:journal',
-      'topics.id:$topicId',
-      'primary_location.source.id:$sourceFilterValue',
-    ];
-  }
-
   static String _openAlexIdFilterValue(String id) {
     final trimmed = id.trim();
     if (trimmed.isEmpty) return trimmed;
@@ -710,10 +473,28 @@ class OpenAlexApiService {
   }
 
   String _currentPublicationDateFilter() {
-    final now = DateTime.now();
-    final month = now.month.toString().padLeft(2, '0');
-    final day = now.day.toString().padLeft(2, '0');
-    return '${now.year}-$month-$day';
+    return _formatDate(DateTime.now());
+  }
+
+  static DateTime _oneMonthAgo(DateTime date) {
+    final targetMonth = date.month - 1;
+    final targetYear = targetMonth < 1 ? date.year - 1 : date.year;
+    final normalizedMonth = targetMonth < 1 ? 12 : targetMonth;
+    final lastDayOfTargetMonth = DateTime(
+      targetYear,
+      normalizedMonth + 1,
+      0,
+    ).day;
+    final targetDay = date.day > lastDayOfTargetMonth
+        ? lastDayOfTargetMonth
+        : date.day;
+    return DateTime(targetYear, normalizedMonth, targetDay);
+  }
+
+  static String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 
   void dispose() {

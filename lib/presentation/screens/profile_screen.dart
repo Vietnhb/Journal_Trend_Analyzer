@@ -88,6 +88,31 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
+            // Data section
+            _SectionLabel(label: 'Data'),
+            const SizedBox(height: 10),
+            _SettingsCard(
+              children: [
+                _SettingsTile(
+                  icon: Icons.history_rounded,
+                  iconColor: AppColors.warning,
+                  title: 'Recent searches',
+                  subtitle: provider.recentSearches.isEmpty
+                      ? 'No recent searches saved.'
+                      : '${provider.recentSearches.length} searches saved.',
+                  trailing: TextButton.icon(
+                    onPressed: provider.recentSearches.isEmpty
+                        ? null
+                        : () => _confirmClearRecentSearches(context),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Clear'),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
             // About section
             _SectionLabel(label: 'About'),
             const SizedBox(height: 10),
@@ -166,6 +191,35 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmClearRecentSearches(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Clear recent searches?'),
+          content: const Text('This will remove all saved recent searches.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+    await context.read<JournalProvider>().clearRecentSearches();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Recent searches cleared.')));
   }
 }
 

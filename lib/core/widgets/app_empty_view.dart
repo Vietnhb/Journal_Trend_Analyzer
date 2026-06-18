@@ -37,9 +37,9 @@ class AppEmptyView extends StatelessWidget {
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.6,
-                  ),
+                color: AppColors.textSecondary,
+                height: 1.6,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
