@@ -140,52 +140,12 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const Divider(height: 1, indent: 56),
                 _AboutTile(
-                  icon: Icons.category_outlined,
+                  icon: Icons.insights_outlined,
                   iconColor: AppColors.accent,
-                  label: 'Scope',
-                  value: 'Topics, journals, trends,\nauthors, publications',
+                  label: 'Purpose',
+                  value: 'Find research trends and influential publications',
                 ),
               ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Version footer
-            Center(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primary, AppColors.accent],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.auto_stories_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Journal Trend Analyzer',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Powered by OpenAlex · Built with Flutter',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: mutedText),
-                  ),
-                ],
-              ),
             ),
           ],
         ),

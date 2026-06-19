@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,55 +15,151 @@ class PublicationDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 140,
-            pinned: true,
-            backgroundColor: AppColors.primary,
-            iconTheme: const IconThemeData(color: Colors.white),
-            systemOverlayStyle: SystemUiOverlayStyle.light,
-            title: Text(
-              'Publication Detail',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: CustomScrollView(
+          slivers: [
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _PublicationHeaderDelegate(
+                title: publication.title,
+                topPadding: MediaQuery.paddingOf(context).top,
               ),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.accent],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate.fixed([
+                  _InfoCard(publication: publication),
+                  const SizedBox(height: 14),
+                  _AbstractCard(publication: publication),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PublicationHeaderDelegate extends SliverPersistentHeaderDelegate {
+  static const double _toolbarHeight = 56;
+  static const double _expandedContentHeight = 112;
+
+  final String title;
+  final double topPadding;
+
+  const _PublicationHeaderDelegate({
+    required this.title,
+    required this.topPadding,
+  });
+
+  @override
+  double get minExtent => topPadding + _toolbarHeight;
+
+  @override
+  double get maxExtent => topPadding + _toolbarHeight + _expandedContentHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final scrollProgress = (shrinkOffset / (maxExtent - minExtent)).clamp(
+      0.0,
+      1.0,
+    );
+    final expandedProgress = 1.0 - scrollProgress;
+    final toolbarTitleOpacity = ((scrollProgress - 0.62) / 0.38).clamp(
+      0.0,
+      1.0,
+    );
+    final expandedTitleOpacity = (1.0 - (scrollProgress / 0.7)).clamp(0.0, 1.0);
+    final expandedTitleBottom = lerpDouble(20, 10, scrollProgress)!;
+
+    return Material(
+      color: AppColors.primary,
+      elevation: overlapsContent ? 2 : 0,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.accent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          PositionedDirectional(
+            start: 4,
+            top: topPadding + 4,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              onPressed: () => Navigator.maybePop(context),
+            ),
+          ),
+          PositionedDirectional(
+            start: 56,
+            end: 16,
+            top: topPadding,
+            height: _toolbarHeight,
+            child: ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Opacity(
+                  opacity: toolbarTitleOpacity,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                    softWrap: false,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      height: 1.15,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate.fixed([
-                AppMarkupText(
-                  publication.titleMarkup ?? publication.title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          PositionedDirectional(
+            start: 16,
+            end: 16,
+            bottom: expandedTitleBottom,
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: expandedTitleOpacity,
+                child: Text(
+                  title,
+                  maxLines: expandedProgress > 0.45 ? 4 : 3,
+                  overflow: TextOverflow.clip,
+                  softWrap: true,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    height: 1.25,
+                    height: 1.15,
                   ),
                 ),
-                const SizedBox(height: 14),
-                _InfoCard(publication: publication),
-                const SizedBox(height: 14),
-                _AbstractCard(publication: publication),
-              ]),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PublicationHeaderDelegate oldDelegate) {
+    return title != oldDelegate.title || topPadding != oldDelegate.topPadding;
   }
 }
 
