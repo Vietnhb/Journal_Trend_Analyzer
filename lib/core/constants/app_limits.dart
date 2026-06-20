@@ -16,7 +16,7 @@ abstract final class AppLimits {
   static const int directPageNavigationLimit = 200;
 
   /// Product defaults for ranked/search results.
-  static const int topJournalResults = openAlexListPageSize;
+  static const int topJournalResults = 10;
   static const int topAuthorResults = openAlexListPageSize;
   static const int topPaperResults = openAlexListPageSize;
   static const int trendingKeywordResults = 12;

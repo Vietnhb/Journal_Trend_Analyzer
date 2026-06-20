@@ -509,12 +509,6 @@ class _AnalysisSummaryCard extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 14),
           _ResultStat(
-            icon: Icons.book_outlined,
-            label: 'Top journals found',
-            value: '${provider.journals.length}',
-          ),
-          const SizedBox(height: 10),
-          _ResultStat(
             icon: Icons.article_outlined,
             label: 'Total related articles',
             value: '${provider.totalWorks}',
