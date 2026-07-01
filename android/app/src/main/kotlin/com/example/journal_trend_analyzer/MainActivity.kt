@@ -1,4 +1,4 @@
-package com.example.journal_trend_analyzer
+package com.prm393.journal_trend_analyzer
 
 import io.flutter.embedding.android.FlutterActivity
 

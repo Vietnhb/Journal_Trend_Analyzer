@@ -1,32 +1,73 @@
+import 'dart:ui';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_typography.dart';
+import 'presentation/providers/firebase_provider.dart';
 import 'presentation/providers/journal_provider.dart';
+import 'presentation/screens/login_screen.dart';
 import 'presentation/widgets/app_bottom_nav_shell.dart';
 
-void main() {
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage _) async {
+  await Firebase.initializeApp();
+}
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const JournalTrendAnalyzerApp());
+
+  try {
+    final app = await createJournalTrendAnalyzerApp();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+
+    runApp(app);
+  } catch (error) {
+    runApp(FirebaseSetupErrorApp(error: error.toString()));
+  }
+}
+
+Future<JournalTrendAnalyzerApp> createJournalTrendAnalyzerApp() async {
+  await Firebase.initializeApp();
+  final firebaseProvider = FirebaseProvider();
+  await firebaseProvider.initialize();
+  return JournalTrendAnalyzerApp(firebaseProvider: firebaseProvider);
 }
 
 class JournalTrendAnalyzerApp extends StatelessWidget {
-  const JournalTrendAnalyzerApp({super.key});
+  final FirebaseProvider firebaseProvider;
+
+  const JournalTrendAnalyzerApp({super.key, required this.firebaseProvider});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => JournalProvider(),
-      child: Consumer<JournalProvider>(
-        builder: (context, provider, child) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: firebaseProvider),
+        ChangeNotifierProvider(create: (_) => JournalProvider()),
+      ],
+      child: Consumer2<JournalProvider, FirebaseProvider>(
+        builder: (context, journalProvider, firebaseProvider, child) {
           return MaterialApp(
             title: 'Journal Trend Analyzer',
             debugShowCheckedModeBanner: false,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
-            themeMode: provider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: const AppBottomNavShell(),
+            themeMode: journalProvider.isDarkMode
+                ? ThemeMode.dark
+                : ThemeMode.light,
+            home: firebaseProvider.isAuthenticated
+                ? const AppBottomNavShell()
+                : const LoginScreen(),
           );
         },
       ),
@@ -130,6 +171,46 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
           fontFamily: AppTypography.fontFamily,
         ),
         iconTheme: IconThemeData(color: colorScheme.onSurface),
+      ),
+    );
+  }
+}
+
+class FirebaseSetupErrorApp extends StatelessWidget {
+  final String error;
+
+  const FirebaseSetupErrorApp({super.key, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.cloud_off_rounded,
+                    size: 52,
+                    color: AppColors.danger,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Firebase could not be initialized.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(error, textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -6,6 +8,7 @@ import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_markup_text.dart';
 import '../../data/repositories/journal_repository.dart';
+import '../../data/services/firebase_service.dart';
 import '../trends/widgets/trend_chart.dart';
 import 'publication_detail_screen.dart';
 
@@ -39,11 +42,20 @@ class _AnalyticsEntityDetailScreenState
   List<Publication> _publications = const [];
   Map<int, int> _publicationsByYear = const {};
   int _totalPublications = 0;
+  int _totalCitations = 0;
   int? _averageCitations;
 
   @override
   void initState() {
     super.initState();
+    if (widget.type == AnalyticsEntityType.journal) {
+      unawaited(
+        FirebaseService.instance.logEvent(
+          'view_journal',
+          parameters: {'journal_name': widget.entity.name},
+        ),
+      );
+    }
     _load();
   }
 
@@ -76,7 +88,7 @@ class _AnalyticsEntityDetailScreenState
         excludeFuturePublications: widget.excludeFuturePublications,
       );
 
-      final average = await _repository.getAverageCitationsByKeyword(
+      final citationStats = await _repository.getCitationStatsByKeyword(
         widget.keyword,
         sourceId: _sourceId,
         authorId: _authorId,
@@ -88,7 +100,8 @@ class _AnalyticsEntityDetailScreenState
         _publications = page.publications;
         _totalPublications = page.totalCount;
         _publicationsByYear = trend;
-        _averageCitations = average;
+        _totalCitations = citationStats.totalCitations;
+        _averageCitations = citationStats.averageCitations;
       });
     } on AppError catch (error) {
       if (mounted) setState(() => _error = error);
@@ -112,16 +125,6 @@ class _AnalyticsEntityDetailScreenState
   String? get _authorId =>
       widget.type == AnalyticsEntityType.author ? widget.entity.id : null;
 
-  int? get _mostActiveYear {
-    if (_publicationsByYear.isEmpty) return null;
-    final entries = _publicationsByYear.entries.toList()
-      ..sort((a, b) {
-        final countCompare = b.value.compareTo(a.value);
-        return countCompare != 0 ? countCompare : b.key.compareTo(a.key);
-      });
-    return entries.first.key;
-  }
-
   @override
   Widget build(BuildContext context) {
     final entityLabel = widget.type == AnalyticsEntityType.journal
@@ -129,7 +132,7 @@ class _AnalyticsEntityDetailScreenState
         : 'Author';
 
     return Scaffold(
-      appBar: AppBar(title: Text('$entityLabel Analytics')),
+      appBar: AppBar(title: Text('$entityLabel Detail')),
       body: _isLoading
           ? const AppLoading(message: 'Loading filtered analytics...')
           : _error != null
@@ -145,7 +148,7 @@ class _AnalyticsEntityDetailScreenState
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '"${widget.keyword}" · journal articles only',
+                  '"${widget.keyword}" - ${entityLabel.toLowerCase()} analysis',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -153,8 +156,8 @@ class _AnalyticsEntityDetailScreenState
                 const SizedBox(height: 16),
                 _Metrics(
                   total: _totalPublications,
+                  totalCitations: _totalCitations,
                   averageCitations: _averageCitations,
-                  mostActiveYear: _mostActiveYear,
                 ),
                 if (_publicationsByYear.isNotEmpty) ...[
                   const SizedBox(height: 20),
@@ -168,7 +171,7 @@ class _AnalyticsEntityDetailScreenState
                 const SizedBox(height: 20),
                 _SectionTitle(
                   icon: Icons.article_outlined,
-                  title: 'Filtered Publications',
+                  title: 'Related Publications',
                   trailing: '${_publications.length} of $_totalPublications',
                 ),
                 const SizedBox(height: 10),
@@ -181,13 +184,13 @@ class _AnalyticsEntityDetailScreenState
 
 class _Metrics extends StatelessWidget {
   final int total;
+  final int totalCitations;
   final int? averageCitations;
-  final int? mostActiveYear;
 
   const _Metrics({
     required this.total,
+    required this.totalCitations,
     required this.averageCitations,
-    required this.mostActiveYear,
   });
 
   @override
@@ -196,7 +199,7 @@ class _Metrics extends StatelessWidget {
       children: [
         Expanded(
           child: _MetricCard(
-            label: 'Articles',
+            label: 'Publications',
             value: '$total',
             icon: Icons.article_rounded,
           ),
@@ -204,17 +207,17 @@ class _Metrics extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: _MetricCard(
-            label: 'Avg Citations',
-            value: averageCitations?.toString() ?? '-',
+            label: 'Total Citations',
+            value: '$totalCitations',
             icon: Icons.format_quote_rounded,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: _MetricCard(
-            label: 'Top Year',
-            value: mostActiveYear?.toString() ?? '-',
-            icon: Icons.calendar_today_rounded,
+            label: 'Avg Citations',
+            value: averageCitations?.toString() ?? '-',
+            icon: Icons.analytics_outlined,
           ),
         ),
       ],
@@ -372,7 +375,7 @@ class _PublicationList extends StatelessWidget {
                   publications[index].year?.toString() ?? 'No year',
                   '${publications[index].citationCount} citations',
                   publications[index].journalName,
-                ].join(' · '),
+                ].join(' - '),
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.push(

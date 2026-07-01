@@ -6,7 +6,11 @@ import '../services/openalex_api_service.dart';
 export '../models/publication.dart' show Publication;
 export '../models/ranked_entity.dart' show RankedEntity;
 export '../services/openalex_api_service.dart'
-    show PublicationListSort, PublicationSearchPage, PublicationYearSort;
+    show
+        CitationStats,
+        PublicationListSort,
+        PublicationSearchPage,
+        PublicationYearSort;
 
 class JournalRepository {
   final OpenAlexApiService _apiService;
@@ -14,10 +18,6 @@ class JournalRepository {
   JournalRepository({OpenAlexApiService? apiService})
     : _apiService = apiService ?? OpenAlexApiService();
 
-  // ============ Keyword-based Methods (Primary) ============
-
-  /// Get top journals by keyword search.
-  /// Returns journals with the most articles related to the keyword.
   Future<List<RankedEntity>> getTopJournalsByKeyword(
     String keyword, {
     int limit = AppLimits.topJournalResults,
@@ -30,8 +30,6 @@ class JournalRepository {
     );
   }
 
-  /// Get publications by keyword search.
-  /// Optionally filter by sourceId for journal drill-down.
   Future<PublicationSearchPage> getPublicationsByKeyword(
     String keyword, {
     String? sourceId,
@@ -52,7 +50,6 @@ class JournalRepository {
     );
   }
 
-  /// Get top papers by keyword search, sorted by citation count.
   Future<List<Publication>> getTopPapersByKeyword(
     String keyword, {
     bool excludeFuturePublications = true,
@@ -63,7 +60,6 @@ class JournalRepository {
     );
   }
 
-  /// Get top authors by keyword search.
   Future<List<RankedEntity>> getTopAuthorsByKeyword(
     String keyword, {
     int limit = AppLimits.rankedEntityResults,
@@ -76,7 +72,6 @@ class JournalRepository {
     );
   }
 
-  /// Get publication trend by year for keyword search.
   Future<Map<int, int>> getPublicationTrendByKeyword(
     String keyword, {
     String? sourceId,
@@ -91,7 +86,6 @@ class JournalRepository {
     );
   }
 
-  /// Get average citations for keyword search.
   Future<int?> getAverageCitationsByKeyword(
     String keyword, {
     String? sourceId,
@@ -106,10 +100,30 @@ class JournalRepository {
     );
   }
 
-  Future<List<RankedEntity>> getTrendingKeywords({
-    int limit = AppLimits.trendingKeywordResults,
+  Future<CitationStats> getCitationStatsByKeyword(
+    String keyword, {
+    String? sourceId,
+    String? authorId,
+    bool excludeFuturePublications = true,
   }) {
-    return _apiService.getTrendingKeywords(limit: limit);
+    return _apiService.getCitationStatsByKeyword(
+      keyword,
+      sourceId: sourceId,
+      authorId: authorId,
+      excludeFuturePublications: excludeFuturePublications,
+    );
+  }
+
+  Future<List<RankedEntity>> getKeywordsByKeyword(
+    String keyword, {
+    int limit = AppLimits.trendingKeywordResults,
+    bool excludeFuturePublications = true,
+  }) {
+    return _apiService.getKeywordsByKeyword(
+      keyword,
+      limit: limit,
+      excludeFuturePublications: excludeFuturePublications,
+    );
   }
 
   void dispose() {

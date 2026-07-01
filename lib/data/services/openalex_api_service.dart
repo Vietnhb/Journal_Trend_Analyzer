@@ -9,17 +9,7 @@ import '../../core/errors/app_errors.dart';
 import '../models/publication.dart';
 import '../models/ranked_entity.dart';
 
-enum PublicationYearSort {
-  descending,
-  ascending;
-
-  String get apiSort {
-    return switch (this) {
-      PublicationYearSort.descending => 'publication_year:desc',
-      PublicationYearSort.ascending => 'publication_year:asc',
-    };
-  }
-}
+enum PublicationYearSort { descending, ascending }
 
 enum PublicationListSort {
   newest,
@@ -57,6 +47,16 @@ class PublicationSearchPage {
   });
 }
 
+class CitationStats {
+  final int totalCitations;
+  final int totalWorks;
+
+  const CitationStats({required this.totalCitations, required this.totalWorks});
+
+  int? get averageCitations =>
+      totalWorks == 0 ? null : totalCitations ~/ totalWorks;
+}
+
 class OpenAlexApiService {
   static final Uri _baseUri = Uri.parse('https://api.openalex.org');
   static const Duration defaultTimeout = Duration(seconds: 30);
@@ -68,41 +68,27 @@ class OpenAlexApiService {
   OpenAlexApiService({http.Client? client, this.timeout = defaultTimeout})
     : _client = client ?? http.Client();
 
-  Future<List<RankedEntity>> getTrendingKeywords({
+  Future<List<RankedEntity>> getKeywordsByKeyword(
+    String keyword, {
     int limit = AppLimits.trendingKeywordResults,
+    bool excludeFuturePublications = true,
   }) async {
-    final now = DateTime.now();
-    final fromDate = _oneMonthAgo(now);
-    final safeLimit = limit.clamp(1, AppLimits.openAlexGroupPageSize).toInt();
-    final uri = _openAlexUri('/works', {
-      'filter':
-          'from_publication_date:${_formatDate(fromDate)},'
-          'to_publication_date:${_formatDate(now)},'
-          'type:article',
-      'group_by': 'keywords.id',
-      'per-page': safeLimit.toString(),
-      'mailto': _contactEmail,
-    });
+    final trimmedKeyword = keyword.trim();
+    if (trimmedKeyword.isEmpty) return const [];
 
-    final decoded = await _getJsonObject(uri);
-    final groups = decoded['group_by'];
-    if (groups is! List) return const [];
-
-    final keywords = <RankedEntity>[];
-    for (final item in groups) {
-      if (item is! Map<String, dynamic>) continue;
-      final keyword = RankedEntity.fromGroupByJson(item);
-      final key = keyword.id.toLowerCase();
-      if (keyword.id.isEmpty || key == 'unknown' || keyword.name.isEmpty) {
-        continue;
-      }
-      keywords.add(keyword);
+    final filters = _keywordWorkFilters();
+    if (excludeFuturePublications) {
+      filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
-    return keywords;
+
+    return _getRankedEntities(
+      keyword: trimmedKeyword,
+      groupBy: 'keywords.id',
+      filters: filters,
+      limit: limit,
+    );
   }
 
-  /// Get top journals by keyword search.
-  /// Returns journals with the most articles related to the keyword.
   Future<List<RankedEntity>> getTopJournalsByKeyword(
     String keyword, {
     int limit = AppLimits.topJournalResults,
@@ -112,18 +98,19 @@ class OpenAlexApiService {
     if (trimmedKeyword.isEmpty) return const [];
 
     final safeLimit = limit.clamp(1, AppLimits.openAlexGroupPageSize).toInt();
-    final filters = _keywordWorkFilters(trimmedKeyword);
+    final filters = _keywordWorkFilters();
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
 
-    final uri = _openAlexUri('/works', {
+    final parameters = <String, String>{
       'search': trimmedKeyword,
       'filter': filters.join(','),
       'group_by': 'primary_location.source.id',
       'per-page': safeLimit.toString(),
       'mailto': _contactEmail,
-    });
+    };
+    final uri = _openAlexUri('/works', parameters);
 
     final decoded = await _getJsonObject(uri);
     final groups = decoded['group_by'];
@@ -139,8 +126,6 @@ class OpenAlexApiService {
     return journals;
   }
 
-  /// Get publications by keyword search.
-  /// Optionally filter by sourceId for journal drill-down.
   Future<PublicationSearchPage> getPublicationsByKeyword(
     String keyword, {
     String? sourceId,
@@ -160,11 +145,7 @@ class OpenAlexApiService {
     final safePerPage = perPage
         .clamp(1, AppLimits.openAlexListPageSize)
         .toInt();
-    final filters = _keywordWorkFilters(
-      trimmedKeyword,
-      sourceId: sourceId,
-      authorId: authorId,
-    );
+    final filters = _keywordWorkFilters(sourceId: sourceId, authorId: authorId);
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
@@ -203,8 +184,6 @@ class OpenAlexApiService {
     );
   }
 
-  /// Get top papers by keyword search.
-  /// Sorted by citation count descending.
   Future<List<Publication>> getTopPapersByKeyword(
     String keyword, {
     bool excludeFuturePublications = true,
@@ -219,7 +198,6 @@ class OpenAlexApiService {
     return page.publications;
   }
 
-  /// Get top authors by keyword search.
   Future<List<RankedEntity>> getTopAuthorsByKeyword(
     String keyword, {
     int limit = AppLimits.rankedEntityResults,
@@ -227,7 +205,7 @@ class OpenAlexApiService {
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) return const [];
-    final filters = _keywordWorkFilters(trimmedKeyword);
+    final filters = _keywordWorkFilters();
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
@@ -239,7 +217,6 @@ class OpenAlexApiService {
     );
   }
 
-  /// Get publication trend by year for keyword search.
   Future<Map<int, int>> getPublicationTrendByKeyword(
     String keyword, {
     String? sourceId,
@@ -248,11 +225,7 @@ class OpenAlexApiService {
   }) async {
     final trimmedKeyword = keyword.trim();
     if (trimmedKeyword.isEmpty) return const {};
-    final filters = _keywordWorkFilters(
-      trimmedKeyword,
-      sourceId: sourceId,
-      authorId: authorId,
-    );
+    final filters = _keywordWorkFilters(sourceId: sourceId, authorId: authorId);
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
@@ -273,20 +246,32 @@ class OpenAlexApiService {
     return counts;
   }
 
-  /// Get average citations for keyword search.
   Future<int?> getAverageCitationsByKeyword(
     String keyword, {
     String? sourceId,
     String? authorId,
     bool excludeFuturePublications = true,
   }) async {
-    final trimmedKeyword = keyword.trim();
-    if (trimmedKeyword.isEmpty) return null;
-    final filters = _keywordWorkFilters(
-      trimmedKeyword,
+    final stats = await getCitationStatsByKeyword(
+      keyword,
       sourceId: sourceId,
       authorId: authorId,
+      excludeFuturePublications: excludeFuturePublications,
     );
+    return stats.averageCitations;
+  }
+
+  Future<CitationStats> getCitationStatsByKeyword(
+    String keyword, {
+    String? sourceId,
+    String? authorId,
+    bool excludeFuturePublications = true,
+  }) async {
+    final trimmedKeyword = keyword.trim();
+    if (trimmedKeyword.isEmpty) {
+      return const CitationStats(totalCitations: 0, totalWorks: 0);
+    }
+    final filters = _keywordWorkFilters(sourceId: sourceId, authorId: authorId);
     if (excludeFuturePublications) {
       filters.add('to_publication_date:${_currentPublicationDateFilter()}');
     }
@@ -304,11 +289,14 @@ class OpenAlexApiService {
       totalCitations += citations * group.worksCount;
       totalWorks += group.worksCount;
     }
-    return totalWorks == 0 ? null : totalCitations ~/ totalWorks;
+    return CitationStats(
+      totalCitations: totalCitations,
+      totalWorks: totalWorks,
+    );
   }
 
   Future<List<RankedEntity>> _getAllRankedEntities({
-    required String keyword,
+    required String? keyword,
     required String groupBy,
     required List<String> filters,
   }) async {
@@ -316,14 +304,15 @@ class OpenAlexApiService {
     String? cursor = '*';
 
     while (cursor != null) {
-      final uri = _openAlexUri('/works', {
-        'search': keyword,
+      final parameters = <String, String>{
         'filter': filters.join(','),
         'group_by': groupBy,
         'per-page': AppLimits.openAlexGroupPageSize.toString(),
         'cursor': cursor,
         'mailto': _contactEmail,
-      });
+      };
+      if (keyword != null) parameters['search'] = keyword;
+      final uri = _openAlexUri('/works', parameters);
 
       final decoded = await _getJsonObject(uri);
       final groupByList = decoded['group_by'];
@@ -353,18 +342,19 @@ class OpenAlexApiService {
   }
 
   Future<List<RankedEntity>> _getRankedEntities({
-    required String keyword,
+    required String? keyword,
     required String groupBy,
     required List<String> filters,
     int limit = AppLimits.rankedEntityResults,
   }) async {
-    final uri = _openAlexUri('/works', {
-      'search': keyword,
+    final parameters = <String, String>{
       'filter': filters.join(','),
       'group_by': groupBy,
       'per-page': AppLimits.openAlexGroupPageSize.toString(),
       'mailto': _contactEmail,
-    });
+    };
+    if (keyword != null) parameters['search'] = keyword;
+    final uri = _openAlexUri('/works', parameters);
 
     final decoded = await _getJsonObject(uri);
     final groupByList = decoded['group_by'];
@@ -429,14 +419,7 @@ class OpenAlexApiService {
     return _baseUri.replace(path: path, query: query);
   }
 
-  /// Build filters for keyword-based work queries.
-  /// Base filters: type:article, primary_location.source.type:journal
-  /// Optional: primary_location.source.id for journal drill-down
-  List<String> _keywordWorkFilters(
-    String keyword, {
-    String? sourceId,
-    String? authorId,
-  }) {
+  List<String> _keywordWorkFilters({String? sourceId, String? authorId}) {
     final filters = ['type:article', 'primary_location.source.type:journal'];
 
     if (sourceId != null && sourceId.trim().isNotEmpty) {
@@ -474,21 +457,6 @@ class OpenAlexApiService {
 
   String _currentPublicationDateFilter() {
     return _formatDate(DateTime.now());
-  }
-
-  static DateTime _oneMonthAgo(DateTime date) {
-    final targetMonth = date.month - 1;
-    final targetYear = targetMonth < 1 ? date.year - 1 : date.year;
-    final normalizedMonth = targetMonth < 1 ? 12 : targetMonth;
-    final lastDayOfTargetMonth = DateTime(
-      targetYear,
-      normalizedMonth + 1,
-      0,
-    ).day;
-    final targetDay = date.day > lastDayOfTargetMonth
-        ? lastDayOfTargetMonth
-        : date.day;
-    return DateTime(targetYear, normalizedMonth, targetDay);
   }
 
   static String _formatDate(DateTime date) {

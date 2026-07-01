@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -7,14 +8,37 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_markup_text.dart';
 import '../../data/models/publication.dart';
+import '../../data/services/firebase_service.dart';
 
-class PublicationDetailScreen extends StatelessWidget {
+class PublicationDetailScreen extends StatefulWidget {
   final Publication publication;
 
   const PublicationDetailScreen({super.key, required this.publication});
 
   @override
+  State<PublicationDetailScreen> createState() =>
+      _PublicationDetailScreenState();
+}
+
+class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      FirebaseService.instance.logEvent(
+        'view_publication',
+        parameters: {
+          'publication_title': widget.publication.title,
+          if (widget.publication.year != null)
+            'publication_year': widget.publication.year!,
+        },
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final publication = widget.publication;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
@@ -170,25 +194,34 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final doi = publication.doi;
+    final url = publication.url;
+    final hasSeparateUrl =
+        url != null &&
+        (doi == null ||
+            _normalizeUrl(url).toLowerCase() !=
+                _normalizeUrl(doi).toLowerCase());
+
     return _Card(
       title: 'Journal Publication',
       children: [
         _Row(label: 'Journal', value: publication.journalName),
-        _Row(
-          label: 'Publication date',
-          value: publication.publicationDate ?? '-',
-        ),
+        _Row(label: 'Publication year', value: '${publication.year ?? '-'}'),
         _Row(label: 'Citations', value: '${publication.citationCount}'),
-        _Row(
+        _ExpandableRow(
           label: 'Authors',
           value: publication.authors.isEmpty
               ? '-'
               : publication.authors.join(', '),
         ),
-        if (publication.url != null)
-          _UrlRow(label: 'URL', value: publication.url!),
+        if (doi != null) _UrlRow(label: 'DOI', value: doi),
+        if (hasSeparateUrl) _UrlRow(label: 'Original link', value: url),
       ],
     );
+  }
+
+  String _normalizeUrl(String value) {
+    return value.trim().replaceFirst(RegExp(r'/$'), '');
   }
 }
 
@@ -236,7 +269,10 @@ class _UrlRow extends StatelessWidget {
   }
 
   Future<void> _openUrl(BuildContext context) async {
-    final uri = Uri.tryParse(value);
+    final target = label == 'DOI' && !value.contains('://')
+        ? 'https://doi.org/$value'
+        : value;
+    final uri = Uri.tryParse(target);
     if (uri == null || !uri.hasScheme) {
       _showUrlError(context);
       return;
@@ -348,6 +384,88 @@ class _Row extends StatelessWidget {
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpandableRow extends StatefulWidget {
+  final String label;
+  final String value;
+
+  const _ExpandableRow({required this.label, required this.value});
+
+  @override
+  State<_ExpandableRow> createState() => _ExpandableRowState();
+}
+
+class _ExpandableRowState extends State<_ExpandableRow> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final valueStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: colorScheme.onSurface,
+      fontWeight: FontWeight.w600,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              widget.label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final textPainter = TextPainter(
+                  text: TextSpan(text: widget.value, style: valueStyle),
+                  maxLines: 3,
+                  textDirection: Directionality.of(context),
+                )..layout(maxWidth: constraints.maxWidth);
+                final canExpand = textPainter.didExceedMaxLines;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.value,
+                      maxLines: _isExpanded ? null : 3,
+                      overflow: _isExpanded
+                          ? TextOverflow.visible
+                          : TextOverflow.ellipsis,
+                      style: valueStyle,
+                    ),
+                    if (canExpand || _isExpanded)
+                      GestureDetector(
+                        onTap: () => setState(() => _isExpanded = !_isExpanded),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            _isExpanded ? 'Show less' : 'Read more',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],

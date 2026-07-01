@@ -25,11 +25,11 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
     _NavDestination(
       icon: Icons.article_outlined,
       selectedIcon: Icons.article_rounded,
-      label: 'Journal',
+      label: 'Journals',
     ),
     _NavDestination(
-      icon: Icons.query_stats_outlined,
-      selectedIcon: Icons.query_stats,
+      icon: Icons.key_outlined,
+      selectedIcon: Icons.key_rounded,
       label: 'Keywords',
     ),
     _NavDestination(
@@ -109,6 +109,7 @@ class _BottomNavBar extends StatelessWidget {
               for (int i = 0; i < destinations.length; i++)
                 Expanded(
                   child: _NavItem(
+                    key: Key('nav_${destinations[i].label.toLowerCase()}'),
                     destination: destinations[i],
                     isSelected: selectedIndex == i,
                     onTap: () => onDestinationSelected(i),
@@ -128,6 +129,7 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const _NavItem({
+    super.key,
     required this.destination,
     required this.isSelected,
     required this.onTap,

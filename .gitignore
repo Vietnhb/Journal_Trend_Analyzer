@@ -1,97 +1,105 @@
-# Flutter & Dart
+# Flutter / Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 .pub-cache/
-
-# Build outputs
+.pub/
 build/
-/.dart_tool/
+coverage/
+**/doc/api/
+**/GeneratedPluginRegistrant.*
 
-# Android
-/android/.gradle/
+# Android / Gradle
+.gradle/
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
 **/local.properties
 **/build/
-/.gradle/
-android/key.properties
 
-# iOS
-/ios/Pods/
-/ios/.symlinks/
-/ios/Flutter/Flutter.framework/
-/ios/Flutter/Flutter.podspec
-/ios/Flutter/Generated.xcconfig
-/ios/Flutter/ephemeral/
-/ios/Runner.xcworkspace/
-/ios/Podfile.lock
-
-# Xcode
+# iOS / Xcode
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/.last_build_id
+ios/Runner.xcworkspace/
+ios/Podfile.lock
 *.xcworkspace
 xcuserdata/
 *.xcuserstate
 
-# IDEs
+# Windows / desktop generated
+windows/flutter/ephemeral/
+
+# IDE
 .idea/
 *.iml
+*.ipr
+*.iws
 .vscode/
 
-# Misc
-.DS_Store
-Thumbs.db
-*.log
+# Firebase local/debug output
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+firebase-export-*/
 
-# Keystore and keys
+# Local Firebase app config. Keep local copies outside git for public repos.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+
+# Secrets / signing keys
 *.jks
 *.keystore
+*.p12
+*.pem
+*.key
+android/key.properties
+key.properties
+serviceAccount*.json
+*-service-account.json
 
-# Generated plugin registrant
-**/GeneratedPluginRegistrant.*
-# Miscellaneous
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test/generated bundles
+patrol_tests/test_bundle.dart
+
+# Local generated docs/artifacts
+docs/
+*.apk
+*.aab
+*.ipa
+app.*.symbols
+app.*.map.json
+
+# Misc
 *.class
 *.log
 *.pyc
 *.swp
+*.tmp
+*.bak
 .DS_Store
+Thumbs.db
 .atom/
 .build/
 .buildlog/
-.history
+.history/
 .svn/
 .swiftpm/
 migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-windows/flutter/ephemeral/
-
-docs
+.metadata
+sonar-project.properties
+remoteconfig.template.json
+storage.rules
+.firebaserc
+firebase.json

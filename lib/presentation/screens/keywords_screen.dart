@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/errors/app_errors.dart';
 import '../../core/widgets/app_empty_view.dart';
 import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_markup_text.dart';
 import '../../data/repositories/journal_repository.dart';
+import '../../data/services/firebase_service.dart';
 import '../providers/journal_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
@@ -26,7 +30,7 @@ class KeywordsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Header(provider: provider),
-            Expanded(child: _TopicAnalyticsBody(provider: provider)),
+            Expanded(child: _KeywordListBody(provider: provider)),
           ],
         ),
       ),
@@ -49,7 +53,7 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Keyword Analytics',
+            'Keywords',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w800,
@@ -58,8 +62,8 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             provider.selectedKeyword.isEmpty
-                ? 'Search a keyword from Home to view analytics'
-                : provider.selectedKeyword,
+                ? 'Search a research topic from Home first'
+                : 'Keywords inside "${provider.selectedKeyword}"',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -72,123 +76,68 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _TopicAnalyticsBody extends StatelessWidget {
+class _KeywordListBody extends StatelessWidget {
   final JournalProvider provider;
 
-  const _TopicAnalyticsBody({required this.provider});
+  const _KeywordListBody({required this.provider});
 
   @override
   Widget build(BuildContext context) {
     if (provider.selectedKeyword.isEmpty) {
       return const AppEmptyView(
-        message: 'Search a keyword from Home first.',
-        icon: Icons.query_stats_outlined,
+        message: 'Search a research topic from Home first.',
+        icon: Icons.key_outlined,
       );
     }
 
-    if (provider.isLoadingAnalytics) {
-      return const AppLoading(
-        message: 'Loading analytics across all journals...',
-      );
+    if (provider.isLoadingTrendingKeywords &&
+        provider.trendingKeywords.isEmpty) {
+      return const AppLoading(message: 'Loading keywords...');
     }
 
-    final error = provider.analyticsError;
-    if (error != null) {
+    final error = provider.trendingKeywordError;
+    if (error != null && provider.trendingKeywords.isEmpty) {
       return AppErrorView(
         error: error,
-        onRetry: provider.refreshKeywordAnalytics,
+        onRetry: () => provider.loadTrendingKeywords(force: true),
+      );
+    }
+
+    if (provider.trendingKeywords.isEmpty) {
+      return const AppEmptyView(
+        message: 'No keywords found inside the selected topic.',
+        icon: Icons.key_outlined,
       );
     }
 
     return RefreshIndicator(
-      onRefresh: provider.refreshKeywordAnalytics,
+      onRefresh: () => provider.loadTrendingKeywords(force: true),
       color: AppColors.primary,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          _QueryBadge(keyword: provider.selectedKeyword),
-          const SizedBox(height: 16),
-          _MetricRow(provider: provider),
-          const SizedBox(height: 24),
-          _AnalyticsHighlights(provider: provider),
-          const SizedBox(height: 24),
-          if (provider.sourceWorksByYear.isNotEmpty) ...[
-            _SectionHeader(
-              icon: Icons.bar_chart_rounded,
-              title: 'Publication Trend',
-            ),
-            const SizedBox(height: 12),
-            _TrendChartCard(provider: provider),
-            const SizedBox(height: 24),
-            _SectionHeader(
-              icon: Icons.leaderboard_rounded,
-              title: 'Year Ranking',
-            ),
-            const SizedBox(height: 12),
-            _YearRankingCard(provider: provider),
-            const SizedBox(height: 24),
-          ],
-          _HorizontalBarSection(
-            title: 'Top Journals',
-            icon: Icons.book_outlined,
-            items: provider.keywordAnalyticsJournals
-                .map(
-                  (journal) => _BarItem(
-                    label: journal.name,
-                    value: journal.worksCount,
-                    valueLabel: '${journal.worksCount} articles',
-                    onTap: () => _openEntityAnalytics(
-                      context,
-                      provider,
-                      AnalyticsEntityType.journal,
-                      journal,
-                    ),
-                  ),
-                )
-                .toList(),
+          const _SectionHeader(
+            icon: Icons.trending_up_rounded,
+            title: 'Most Frequent & Trending Keywords',
           ),
-          _HorizontalBarSection(
-            title: 'Top Influential Papers',
-            icon: Icons.auto_stories_rounded,
-            items: provider.keywordAnalyticsTopPapers
-                .map(
-                  (paper) => _BarItem(
-                    label: paper.title,
-                    markup: paper.titleMarkup,
-                    details:
-                        '${paper.year ?? 'No year'} - ${paper.journalName}',
-                    value: paper.citationCount,
-                    valueLabel: '${paper.citationCount} cites',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            PublicationDetailScreen(publication: paper),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
+          const SizedBox(height: 4),
+          Text(
+            'Most frequent keywords in recent publications for '
+            '"${provider.selectedKeyword}".',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
-          _HorizontalBarSection(
-            title: 'Top Authors',
-            icon: Icons.group_outlined,
-            items: provider.keywordAnalyticsTopAuthors
-                .map(
-                  (author) => _BarItem(
-                    label: author.name,
-                    value: author.worksCount,
-                    valueLabel: '${author.worksCount} articles',
-                    onTap: () => _openEntityAnalytics(
-                      context,
-                      provider,
-                      AnalyticsEntityType.author,
-                      author,
-                    ),
-                  ),
-                )
-                .toList(),
+          const SizedBox(height: 12),
+          _KeywordRankingCard(
+            keywords: provider.trendingKeywords,
+            onSelected: (keyword) => _openKeywordDetail(
+              context,
+              keyword.name,
+              provider.selectedKeyword,
+              provider.filterFutureSourceYears,
+            ),
           ),
         ],
       ),
@@ -196,170 +145,374 @@ class _TopicAnalyticsBody extends StatelessWidget {
   }
 }
 
-class _QueryBadge extends StatelessWidget {
-  final String keyword;
+class _KeywordRankingCard extends StatelessWidget {
+  final List<RankedEntity> keywords;
+  final ValueChanged<RankedEntity> onSelected;
 
-  const _QueryBadge({required this.keyword});
+  const _KeywordRankingCard({required this.keywords, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final maxCount = keywords.fold<int>(
+      0,
+      (max, keyword) => keyword.worksCount > max ? keyword.worksCount : max,
+    );
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _BadgeLine(icon: Icons.search_rounded, text: 'Keyword: $keyword'),
+          for (var index = 0; index < keywords.length; index++) ...[
+            if (index > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+            _KeywordRow(
+              keyword: keywords[index],
+              rank: index + 1,
+              maxCount: maxCount,
+              onTap: () => onSelected(keywords[index]),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _BadgeLine extends StatelessWidget {
-  final IconData icon;
-  final String text;
+class _KeywordRow extends StatelessWidget {
+  final RankedEntity keyword;
+  final int rank;
+  final int maxCount;
+  final VoidCallback onTap;
 
-  const _BadgeLine({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppColors.primary),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            text,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MetricRow extends StatelessWidget {
-  final JournalProvider provider;
-
-  const _MetricRow({required this.provider});
+  const _KeywordRow({
+    required this.keyword,
+    required this.rank,
+    required this.maxCount,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _MetricCard(
-            title: 'Total Publications',
-            value: '${provider.totalWorks}',
-            icon: Icons.article_rounded,
-            color: AppColors.primary,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MetricCard(
-            title: 'Avg Citations',
-            value: provider.avgCitationCount?.toString() ?? '-',
-            icon: Icons.format_quote_rounded,
-            color: AppColors.success,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MetricCard(
-            title: 'Most Active Year',
-            value: provider.mostActiveYear?.toString() ?? '-',
-            icon: Icons.leaderboard_rounded,
-            color: AppColors.gold,
-          ),
-        ),
-      ],
-    );
-  }
-}
+    final colorScheme = Theme.of(context).colorScheme;
+    final ratio = maxCount == 0 ? 0.0 : keyword.worksCount / maxCount;
 
-class _AnalyticsHighlights extends StatelessWidget {
-  final JournalProvider provider;
-
-  const _AnalyticsHighlights({required this.provider});
-
-  @override
-  Widget build(BuildContext context) {
-    final paper = provider.mostInfluentialPaper;
-    final journal = provider.journals.firstOrNull;
-    final author = provider.keywordAnalyticsTopAuthors.firstOrNull;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(
-          icon: Icons.insights_rounded,
-          title: 'Analytics Highlights',
-        ),
-        const SizedBox(height: 12),
-        _HighlightCard(
+    return InkWell(
+      key: Key('keyword_item_$rank'),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _HighlightRow(
-              icon: Icons.book_outlined,
-              label: 'Top Journal',
-              value: provider.topJournal ?? '-',
-              onTap: journal == null
-                  ? null
-                  : () => _openEntityAnalytics(
-                      context,
-                      provider,
-                      AnalyticsEntityType.journal,
-                      journal,
-                    ),
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$rank',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-            const Divider(height: 1),
-            _HighlightRow(
-              icon: Icons.person_outline_rounded,
-              label: 'Top Author',
-              value: provider.topAuthor ?? '-',
-              onTap: author == null
-                  ? null
-                  : () => _openEntityAnalytics(
-                      context,
-                      provider,
-                      AnalyticsEntityType.author,
-                      author,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    keyword.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w700,
                     ),
-            ),
-            const Divider(height: 1),
-            _HighlightRow(
-              icon: Icons.auto_stories_outlined,
-              label: 'Most Influential Paper',
-              value: paper?.title ?? '-',
-              markup: paper?.titleMarkup,
-              onTap: paper == null
-                  ? null
-                  : () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            PublicationDetailScreen(publication: paper),
+                  ),
+                  const SizedBox(height: 5),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(5),
+                    child: LinearProgressIndicator(
+                      minHeight: 5,
+                      value: ratio,
+                      backgroundColor: AppColors.primary.withValues(
+                        alpha: 0.08,
+                      ),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
                       ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '${_compactCount(keyword.worksCount)} pubs',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: colorScheme.onSurfaceVariant,
             ),
           ],
         ),
-      ],
+      ),
     );
   }
+}
+
+class KeywordDetailScreen extends StatefulWidget {
+  final String keyword;
+  final String parentTopic;
+  final bool excludeFuturePublications;
+
+  const KeywordDetailScreen({
+    super.key,
+    required this.keyword,
+    required this.parentTopic,
+    required this.excludeFuturePublications,
+  });
+
+  @override
+  State<KeywordDetailScreen> createState() => _KeywordDetailScreenState();
+}
+
+class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
+  final JournalRepository _repository = JournalRepository();
+
+  bool _isLoading = true;
+  AppError? _error;
+  List<RankedEntity> _journals = const [];
+  List<Publication> _publications = const [];
+  List<RankedEntity> _authors = const [];
+  Map<int, int> _publicationsByYear = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      FirebaseService.instance.logEvent(
+        'view_keyword',
+        parameters: {'keyword': widget.keyword},
+      ),
+    );
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _repository.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final journalsFuture = _repository.getTopJournalsByKeyword(
+        widget.keyword,
+        excludeFuturePublications: widget.excludeFuturePublications,
+      );
+      final publicationsFuture = _repository.getTopPapersByKeyword(
+        widget.keyword,
+        excludeFuturePublications: widget.excludeFuturePublications,
+      );
+      final authorsFuture = _repository.getTopAuthorsByKeyword(
+        widget.keyword,
+        excludeFuturePublications: widget.excludeFuturePublications,
+      );
+      final publicationTrendFuture = _repository.getPublicationTrendByKeyword(
+        widget.keyword,
+        excludeFuturePublications: widget.excludeFuturePublications,
+      );
+
+      late List<RankedEntity> journals;
+      late List<Publication> publications;
+      late List<RankedEntity> authors;
+      late Map<int, int> publicationsByYear;
+      await Future.wait<void>([
+        journalsFuture.then((value) => journals = value),
+        publicationsFuture.then((value) => publications = value),
+        authorsFuture.then((value) => authors = value),
+        publicationTrendFuture.then((value) => publicationsByYear = value),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _journals = journals;
+        _publications = publications;
+        _authors = authors;
+        _publicationsByYear = publicationsByYear;
+      });
+    } on AppError catch (error) {
+      if (mounted) setState(() => _error = error);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = AppError(
+            'Could not load keyword analysis.',
+            details: error.toString(),
+          );
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Keyword Detail')),
+      body: _isLoading
+          ? const AppLoading(message: 'Loading keyword analysis...')
+          : _error != null
+          ? AppErrorView(error: _error!, onRetry: _load)
+          : RefreshIndicator(
+              onRefresh: _load,
+              color: AppColors.primary,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                children: [
+                  Text(
+                    widget.keyword,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Analysis within "${widget.parentTopic}"',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_publicationsByYear.isNotEmpty) ...[
+                    const _SectionHeader(
+                      icon: Icons.bar_chart_rounded,
+                      title: 'Publication Trend',
+                    ),
+                    const SizedBox(height: 12),
+                    _TrendChartCard(data: _publicationsByYear),
+                    const SizedBox(height: 24),
+                    const _SectionHeader(
+                      icon: Icons.leaderboard_rounded,
+                      title: 'Year Ranking',
+                    ),
+                    const SizedBox(height: 12),
+                    _YearRankingCard(data: _publicationsByYear),
+                    const SizedBox(height: 24),
+                  ],
+                  _HorizontalBarSection(
+                    title: 'Related Journals',
+                    icon: Icons.book_outlined,
+                    items: _journals
+                        .map(
+                          (journal) => _BarItem(
+                            label: journal.name,
+                            value: journal.worksCount,
+                            valueLabel: '${journal.worksCount} articles',
+                            onTap: () => _openEntityAnalytics(
+                              context,
+                              widget.keyword,
+                              widget.excludeFuturePublications,
+                              AnalyticsEntityType.journal,
+                              journal,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  _HorizontalBarSection(
+                    title: 'Related Publications',
+                    icon: Icons.auto_stories_outlined,
+                    items: _publications
+                        .map(
+                          (paper) => _BarItem(
+                            label: paper.title,
+                            markup: paper.titleMarkup,
+                            details:
+                                '${paper.year ?? 'No year'} - ${paper.journalName}',
+                            value: paper.citationCount,
+                            valueLabel: '${paper.citationCount} cites',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    PublicationDetailScreen(publication: paper),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  _HorizontalBarSection(
+                    title: 'Top Authors',
+                    icon: Icons.group_outlined,
+                    items: _authors
+                        .map(
+                          (author) => _BarItem(
+                            label: author.name,
+                            value: author.worksCount,
+                            valueLabel: '${author.worksCount} articles',
+                            onTap: () => _openEntityAnalytics(
+                              context,
+                              widget.keyword,
+                              widget.excludeFuturePublications,
+                              AnalyticsEntityType.author,
+                              author,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+void _openKeywordDetail(
+  BuildContext context,
+  String keyword,
+  String parentTopic,
+  bool excludeFuturePublications,
+) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => KeywordDetailScreen(
+        keyword: keyword,
+        parentTopic: parentTopic,
+        excludeFuturePublications: excludeFuturePublications,
+      ),
+    ),
+  );
 }
 
 void _openEntityAnalytics(
   BuildContext context,
-  JournalProvider provider,
+  String keyword,
+  bool excludeFuturePublications,
   AnalyticsEntityType type,
   RankedEntity entity,
 ) {
@@ -369,145 +522,11 @@ void _openEntityAnalytics(
       builder: (_) => AnalyticsEntityDetailScreen(
         type: type,
         entity: entity,
-        keyword: provider.selectedKeyword,
-        excludeFuturePublications: provider.filterFutureSourceYears,
+        keyword: keyword,
+        excludeFuturePublications: excludeFuturePublications,
       ),
     ),
   );
-}
-
-class _HighlightCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _HighlightCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
-    );
-  }
-}
-
-class _HighlightRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final String? markup;
-  final VoidCallback? onTap;
-
-  const _HighlightRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.markup,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: AppColors.primary),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 112,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: AppMarkupText(
-              markup ?? value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (onTap != null)
-            Icon(
-              Icons.chevron_right_rounded,
-              color: colorScheme.onSurfaceVariant,
-            ),
-        ],
-      ),
-    );
-
-    return onTap == null ? content : InkWell(onTap: onTap, child: content);
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _MetricCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: 94),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -531,21 +550,33 @@ class _SectionHeader extends StatelessWidget {
           child: Icon(icon, size: 16, color: AppColors.primary),
         ),
         const SizedBox(width: 10),
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
+          ),
         ),
       ],
     );
   }
 }
 
-class _TrendChartCard extends StatelessWidget {
-  final JournalProvider provider;
+String _compactCount(int value) {
+  if (value >= 1000000) {
+    return '${(value / 1000000).toStringAsFixed(1)}M';
+  }
+  if (value >= 1000) {
+    return '${(value / 1000).toStringAsFixed(1)}K';
+  }
+  return '$value';
+}
 
-  const _TrendChartCard({required this.provider});
+class _TrendChartCard extends StatelessWidget {
+  final Map<int, int> data;
+
+  const _TrendChartCard({required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -561,7 +592,7 @@ class _TrendChartCard extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final minWidth = provider.sourceWorksByYear.length * 44.0;
+          final minWidth = data.length * 44.0;
           final chartWidth = minWidth > constraints.maxWidth
               ? minWidth
               : constraints.maxWidth;
@@ -570,7 +601,7 @@ class _TrendChartCard extends StatelessWidget {
             child: SizedBox(
               width: chartWidth,
               child: TrendChart(
-                data: provider.sourceWorksByYear,
+                data: data,
                 yearSort: PublicationYearSort.descending,
               ),
             ),
@@ -582,9 +613,9 @@ class _TrendChartCard extends StatelessWidget {
 }
 
 class _YearRankingCard extends StatelessWidget {
-  final JournalProvider provider;
+  final Map<int, int> data;
 
-  const _YearRankingCard({required this.provider});
+  const _YearRankingCard({required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -597,10 +628,17 @@ class _YearRankingCard extends StatelessWidget {
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
-      child: YearRankingList(
-        rankedYears: provider.keywordAnalyticsYearsByWorkCount,
-      ),
+      child: YearRankingList(rankedYears: _rankedYears(data)),
     );
+  }
+
+  List<MapEntry<int, int>> _rankedYears(Map<int, int> values) {
+    final entries = values.entries.toList()
+      ..sort((a, b) {
+        final countCompare = b.value.compareTo(a.value);
+        return countCompare != 0 ? countCompare : b.key.compareTo(a.key);
+      });
+    return entries.take(10).toList();
   }
 }
 

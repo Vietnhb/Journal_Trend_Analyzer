@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_limits.dart';
 import '../../core/errors/app_errors.dart';
+import '../../data/models/dashboard_report_data.dart';
 import '../../data/repositories/journal_repository.dart';
+import '../../data/services/firebase_service.dart';
 
 class JournalProvider extends ChangeNotifier {
   static const _recentSearchesKey = 'recent_searches';
@@ -16,10 +18,10 @@ class JournalProvider extends ChangeNotifier {
   JournalProvider({JournalRepository? repository})
     : _repository = repository ?? JournalRepository() {
     unawaited(_loadRecentSearches());
-    unawaited(loadTrendingKeywords());
   }
 
   String _selectedKeyword = '';
+  String _topicSearchQuery = '';
   bool _isLoading = false;
   AppError? _error;
   PublicationListSort _publicationSort = PublicationListSort.newest;
@@ -51,6 +53,8 @@ class JournalProvider extends ChangeNotifier {
   bool _isDisposed = false;
 
   String get selectedKeyword => _selectedKeyword;
+  String get topicSearchQuery => _topicSearchQuery;
+
   bool get isLoading => _isLoading;
   AppError? get error => _error;
   PublicationListSort get publicationSort => _publicationSort;
@@ -63,10 +67,6 @@ class JournalProvider extends ChangeNotifier {
 
   bool get isLoadingAnalytics => _isLoadingAnalytics;
   AppError? get analyticsError => _analyticsError;
-  List<RankedEntity> get keywordAnalyticsJournals =>
-      List.unmodifiable(_journals.take(AppLimits.keywordAnalyticsCardLimit));
-  List<Publication> get keywordAnalyticsTopPapers =>
-      List.unmodifiable(_topPapers.take(AppLimits.keywordAnalyticsCardLimit));
   List<RankedEntity> get keywordAnalyticsTopAuthors =>
       List.unmodifiable(_topAuthors.take(AppLimits.keywordAnalyticsCardLimit));
 
@@ -92,6 +92,23 @@ class JournalProvider extends ChangeNotifier {
 
   bool get isDarkMode => _isDarkMode;
   bool get filterFutureSourceYears => _filterFutureSourceYears;
+  bool get hasDashboard => _selectedKeyword.isNotEmpty;
+
+  DashboardReportData? get dashboardReportData {
+    if (!hasDashboard) return null;
+    return DashboardReportData(
+      topic: _selectedKeyword,
+      totalPublications: totalWorks,
+      averageCitations: avgCitationCount,
+      mostActiveYear: mostActiveYear,
+      topJournal: topJournal,
+      topAuthor: topAuthor,
+      mostInfluentialPublication: mostInfluentialPaper,
+      publicationsByYear: sourceWorksByYear,
+      journals: List.unmodifiable(_journals.take(AppLimits.topJournalResults)),
+      publications: List.unmodifiable(_journalPublications),
+    );
+  }
 
   int get totalWorks => _keywordPublicationTotal;
   int? get avgCitationCount => _averageCitations;
@@ -123,20 +140,26 @@ class JournalProvider extends ChangeNotifier {
     return list;
   }
 
-  List<MapEntry<int, int>> get keywordAnalyticsYearsByWorkCount =>
-      yearsByWorkCount.take(AppLimits.keywordAnalyticsCardLimit).toList();
-
   Future<void> analyzeKeyword(String keyword) async {
     final trimmed = keyword.trim();
     if (trimmed.isEmpty || _isLoading) return;
 
-    _selectedKeyword = trimmed;
+    unawaited(
+      FirebaseService.instance.logEvent(
+        'search_topic',
+        parameters: {'keyword': trimmed},
+      ),
+    );
     _rememberSearchInMemory(trimmed);
+    _topicSearchQuery = trimmed;
+    _selectedKeyword = trimmed;
     _isLoading = true;
     _isLoadingAnalytics = true;
     _error = null;
     _analyticsError = null;
     _journals = const [];
+    _trendingKeywords = const [];
+    _trendingKeywordError = null;
     _clearKeywordAnalytics();
     _clearJournalPublications();
     notifyListeners();
@@ -149,7 +172,7 @@ class JournalProvider extends ChangeNotifier {
       _analyticsError = error;
     } catch (error) {
       final appError = AppError(
-        'Keyword analysis failed.',
+        'Topic analysis failed.',
         details: error.toString(),
       );
       _error = appError;
@@ -173,7 +196,7 @@ class JournalProvider extends ChangeNotifier {
       _analyticsError = error;
     } catch (error) {
       _analyticsError = AppError(
-        'Could not refresh keyword analytics.',
+        'Could not refresh topic analytics.',
         details: error.toString(),
       );
     } finally {
@@ -184,6 +207,8 @@ class JournalProvider extends ChangeNotifier {
 
   Future<void> loadTrendingKeywords({bool force = false}) async {
     if (_isLoadingTrendingKeywords) return;
+    final keyword = _selectedKeyword;
+    if (keyword.isEmpty) return;
     if (!force && _trendingKeywords.isNotEmpty) return;
 
     _isLoadingTrendingKeywords = true;
@@ -191,7 +216,11 @@ class JournalProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final keywords = await _repository.getTrendingKeywords();
+      final keywords = await _repository.getKeywordsByKeyword(
+        keyword,
+        limit: AppLimits.trendingKeywordResults,
+        excludeFuturePublications: _filterFutureSourceYears,
+      );
       if (_isDisposed) return;
       _trendingKeywords = keywords;
     } on AppError catch (error) {
@@ -200,7 +229,7 @@ class JournalProvider extends ChangeNotifier {
     } catch (error) {
       if (_isDisposed) return;
       _trendingKeywordError = AppError(
-        'Could not load trending keywords.',
+        'Could not load keywords for the selected topic.',
         details: error.toString(),
       );
     } finally {
@@ -212,54 +241,80 @@ class JournalProvider extends ChangeNotifier {
   }
 
   Future<void> _loadKeywordAnalytics(String keyword) async {
-    final initial = await Future.wait([
-      _repository.getTopJournalsByKeyword(
-        keyword,
-        limit: AppLimits.topJournalResults,
-        excludeFuturePublications: _filterFutureSourceYears,
-      ),
-      _repository.getPublicationsByKeyword(
-        keyword,
-        page: 1,
-        excludeFuturePublications: _filterFutureSourceYears,
-        publicationSort: _publicationSort,
-      ),
+    final journalsFuture = _repository.getTopJournalsByKeyword(
+      keyword,
+      limit: AppLimits.topJournalResults,
+      excludeFuturePublications: _filterFutureSourceYears,
+    );
+    final publicationPageFuture = _repository.getPublicationsByKeyword(
+      keyword,
+      page: 1,
+      excludeFuturePublications: _filterFutureSourceYears,
+      publicationSort: _publicationSort,
+    );
+    final keywordsFuture = _repository.getKeywordsByKeyword(
+      keyword,
+      limit: AppLimits.trendingKeywordResults,
+      excludeFuturePublications: _filterFutureSourceYears,
+    );
+
+    late List<RankedEntity> journals;
+    late PublicationSearchPage countPage;
+    late List<RankedEntity> keywords;
+    await Future.wait<void>([
+      journalsFuture.then((value) => journals = value),
+      publicationPageFuture.then((value) => countPage = value),
+      keywordsFuture.then((value) => keywords = value),
     ]);
-    _journals = initial[0] as List<RankedEntity>;
-    final countPage = initial[1] as PublicationSearchPage;
+
+    _journals = journals;
+    _trendingKeywords = keywords;
+    _trendingKeywordError = null;
     _keywordPublicationTotal = countPage.totalCount;
     _applyJournalPublicationPage(countPage);
     notifyListeners();
 
     await Future<void>.delayed(const Duration(milliseconds: 180));
-    final rankings = await Future.wait([
-      _repository.getTopPapersByKeyword(
-        keyword,
-        excludeFuturePublications: _filterFutureSourceYears,
-      ),
-      _repository.getTopAuthorsByKeyword(
-        keyword,
-        limit: AppLimits.topAuthorResults,
-        excludeFuturePublications: _filterFutureSourceYears,
-      ),
+    final topPapersFuture = _repository.getTopPapersByKeyword(
+      keyword,
+      excludeFuturePublications: _filterFutureSourceYears,
+    );
+    final topAuthorsFuture = _repository.getTopAuthorsByKeyword(
+      keyword,
+      limit: AppLimits.topAuthorResults,
+      excludeFuturePublications: _filterFutureSourceYears,
+    );
+
+    late List<Publication> topPapers;
+    late List<RankedEntity> topAuthors;
+    await Future.wait<void>([
+      topPapersFuture.then((value) => topPapers = value),
+      topAuthorsFuture.then((value) => topAuthors = value),
     ]);
-    _topPapers = rankings[0] as List<Publication>;
-    _topAuthors = rankings[1] as List<RankedEntity>;
+
+    _topPapers = topPapers;
+    _topAuthors = topAuthors;
     notifyListeners();
 
     await Future<void>.delayed(const Duration(milliseconds: 180));
-    final trends = await Future.wait([
-      _repository.getPublicationTrendByKeyword(
-        keyword,
-        excludeFuturePublications: _filterFutureSourceYears,
-      ),
-      _repository.getAverageCitationsByKeyword(
-        keyword,
-        excludeFuturePublications: _filterFutureSourceYears,
-      ),
+    final publicationTrendFuture = _repository.getPublicationTrendByKeyword(
+      keyword,
+      excludeFuturePublications: _filterFutureSourceYears,
+    );
+    final averageCitationsFuture = _repository.getAverageCitationsByKeyword(
+      keyword,
+      excludeFuturePublications: _filterFutureSourceYears,
+    );
+
+    late Map<int, int> publicationsByYear;
+    int? averageCitations;
+    await Future.wait<void>([
+      publicationTrendFuture.then((value) => publicationsByYear = value),
+      averageCitationsFuture.then((value) => averageCitations = value),
     ]);
-    _publicationsByYear = trends[0] as Map<int, int>;
-    _averageCitations = trends[1] as int?;
+
+    _publicationsByYear = publicationsByYear;
+    _averageCitations = averageCitations;
   }
 
   Future<void> goToPage(int pageNumber, {bool force = false}) async {
@@ -343,10 +398,13 @@ class JournalProvider extends ChangeNotifier {
 
   void clear() {
     _selectedKeyword = '';
+    _topicSearchQuery = '';
     _isLoading = false;
     _error = null;
     _publicationSort = PublicationListSort.newest;
     _journals = const [];
+    _trendingKeywords = const [];
+    _trendingKeywordError = null;
     _isLoadingAnalytics = false;
     _analyticsError = null;
     _isLoadingJournalPublications = false;

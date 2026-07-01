@@ -20,5 +20,7 @@ subprojects {
 }
 
 tasks.register<Delete>("clean") {
+    group = "build"
+    description = "Deletes all Gradle build outputs."
     delete(rootProject.layout.buildDirectory)
 }
