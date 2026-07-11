@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/constants/app_limits.dart';
 import '../../core/errors/app_errors.dart';
+import '../models/journal_profile.dart';
 import '../models/publication.dart';
 import '../models/ranked_entity.dart';
 
@@ -89,6 +90,28 @@ class OpenAlexApiService {
     );
   }
 
+  Future<List<RankedEntity>> getTopKeywordsInRecentMonth({
+    int limit = AppLimits.monthlyKeywordResults,
+  }) async {
+    final safeLimit = limit.clamp(1, AppLimits.openAlexGroupPageSize).toInt();
+    final today = DateTime.now();
+    final startDate = today.subtract(const Duration(days: 30));
+    final filters = [
+      'type:article',
+      'from_publication_date:${_formatDate(startDate)}',
+      'to_publication_date:${_formatDate(today)}',
+    ];
+
+    final keywords = await _getRankedEntities(
+      keyword: null,
+      groupBy: 'keywords.id',
+      filters: filters,
+      limit: safeLimit,
+    );
+
+    return keywords.take(safeLimit).toList(growable: false);
+  }
+
   Future<List<RankedEntity>> getTopJournalsByKeyword(
     String keyword, {
     int limit = AppLimits.topJournalResults,
@@ -124,6 +147,70 @@ class OpenAlexApiService {
       journals.add(journal);
     }
     return journals;
+  }
+
+  Future<List<JournalProfile>> searchJournals(
+    String query, {
+    int limit = AppLimits.topJournalResults,
+  }) async {
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) return const [];
+
+    final safeLimit = limit.clamp(1, AppLimits.openAlexListPageSize).toInt();
+    final uri = _openAlexUri('/sources', {
+      'search': trimmedQuery,
+      'filter': 'type:journal',
+      'per-page': safeLimit.toString(),
+      'mailto': _contactEmail,
+    });
+
+    final decoded = await _getJsonObject(uri);
+    final results = decoded['results'];
+    if (results is! List) return const [];
+
+    return results
+        .whereType<Map<String, dynamic>>()
+        .map(JournalProfile.fromOpenAlexJson)
+        .where((journal) => journal.id.isNotEmpty && journal.name.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<JournalProfile> getJournalProfile(String sourceId) async {
+    final source = _openAlexIdFilterValue(sourceId);
+    if (source.isEmpty) {
+      throw AppError('Could not load journal details.');
+    }
+
+    final uri = _openAlexUri('/sources/$source', {'mailto': _contactEmail});
+    final decoded = await _getJsonObject(uri);
+    return JournalProfile.fromOpenAlexJson(decoded);
+  }
+
+  Future<List<Publication>> getPublicationsBySource(
+    String sourceId, {
+    int limit = 10,
+  }) async {
+    final source = _openAlexIdFilterValue(sourceId);
+    if (source.isEmpty) throw AppError('Journal source ID is required.');
+
+    final uri = _openAlexUri('/works', {
+      'filter': [
+        'primary_location.source.id:$source',
+        'to_publication_date:${_currentPublicationDateFilter()}',
+      ].join(','),
+      'sort': 'cited_by_count:desc',
+      'per-page': limit.clamp(1, AppLimits.openAlexListPageSize).toString(),
+      'mailto': _contactEmail,
+    });
+    final decoded = await _getJsonObject(uri);
+    final results = decoded['results'];
+    if (results is! List) {
+      throw const FormatException('Expected "results" to be a list.');
+    }
+    return results
+        .whereType<Map<String, dynamic>>()
+        .map(Publication.fromOpenAlexJson)
+        .toList(growable: false);
   }
 
   Future<PublicationSearchPage> getPublicationsByKeyword(
@@ -365,7 +452,10 @@ class OpenAlexApiService {
       if (item is! Map<String, dynamic>) continue;
       final entity = RankedEntity.fromGroupByJson(item);
       final key = entity.id.toLowerCase();
-      if (entity.id.isEmpty || key == 'unknown' || entity.name.isEmpty) {
+      if (entity.id.isEmpty ||
+          key == 'unknown' ||
+          key == '-111' ||
+          entity.name.isEmpty) {
         continue;
       }
       entities.add(entity);

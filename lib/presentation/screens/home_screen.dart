@@ -8,6 +8,7 @@ import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_markup_text.dart';
 import '../../data/repositories/journal_repository.dart';
 import '../providers/journal_provider.dart';
+import '../providers/entity_analytics_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import 'analytics_entity_detail_screen.dart';
 import 'publication_detail_screen.dart';

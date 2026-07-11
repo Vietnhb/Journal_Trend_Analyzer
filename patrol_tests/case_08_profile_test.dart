@@ -6,12 +6,15 @@ import 'test_helpers.dart';
 void main() {
   patrolTest('Test Case 8 - Profile information is displayed', ($) async {
     await launchApplication($);
-    requireAuthenticated($);
+    await ensureAuthenticated($);
     await $(#nav_profile).tap();
 
     expect($(#profile_screen), findsOneWidget);
-    expect($('Sign Out'), findsOneWidget);
-    expect($('Reports'), findsOneWidget);
+    await $(#export_pdf_button).scrollTo();
+    expect($('REPORTS'), findsOneWidget);
+    await $(#notification_center_button).scrollTo();
     expect($('Notifications'), findsOneWidget);
+    await $(#logout_button).scrollTo();
+    expect($('Sign Out'), findsOneWidget);
   });
 }

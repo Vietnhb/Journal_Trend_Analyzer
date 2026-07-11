@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_typography.dart';
 import 'presentation/providers/firebase_provider.dart';
+import 'presentation/providers/bookmark_provider.dart';
 import 'presentation/providers/journal_provider.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/widgets/app_bottom_nav_shell.dart';
@@ -54,9 +55,14 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: firebaseProvider),
         ChangeNotifierProvider(create: (_) => JournalProvider()),
+        ChangeNotifierProvider(create: (_) => BookmarkProvider()),
       ],
       child: Consumer2<JournalProvider, FirebaseProvider>(
         builder: (context, journalProvider, firebaseProvider, child) {
+          journalProvider.configureRemoteLimits(
+            maxJournals: firebaseProvider.maxJournals,
+            maxKeywords: firebaseProvider.maxKeywords,
+          );
           return MaterialApp(
             title: 'Journal Trend Analyzer',
             debugShowCheckedModeBanner: false,

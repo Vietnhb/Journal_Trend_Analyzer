@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../providers/bookmark_provider.dart';
 import '../providers/firebase_provider.dart';
 import '../providers/journal_provider.dart';
+import 'bookmarks_screen.dart';
 import 'notification_center_screen.dart';
 import 'report_history_screen.dart';
 
@@ -15,6 +17,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final journal = context.watch<JournalProvider>();
     final firebase = context.watch<FirebaseProvider>();
+    final bookmarks = context.watch<BookmarkProvider>();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -45,6 +48,33 @@ class ProfileScreen extends StatelessWidget {
                 foreground: colorScheme.onErrorContainer,
               ),
             ],
+            const SizedBox(height: 22),
+            const _SectionLabel('Library'),
+            const SizedBox(height: 10),
+            _SettingsCard(
+              children: [
+                _SettingsTile(
+                  icon: Icons.bookmark_border_rounded,
+                  color: AppColors.primary,
+                  title: 'Bookmarks',
+                  subtitle: bookmarks.totalCount == 0
+                      ? 'Save journals and publications for quick access.'
+                      : '${bookmarks.journals.length} journals, '
+                            '${bookmarks.publications.length} publications saved.',
+                  trailing: bookmarks.isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : _Badge('${bookmarks.totalCount}'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BookmarksScreen()),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 22),
             const _SectionLabel('Reports'),
             const SizedBox(height: 10),

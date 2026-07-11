@@ -20,6 +20,7 @@ abstract final class AppLimits {
   static const int topAuthorResults = openAlexListPageSize;
   static const int topPaperResults = openAlexListPageSize;
   static const int trendingKeywordResults = 12;
+  static const int monthlyKeywordResults = 10;
   static const int keywordAnalyticsCardLimit = 10;
 
   /// Default for reusable lower-level ranking helpers.

@@ -51,6 +51,8 @@ class JournalProvider extends ChangeNotifier {
   bool _isDarkMode = false;
   bool _filterFutureSourceYears = true;
   bool _isDisposed = false;
+  int _maxJournalResults = AppLimits.topJournalResults;
+  int _maxKeywordResults = AppLimits.trendingKeywordResults;
 
   String get selectedKeyword => _selectedKeyword;
   String get topicSearchQuery => _topicSearchQuery;
@@ -59,11 +61,13 @@ class JournalProvider extends ChangeNotifier {
   AppError? get error => _error;
   PublicationListSort get publicationSort => _publicationSort;
   List<String> get recentSearches => _recentSearches;
-  List<RankedEntity> get trendingKeywords => _trendingKeywords;
+  List<RankedEntity> get trendingKeywords =>
+      List.unmodifiable(_trendingKeywords.take(_maxKeywordResults));
   bool get isLoadingTrendingKeywords => _isLoadingTrendingKeywords;
   AppError? get trendingKeywordError => _trendingKeywordError;
 
-  List<RankedEntity> get journals => _journals;
+  List<RankedEntity> get journals =>
+      List.unmodifiable(_journals.take(_maxJournalResults));
 
   bool get isLoadingAnalytics => _isLoadingAnalytics;
   AppError? get analyticsError => _analyticsError;
@@ -105,13 +109,21 @@ class JournalProvider extends ChangeNotifier {
       topAuthor: topAuthor,
       mostInfluentialPublication: mostInfluentialPaper,
       publicationsByYear: sourceWorksByYear,
-      journals: List.unmodifiable(_journals.take(AppLimits.topJournalResults)),
+      journals: List.unmodifiable(_journals.take(_maxJournalResults)),
       publications: List.unmodifiable(_journalPublications),
     );
   }
 
   int get totalWorks => _keywordPublicationTotal;
   int? get avgCitationCount => _averageCitations;
+
+  void configureRemoteLimits({
+    required int maxJournals,
+    required int maxKeywords,
+  }) {
+    if (maxJournals > 0) _maxJournalResults = maxJournals;
+    if (maxKeywords > 0) _maxKeywordResults = maxKeywords;
+  }
 
   int? get mostActiveYear {
     final ranked = yearsByWorkCount;
@@ -218,7 +230,7 @@ class JournalProvider extends ChangeNotifier {
     try {
       final keywords = await _repository.getKeywordsByKeyword(
         keyword,
-        limit: AppLimits.trendingKeywordResults,
+        limit: _maxKeywordResults,
         excludeFuturePublications: _filterFutureSourceYears,
       );
       if (_isDisposed) return;
@@ -243,7 +255,7 @@ class JournalProvider extends ChangeNotifier {
   Future<void> _loadKeywordAnalytics(String keyword) async {
     final journalsFuture = _repository.getTopJournalsByKeyword(
       keyword,
-      limit: AppLimits.topJournalResults,
+      limit: _maxJournalResults,
       excludeFuturePublications: _filterFutureSourceYears,
     );
     final publicationPageFuture = _repository.getPublicationsByKeyword(
@@ -254,7 +266,7 @@ class JournalProvider extends ChangeNotifier {
     );
     final keywordsFuture = _repository.getKeywordsByKeyword(
       keyword,
-      limit: AppLimits.trendingKeywordResults,
+      limit: _maxKeywordResults,
       excludeFuturePublications: _filterFutureSourceYears,
     );
 

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -7,12 +5,11 @@ import '../../core/errors/app_errors.dart';
 import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_markup_text.dart';
-import '../../data/repositories/journal_repository.dart';
-import '../../data/services/firebase_service.dart';
+import '../../data/repositories/journal_repository.dart'
+    show Publication, PublicationYearSort, RankedEntity;
+import '../providers/entity_analytics_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import 'publication_detail_screen.dart';
-
-enum AnalyticsEntityType { journal, author }
 
 class AnalyticsEntityDetailScreen extends StatefulWidget {
   final AnalyticsEntityType type;
@@ -35,95 +32,42 @@ class AnalyticsEntityDetailScreen extends StatefulWidget {
 
 class _AnalyticsEntityDetailScreenState
     extends State<AnalyticsEntityDetailScreen> {
-  final JournalRepository _repository = JournalRepository();
-
-  bool _isLoading = true;
-  AppError? _error;
-  List<Publication> _publications = const [];
-  Map<int, int> _publicationsByYear = const {};
-  int _totalPublications = 0;
-  int _totalCitations = 0;
-  int? _averageCitations;
+  late final EntityAnalyticsProvider _viewModel;
+  bool get _isLoading => _viewModel.isLoading;
+  AppError? get _error => _viewModel.error;
+  List<Publication> get _publications => _viewModel.publications;
+  Map<int, int> get _publicationsByYear => _viewModel.publicationsByYear;
+  int get _totalPublications => _viewModel.totalPublications;
+  int get _totalCitations => _viewModel.totalCitations;
+  int? get _averageCitations => _viewModel.averageCitations;
 
   @override
   void initState() {
     super.initState();
-    if (widget.type == AnalyticsEntityType.journal) {
-      unawaited(
-        FirebaseService.instance.logEvent(
-          'view_journal',
-          parameters: {'journal_name': widget.entity.name},
-        ),
-      );
-    }
+    _viewModel = EntityAnalyticsProvider(
+      type: widget.type,
+      entity: widget.entity,
+      keyword: widget.keyword,
+      excludeFuturePublications: widget.excludeFuturePublications,
+    )..addListener(_onViewModelChanged);
     _load();
+  }
+
+  void _onViewModelChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _repository.dispose();
+    _viewModel
+      ..removeListener(_onViewModelChanged)
+      ..dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final page = await _repository.getPublicationsByKeyword(
-        widget.keyword,
-        sourceId: _sourceId,
-        authorId: _authorId,
-        page: 1,
-        excludeFuturePublications: widget.excludeFuturePublications,
-        sortOverride: 'cited_by_count:desc',
-      );
-
-      final trend = await _repository.getPublicationTrendByKeyword(
-        widget.keyword,
-        sourceId: _sourceId,
-        authorId: _authorId,
-        excludeFuturePublications: widget.excludeFuturePublications,
-      );
-
-      final citationStats = await _repository.getCitationStatsByKeyword(
-        widget.keyword,
-        sourceId: _sourceId,
-        authorId: _authorId,
-        excludeFuturePublications: widget.excludeFuturePublications,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _publications = page.publications;
-        _totalPublications = page.totalCount;
-        _publicationsByYear = trend;
-        _totalCitations = citationStats.totalCitations;
-        _averageCitations = citationStats.averageCitations;
-      });
-    } on AppError catch (error) {
-      if (mounted) setState(() => _error = error);
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _error = AppError(
-            'Could not load filtered analytics.',
-            details: error.toString(),
-          );
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    await _viewModel.load();
   }
-
-  String? get _sourceId =>
-      widget.type == AnalyticsEntityType.journal ? widget.entity.id : null;
-
-  String? get _authorId =>
-      widget.type == AnalyticsEntityType.author ? widget.entity.id : null;
 
   @override
   Widget build(BuildContext context) {

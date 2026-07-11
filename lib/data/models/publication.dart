@@ -52,6 +52,46 @@ class Publication {
     );
   }
 
+  factory Publication.fromBookmarkJson(Map<String, dynamic> json) {
+    return Publication(
+      id: _asString(json['id']) ?? '',
+      title: AppTextSanitizer.clean(
+        _asString(json['title']),
+        fallback: 'Untitled publication',
+      ),
+      titleMarkup: _emptyToNull(_asString(json['titleMarkup'])),
+      year: _asInt(json['year']),
+      publicationDate: _emptyToNull(_asString(json['publicationDate'])),
+      citationCount: _asInt(json['citationCount']) ?? 0,
+      journalName: AppTextSanitizer.clean(
+        _asString(json['journalName']),
+        fallback: 'Unknown journal',
+      ),
+      authors: _asStringList(json['authors']),
+      doi: _emptyToNull(_asString(json['doi'])),
+      url: _emptyToNull(_asString(json['url'])),
+      abstractText: AppTextSanitizer.cleanNullable(json['abstractText']),
+      abstractMarkup: _emptyToNull(_asString(json['abstractMarkup'])),
+    );
+  }
+
+  Map<String, dynamic> toBookmarkJson() {
+    return {
+      'id': id,
+      'title': title,
+      'titleMarkup': titleMarkup,
+      'year': year,
+      'publicationDate': publicationDate,
+      'citationCount': citationCount,
+      'journalName': journalName,
+      'authors': authors,
+      'doi': doi,
+      'url': url,
+      'abstractText': abstractText,
+      'abstractMarkup': abstractMarkup,
+    };
+  }
+
   static String? _extractUrl(Map<String, dynamic> json) {
     final landingPage = _asString(
       (json['primary_location'] as Map?)?['landing_page_url'],
@@ -110,6 +150,14 @@ class Publication {
 
   static String? _asString(Object? value) {
     return value is String ? value : null;
+  }
+
+  static List<String> _asStringList(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
   }
 
   static int? _asInt(Object? value) {

@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -9,8 +8,11 @@ import '../../core/widgets/app_empty_view.dart';
 import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_markup_text.dart';
-import '../../data/repositories/journal_repository.dart';
-import '../../data/services/firebase_service.dart';
+import '../../data/repositories/journal_repository.dart'
+    show Publication, PublicationYearSort, RankedEntity;
+import '../providers/keyword_screen_provider.dart';
+import '../providers/entity_analytics_provider.dart';
+import '../providers/firebase_provider.dart';
 import '../providers/journal_provider.dart';
 import '../trends/widgets/trend_chart.dart';
 import '../trends/widgets/year_ranking_list.dart';
@@ -23,15 +25,24 @@ class KeywordsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<JournalProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Header(provider: provider),
-            Expanded(child: _KeywordListBody(provider: provider)),
-          ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        systemStatusBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: colorScheme.surfaceContainerLowest,
+        body: SafeArea(
+          top: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Header(provider: provider),
+              Expanded(child: _KeywordListBody(provider: provider)),
+            ],
+          ),
         ),
       ),
     );
@@ -45,31 +56,88 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final topInset = MediaQuery.paddingOf(context).top;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Keywords',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w800,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Keyword Explorer',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 10),
           Text(
             provider.selectedKeyword.isEmpty
-                ? 'Search a research topic from Home first'
-                : 'Keywords inside "${provider.selectedKeyword}"',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+                ? 'Discover what the research community is exploring now.'
+                : 'Trends and related terms for your research topic.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.82),
             ),
           ),
-          const SizedBox(height: 12),
-          const Divider(height: 1),
+          if (provider.selectedKeyword.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.search_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      provider.selectedKeyword,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -83,73 +151,178 @@ class _KeywordListBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (provider.selectedKeyword.isEmpty) {
-      return const AppEmptyView(
-        message: 'Search a research topic from Home first.',
-        icon: Icons.key_outlined,
-      );
-    }
-
-    if (provider.isLoadingTrendingKeywords &&
-        provider.trendingKeywords.isEmpty) {
-      return const AppLoading(message: 'Loading keywords...');
-    }
-
-    final error = provider.trendingKeywordError;
-    if (error != null && provider.trendingKeywords.isEmpty) {
-      return AppErrorView(
-        error: error,
-        onRetry: () => provider.loadTrendingKeywords(force: true),
-      );
-    }
-
-    if (provider.trendingKeywords.isEmpty) {
-      return const AppEmptyView(
-        message: 'No keywords found inside the selected topic.',
-        icon: Icons.key_outlined,
-      );
-    }
-
     return RefreshIndicator(
-      onRefresh: () => provider.loadTrendingKeywords(force: true),
+      onRefresh: () async {
+        if (provider.selectedKeyword.isNotEmpty) {
+          await provider.loadTrendingKeywords(force: true);
+        }
+      },
       color: AppColors.primary,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
         children: [
-          const _SectionHeader(
-            icon: Icons.trending_up_rounded,
-            title: 'Most Frequent & Trending Keywords',
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Most frequent keywords in recent publications for '
-            '"${provider.selectedKeyword}".',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          const _MonthlyKeywordTrendsWidget(),
+          const SizedBox(height: 28),
+          if (provider.selectedKeyword.isEmpty)
+            const AppEmptyView(
+              message: 'Search a research topic from Home first.',
+              icon: Icons.key_outlined,
+            )
+          else if (provider.isLoadingTrendingKeywords &&
+              provider.trendingKeywords.isEmpty)
+            const SizedBox(
+              height: 220,
+              child: AppLoading(message: 'Loading keywords...'),
+            )
+          else if (provider.trendingKeywordError != null &&
+              provider.trendingKeywords.isEmpty)
+            AppErrorView(
+              error: provider.trendingKeywordError!,
+              onRetry: () => provider.loadTrendingKeywords(force: true),
+            )
+          else if (provider.trendingKeywords.isEmpty)
+            const AppEmptyView(
+              message: 'No keywords found inside the selected topic.',
+              icon: Icons.key_outlined,
+            )
+          else ...[
+            const _SectionHeader(
+              icon: Icons.trending_up_rounded,
+              title: 'Most Frequent & Trending Keywords',
             ),
-          ),
-          const SizedBox(height: 12),
-          _KeywordRankingCard(
-            keywords: provider.trendingKeywords,
-            onSelected: (keyword) => _openKeywordDetail(
-              context,
-              keyword.name,
-              provider.selectedKeyword,
-              provider.filterFutureSourceYears,
+            const SizedBox(height: 4),
+            Text(
+              'Most frequent keywords in recent publications for '
+              '"${provider.selectedKeyword}".',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
+            const SizedBox(height: 12),
+            _KeywordRankingCard(
+              keywords: provider.trendingKeywords,
+              keyPrefix: 'topic_keyword_item',
+              onSelected: (keyword) => _openKeywordDetail(
+                context,
+                keyword.name,
+                provider.selectedKeyword,
+                provider.filterFutureSourceYears,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
+class _MonthlyKeywordTrendsWidget extends StatefulWidget {
+  const _MonthlyKeywordTrendsWidget();
+
+  @override
+  State<_MonthlyKeywordTrendsWidget> createState() =>
+      _MonthlyKeywordTrendsWidgetState();
+}
+
+class _MonthlyKeywordTrendsWidgetState
+    extends State<_MonthlyKeywordTrendsWidget> {
+  late final MonthlyKeywordsProvider _viewModel;
+  bool get _isLoading => _viewModel.isLoading;
+  AppError? get _error => _viewModel.error;
+  List<RankedEntity> get _keywords => _viewModel.keywords;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = MonthlyKeywordsProvider(
+      resultLimit: context.read<FirebaseProvider>().maxKeywords,
+    );
+    _viewModel.addListener(_onViewModelChanged);
+    _load();
+  }
+
+  void _onViewModelChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _viewModel
+      ..removeListener(_onViewModelChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _viewModel.resultLimit = context.watch<FirebaseProvider>().maxKeywords;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: _SectionHeader(
+                icon: Icons.calendar_month_rounded,
+                title: 'Top 10 Keywords This Month',
+              ),
+            ),
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: _isLoading ? null : _load,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Most researched keywords across OpenAlex publications in the last 30 days.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        if (_isLoading)
+          const SizedBox(
+            height: 180,
+            child: AppLoading(message: 'Loading monthly keywords...'),
+          )
+        else if (_error != null)
+          AppErrorView(error: _error!, onRetry: _load)
+        else if (_keywords.isEmpty)
+          const AppEmptyView(
+            message: 'No monthly keyword data available.',
+            icon: Icons.calendar_month_outlined,
+          )
+        else
+          _KeywordRankingCard(
+            keywords: _keywords,
+            keyPrefix: 'monthly_keyword_item',
+            onSelected: (keyword) =>
+                _openKeywordDetail(context, keyword.name, 'Last 30 days', true),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _load() async {
+    await _viewModel.load();
+  }
+}
+
 class _KeywordRankingCard extends StatelessWidget {
   final List<RankedEntity> keywords;
   final ValueChanged<RankedEntity> onSelected;
+  final String keyPrefix;
 
-  const _KeywordRankingCard({required this.keywords, required this.onSelected});
+  const _KeywordRankingCard({
+    required this.keywords,
+    required this.onSelected,
+    required this.keyPrefix,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -162,8 +335,15 @@ class _KeywordRankingCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colorScheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -173,6 +353,7 @@ class _KeywordRankingCard extends StatelessWidget {
             _KeywordRow(
               keyword: keywords[index],
               rank: index + 1,
+              itemKey: Key('${keyPrefix}_${index + 1}'),
               maxCount: maxCount,
               onTap: () => onSelected(keywords[index]),
             ),
@@ -188,60 +369,70 @@ class _KeywordRow extends StatelessWidget {
   final int rank;
   final int maxCount;
   final VoidCallback onTap;
+  final Key itemKey;
 
   const _KeywordRow({
     required this.keyword,
     required this.rank,
     required this.maxCount,
     required this.onTap,
+    required this.itemKey,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final ratio = maxCount == 0 ? 0.0 : keyword.worksCount / maxCount;
+    final rankColor = switch (rank) {
+      1 => AppColors.gold,
+      2 => AppColors.silver,
+      3 => AppColors.bronze,
+      _ => AppColors.primary,
+    };
 
     return InkWell(
-      key: Key('keyword_item_$rank'),
+      key: itemKey,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 34,
+              height: 34,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8),
+                color: rankColor.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 '$rank',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColors.primary,
+                  color: rankColor,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     keyword.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(5),
                     child: LinearProgressIndicator(
-                      minHeight: 5,
+                      minHeight: 6,
                       value: ratio,
                       backgroundColor: AppColors.primary.withValues(
                         alpha: 0.08,
@@ -254,12 +445,19 @@ class _KeywordRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              '${_compactCount(keyword.worksCount)} pubs',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                _compactCount(keyword.worksCount),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
             Icon(
@@ -291,89 +489,39 @@ class KeywordDetailScreen extends StatefulWidget {
 }
 
 class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
-  final JournalRepository _repository = JournalRepository();
-
-  bool _isLoading = true;
-  AppError? _error;
-  List<RankedEntity> _journals = const [];
-  List<Publication> _publications = const [];
-  List<RankedEntity> _authors = const [];
-  Map<int, int> _publicationsByYear = const {};
+  late final KeywordDetailProvider _viewModel;
+  bool get _isLoading => _viewModel.isLoading;
+  AppError? get _error => _viewModel.error;
+  List<RankedEntity> get _journals => _viewModel.journals;
+  List<Publication> get _publications => _viewModel.publications;
+  List<RankedEntity> get _authors => _viewModel.authors;
+  Map<int, int> get _publicationsByYear => _viewModel.publicationsByYear;
 
   @override
   void initState() {
     super.initState();
-    unawaited(
-      FirebaseService.instance.logEvent(
-        'view_keyword',
-        parameters: {'keyword': widget.keyword},
-      ),
-    );
+    _viewModel = KeywordDetailProvider(
+      keyword: widget.keyword,
+      excludeFuturePublications: widget.excludeFuturePublications,
+      maxJournals: context.read<FirebaseProvider>().maxJournals,
+    )..addListener(_onViewModelChanged);
     _load();
+  }
+
+  void _onViewModelChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _repository.dispose();
+    _viewModel
+      ..removeListener(_onViewModelChanged)
+      ..dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final journalsFuture = _repository.getTopJournalsByKeyword(
-        widget.keyword,
-        excludeFuturePublications: widget.excludeFuturePublications,
-      );
-      final publicationsFuture = _repository.getTopPapersByKeyword(
-        widget.keyword,
-        excludeFuturePublications: widget.excludeFuturePublications,
-      );
-      final authorsFuture = _repository.getTopAuthorsByKeyword(
-        widget.keyword,
-        excludeFuturePublications: widget.excludeFuturePublications,
-      );
-      final publicationTrendFuture = _repository.getPublicationTrendByKeyword(
-        widget.keyword,
-        excludeFuturePublications: widget.excludeFuturePublications,
-      );
-
-      late List<RankedEntity> journals;
-      late List<Publication> publications;
-      late List<RankedEntity> authors;
-      late Map<int, int> publicationsByYear;
-      await Future.wait<void>([
-        journalsFuture.then((value) => journals = value),
-        publicationsFuture.then((value) => publications = value),
-        authorsFuture.then((value) => authors = value),
-        publicationTrendFuture.then((value) => publicationsByYear = value),
-      ]);
-
-      if (!mounted) return;
-      setState(() {
-        _journals = journals;
-        _publications = publications;
-        _authors = authors;
-        _publicationsByYear = publicationsByYear;
-      });
-    } on AppError catch (error) {
-      if (mounted) setState(() => _error = error);
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _error = AppError(
-            'Could not load keyword analysis.',
-            details: error.toString(),
-          );
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    await _viewModel.load();
   }
 
   @override
@@ -465,6 +613,7 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
                         .toList(),
                   ),
                   _HorizontalBarSection(
+                    key: const Key('keyword_top_authors'),
                     title: 'Top Authors',
                     icon: Icons.group_outlined,
                     items: _authors
@@ -666,6 +815,7 @@ class _HorizontalBarSection extends StatelessWidget {
   final List<_BarItem> items;
 
   const _HorizontalBarSection({
+    super.key,
     required this.title,
     required this.icon,
     required this.items,

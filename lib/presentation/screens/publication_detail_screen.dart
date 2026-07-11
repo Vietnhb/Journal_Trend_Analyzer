@@ -1,14 +1,15 @@
-import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_markup_text.dart';
 import '../../data/models/publication.dart';
-import '../../data/services/firebase_service.dart';
+import '../providers/bookmark_provider.dart';
+import '../providers/publication_detail_provider.dart';
 
 class PublicationDetailScreen extends StatefulWidget {
   final Publication publication;
@@ -24,16 +25,7 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(
-      FirebaseService.instance.logEvent(
-        'view_publication',
-        parameters: {
-          'publication_title': widget.publication.title,
-          if (widget.publication.year != null)
-            'publication_year': widget.publication.year!,
-        },
-      ),
-    );
+    PublicationDetailProvider.trackView(widget.publication);
   }
 
   @override
@@ -48,6 +40,7 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
               pinned: true,
               delegate: _PublicationHeaderDelegate(
                 title: publication.title,
+                publication: publication,
                 topPadding: MediaQuery.paddingOf(context).top,
               ),
             ),
@@ -73,10 +66,12 @@ class _PublicationHeaderDelegate extends SliverPersistentHeaderDelegate {
   static const double _expandedContentHeight = 112;
 
   final String title;
+  final Publication publication;
   final double topPadding;
 
   const _PublicationHeaderDelegate({
     required this.title,
+    required this.publication,
     required this.topPadding,
   });
 
@@ -130,7 +125,7 @@ class _PublicationHeaderDelegate extends SliverPersistentHeaderDelegate {
           ),
           PositionedDirectional(
             start: 56,
-            end: 16,
+            end: 56,
             top: topPadding,
             height: _toolbarHeight,
             child: ClipRect(
@@ -152,6 +147,33 @@ class _PublicationHeaderDelegate extends SliverPersistentHeaderDelegate {
                   ),
                 ),
               ),
+            ),
+          ),
+          PositionedDirectional(
+            end: 8,
+            top: topPadding + 4,
+            child: Consumer<BookmarkProvider>(
+              builder: (context, bookmarks, _) {
+                final isSaved = bookmarks.isPublicationBookmarked(
+                  publication.id,
+                );
+                return IconButton(
+                  tooltip: isSaved ? 'Remove bookmark' : 'Bookmark publication',
+                  icon: Icon(
+                    isSaved
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    color: Colors.white,
+                  ),
+                  onPressed: publication.id.isEmpty
+                      ? null
+                      : () => _togglePublicationBookmark(
+                          context,
+                          bookmarks,
+                          isSaved,
+                        ),
+                );
+              },
             ),
           ),
           PositionedDirectional(
@@ -183,7 +205,26 @@ class _PublicationHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _PublicationHeaderDelegate oldDelegate) {
-    return title != oldDelegate.title || topPadding != oldDelegate.topPadding;
+    return title != oldDelegate.title ||
+        publication.id != oldDelegate.publication.id ||
+        topPadding != oldDelegate.topPadding;
+  }
+
+  Future<void> _togglePublicationBookmark(
+    BuildContext context,
+    BookmarkProvider bookmarks,
+    bool wasSaved,
+  ) async {
+    await bookmarks.togglePublication(publication);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          wasSaved ? 'Publication bookmark removed.' : 'Publication saved.',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 }
 
