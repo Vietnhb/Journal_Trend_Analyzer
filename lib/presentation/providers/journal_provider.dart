@@ -37,7 +37,7 @@ class JournalProvider extends ChangeNotifier {
   List<Publication> _topPapers = const [];
   List<RankedEntity> _topAuthors = const [];
   Map<int, int> _publicationsByYear = const {};
-  int? _averageCitations;
+  double? _averageCitations;
   int _keywordPublicationTotal = 0;
 
   bool _isLoadingJournalPublications = false;
@@ -99,7 +99,9 @@ class JournalProvider extends ChangeNotifier {
   bool get hasDashboard => _selectedKeyword.isNotEmpty;
 
   DashboardReportData? get dashboardReportData {
-    if (!hasDashboard) return null;
+    if (!hasDashboard || _isLoadingAnalytics || _analyticsError != null) {
+      return null;
+    }
     return DashboardReportData(
       topic: _selectedKeyword,
       totalPublications: totalWorks,
@@ -110,12 +112,12 @@ class JournalProvider extends ChangeNotifier {
       mostInfluentialPublication: mostInfluentialPaper,
       publicationsByYear: sourceWorksByYear,
       journals: List.unmodifiable(_journals.take(_maxJournalResults)),
-      publications: List.unmodifiable(_journalPublications),
+      publications: List.unmodifiable(_topPapers),
     );
   }
 
   int get totalWorks => _keywordPublicationTotal;
-  int? get avgCitationCount => _averageCitations;
+  double? get avgCitationCount => _averageCitations;
 
   void configureRemoteLimits({
     required int maxJournals,
@@ -319,7 +321,7 @@ class JournalProvider extends ChangeNotifier {
     );
 
     late Map<int, int> publicationsByYear;
-    int? averageCitations;
+    double? averageCitations;
     await Future.wait<void>([
       publicationTrendFuture.then((value) => publicationsByYear = value),
       averageCitationsFuture.then((value) => averageCitations = value),

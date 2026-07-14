@@ -106,7 +106,7 @@ class JournalRepository {
     );
   }
 
-  Future<int?> getAverageCitationsByKeyword(
+  Future<double?> getAverageCitationsByKeyword(
     String keyword, {
     String? sourceId,
     String? authorId,

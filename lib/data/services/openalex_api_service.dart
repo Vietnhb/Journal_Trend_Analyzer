@@ -54,8 +54,8 @@ class CitationStats {
 
   const CitationStats({required this.totalCitations, required this.totalWorks});
 
-  int? get averageCitations =>
-      totalWorks == 0 ? null : totalCitations ~/ totalWorks;
+  double? get averageCitations =>
+      totalWorks == 0 ? null : totalCitations / totalWorks;
 }
 
 class OpenAlexApiService {
@@ -333,7 +333,7 @@ class OpenAlexApiService {
     return counts;
   }
 
-  Future<int?> getAverageCitationsByKeyword(
+  Future<double?> getAverageCitationsByKeyword(
     String keyword, {
     String? sourceId,
     String? authorId,

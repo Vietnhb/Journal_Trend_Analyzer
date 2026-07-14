@@ -12,7 +12,7 @@ void main() {
     expect($(#publication_item), findsWidgets);
   });
 
-  patrolTest('Test Case 3 - Publication detail is displayed', ($) async {
+  patrolTest('Test Case 3 - Publication details are displayed', ($) async {
     await launchApplication($);
     await selectTopic($);
 
@@ -21,5 +21,8 @@ void main() {
 
     expect($('Journal Publication'), findsOneWidget);
     expect($('Abstract'), findsOneWidget);
+    expect($('Publication year'), findsOneWidget);
+    expect($('Citations'), findsOneWidget);
+    expect($('Authors'), findsOneWidget);
   });
 }

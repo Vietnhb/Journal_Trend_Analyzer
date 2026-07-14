@@ -9,6 +9,7 @@ import '../../data/repositories/journal_repository.dart'
     show Publication, PublicationYearSort, RankedEntity;
 import '../providers/entity_analytics_provider.dart';
 import '../trends/widgets/trend_chart.dart';
+import '../widgets/analytics_ui.dart';
 import 'publication_detail_screen.dart';
 
 class AnalyticsEntityDetailScreen extends StatefulWidget {
@@ -39,7 +40,7 @@ class _AnalyticsEntityDetailScreenState
   Map<int, int> get _publicationsByYear => _viewModel.publicationsByYear;
   int get _totalPublications => _viewModel.totalPublications;
   int get _totalCitations => _viewModel.totalCitations;
-  int? get _averageCitations => _viewModel.averageCitations;
+  double? get _averageCitations => _viewModel.averageCitations;
 
   @override
   void initState() {
@@ -129,7 +130,7 @@ class _AnalyticsEntityDetailScreenState
 class _Metrics extends StatelessWidget {
   final int total;
   final int totalCitations;
-  final int? averageCitations;
+  final double? averageCitations;
 
   const _Metrics({
     required this.total,
@@ -139,79 +140,28 @@ class _Metrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return ResponsiveMetricGrid(
+      minItemWidth: 145,
       children: [
-        Expanded(
-          child: _MetricCard(
-            label: 'Publications',
-            value: '$total',
-            icon: Icons.article_rounded,
-          ),
+        AnalyticsMetricCard(
+          label: 'Publications',
+          value: '$total',
+          icon: Icons.article_rounded,
+          color: AppColors.primary,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MetricCard(
-            label: 'Total Citations',
-            value: '$totalCitations',
-            icon: Icons.format_quote_rounded,
-          ),
+        AnalyticsMetricCard(
+          label: 'Total Citations',
+          value: '$totalCitations',
+          icon: Icons.format_quote_rounded,
+          color: AppColors.success,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MetricCard(
-            label: 'Avg Citations',
-            value: averageCitations?.toString() ?? '-',
-            icon: Icons.analytics_outlined,
-          ),
+        AnalyticsMetricCard(
+          label: 'Avg Citations',
+          value: averageCitations?.toStringAsFixed(1) ?? '-',
+          icon: Icons.analytics_outlined,
+          color: AppColors.info,
         ),
       ],
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 17, color: AppColors.primary),
-          const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -225,26 +175,17 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-        ),
-        if (trailing != null)
-          Text(
-            trailing!,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return AnalyticsSectionHeader(
+      icon: icon,
+      title: title,
+      trailing: trailing == null
+          ? null
+          : Text(
+              trailing!,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-      ],
     );
   }
 }
@@ -256,31 +197,27 @@ class _TrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
+    return SizedBox(
       height: 300,
-      padding: const EdgeInsets.fromLTRB(10, 14, 10, 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final minWidth = data.length * 44.0;
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: minWidth > constraints.maxWidth
-                  ? minWidth
-                  : constraints.maxWidth,
-              child: TrendChart(
-                data: data,
-                yearSort: PublicationYearSort.descending,
+      child: AnalyticsSurfaceCard(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final minWidth = data.length * 44.0;
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: minWidth > constraints.maxWidth
+                    ? minWidth
+                    : constraints.maxWidth,
+                child: TrendChart(
+                  data: data,
+                  yearSort: PublicationYearSort.descending,
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

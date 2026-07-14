@@ -38,7 +38,7 @@ class EntityAnalyticsProvider extends ChangeNotifier {
   Map<int, int> publicationsByYear = const {};
   int totalPublications = 0;
   int totalCitations = 0;
-  int? averageCitations;
+  double? averageCitations;
 
   String? get sourceId =>
       type == AnalyticsEntityType.journal ? entity.id : null;

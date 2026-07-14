@@ -4,7 +4,7 @@ import 'package:patrol/patrol.dart';
 import 'test_helpers.dart';
 
 void main() {
-  patrolTest('Test Case 4 - Journals tab shows journal statistics', ($) async {
+  patrolTest('Test Case 4 - Journals navigation displays results', ($) async {
     await launchApplication($);
     await searchJournal($);
 
@@ -12,9 +12,10 @@ void main() {
     expect($(#journal_item_1), findsOneWidget);
   });
 
-  patrolTest('Test Case 5 - Journal detail is displayed', ($) async {
+  patrolTest('Test Case 5 - Journal details are displayed', ($) async {
     await launchApplication($);
     await searchJournal($);
+
     await $(#journal_item_1).tap();
     await $(
       #journal_analysis,

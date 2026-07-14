@@ -4,7 +4,7 @@ import 'ranked_entity.dart';
 class DashboardReportData {
   final String topic;
   final int totalPublications;
-  final int? averageCitations;
+  final double? averageCitations;
   final int? mostActiveYear;
   final String? topJournal;
   final String? topAuthor;

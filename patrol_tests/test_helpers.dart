@@ -4,7 +4,8 @@ import 'package:patrol/patrol.dart';
 
 Future<void> launchApplication(PatrolIntegrationTester $) async {
   final widget = await app.createJournalTrendAnalyzerApp();
-  await $.pumpWidgetAndSettle(widget);
+  await $.pumpWidget(widget);
+  await $.pumpAndTrySettle(timeout: const Duration(seconds: 3));
 }
 
 Future<void> ensureAuthenticated(PatrolIntegrationTester $) async {
@@ -16,7 +17,15 @@ Future<void> ensureAuthenticated(PatrolIntegrationTester $) async {
       .isPermissionDialogVisible(timeout: const Duration(seconds: 3));
   if (permissionDialogVisible) {
     await $.platformAutomator.mobile.grantPermissionWhenInUse();
+    // Let Android finish dismissing the native dialog before the Dart test
+    // completes. Ending immediately after a native command can make Patrol's
+    // runner report a failure with a null Dart exception.
+    await $.pumpAndTrySettle(timeout: const Duration(seconds: 3));
   }
+
+  await $(
+    #topic_search_field,
+  ).waitUntilVisible(timeout: const Duration(seconds: 10));
 }
 
 Future<void> _signInWithGoogle(PatrolIntegrationTester $) async {
@@ -43,10 +52,18 @@ Future<void> selectTopic(
   await ensureAuthenticated($);
   await $(#nav_home).tap();
   await $(#topic_search_field).enterText(query);
-  await $(#topic_search_button).tap();
-  await $(
-    'Related Publications',
-  ).waitUntilExists(timeout: const Duration(seconds: 60));
+  for (var attempt = 0; attempt < 2; attempt++) {
+    await $(#topic_search_button).tap();
+    try {
+      await $(
+        'Related Publications',
+      ).waitUntilExists(timeout: const Duration(seconds: 60));
+      return;
+    } catch (_) {
+      if (attempt == 1) rethrow;
+      await $.pump(const Duration(seconds: 3));
+    }
+  }
 }
 
 Future<void> searchJournal(

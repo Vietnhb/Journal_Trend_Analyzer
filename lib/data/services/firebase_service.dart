@@ -49,13 +49,13 @@ class FirebaseService {
   }
 
   Future<void> signOut() async {
-    await logEvent('logout');
     await auth.signOut();
     if (!_googleSignInInitialized) {
       await GoogleSignIn.instance.initialize();
       _googleSignInInitialized = true;
     }
     await GoogleSignIn.instance.signOut();
+    await logEvent('logout');
     await analytics.setUserId(id: null);
   }
 

@@ -1,0 +1,6 @@
+projectKey=PaperTrend-Analysis
+serverUrl=http://localhost:9000
+serverVersion=26.5.0.122743
+dashboardUrl=http://localhost:9000/dashboard?id=PaperTrend-Analysis
+ceTaskId=ef0c1c08-209b-4531-80b8-4b61d1720969
+ceTaskUrl=http://localhost:9000/api/ce/task?id=ef0c1c08-209b-4531-80b8-4b61d1720969

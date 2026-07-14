@@ -9,12 +9,14 @@ import '../../core/errors/app_errors.dart';
 import '../../core/widgets/app_empty_view.dart';
 import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
-import '../providers/bookmark_provider.dart';
 import '../../data/repositories/journal_repository.dart'
-    show JournalProfile, JournalTopic, Publication, PublicationYearSort;
-import '../trends/widgets/trend_chart.dart';
-import '../providers/journal_screen_provider.dart';
+    show JournalProfile, JournalTopic, Publication;
+import '../providers/bookmark_provider.dart';
 import '../providers/firebase_provider.dart';
+import '../providers/journal_screen_provider.dart';
+import '../trends/widgets/donut_breakdown_chart.dart';
+import '../trends/widgets/year_bar_chart.dart';
+import '../widgets/analytics_ui.dart';
 import 'publication_detail_screen.dart';
 
 class JournalScreen extends StatefulWidget {
@@ -520,11 +522,35 @@ class _JournalAnalysis extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _MetricGrid(profile: profile, averageCitations: averageCitations),
+        if (profile.worksCount > 0) ...[
+          const SizedBox(height: 20),
+          const _SectionHeader(
+            icon: Icons.donut_large_rounded,
+            title: 'Access Distribution',
+            subtitle: 'Open-access and restricted works in this journal.',
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 240,
+            child: AnalyticsSurfaceCard(
+              child: DonutBreakdownChart(
+                data: {
+                  'Open access': profile.oaWorksCount,
+                  'Restricted': math.max(
+                    0,
+                    profile.worksCount - profile.oaWorksCount,
+                  ),
+                },
+                centerLabel: 'Works',
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         _SectionHeader(
           icon: Icons.show_chart_rounded,
           title: 'Publication Trend',
-          subtitle: 'Recent yearly output from OpenAlex source data.',
+          subtitle: 'Recent yearly output from OpenAlex, newest year first.',
         ),
         const SizedBox(height: 12),
         Container(
@@ -545,10 +571,7 @@ class _JournalAnalysis extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
                   width: chartWidth,
-                  child: TrendChart(
-                    data: recentTrend,
-                    yearSort: PublicationYearSort.descending,
-                  ),
+                  child: YearBarChart(data: recentTrend, ascending: false),
                 ),
               );
             },
@@ -681,130 +704,54 @@ class _MetricGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 700 ? 4 : 2;
-        final spacing = 8.0;
-        final width =
-            (constraints.maxWidth - (columns - 1) * spacing) / columns;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            _MetricCard(
-              width: width,
-              label: 'Total works',
-              value: _formatCount(profile.worksCount),
-              icon: Icons.article_rounded,
-              color: AppColors.primary,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'Citations',
-              value: _formatCount(profile.citedByCount),
-              icon: Icons.format_quote_rounded,
-              color: AppColors.success,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'Avg. citations / work',
-              value: averageCitations?.toStringAsFixed(2) ?? '-',
-              icon: Icons.calculate_outlined,
-              color: AppColors.info,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'H-index',
-              value: profile.hIndex?.toString() ?? '-',
-              icon: Icons.workspace_premium_rounded,
-              color: AppColors.gold,
-            ),
-            _MetricCard(
-              width: width,
-              label: '2yr mean citedness',
-              value: profile.twoYearMeanCitedness == null
-                  ? '-'
-                  : profile.twoYearMeanCitedness!.toStringAsFixed(2),
-              icon: Icons.trending_up_rounded,
-              color: AppColors.info,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'i10-index',
-              value: profile.i10Index?.toString() ?? '-',
-              icon: Icons.filter_9_plus_rounded,
-              color: AppColors.accent,
-            ),
-            _MetricCard(
-              width: width,
-              label: 'Open access',
-              value: '${profile.openAccessPercent.toStringAsFixed(0)}%',
-              icon: Icons.lock_open_rounded,
-              color: AppColors.success,
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final double width;
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _MetricCard({
-    required this.width,
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return SizedBox(
-      width: width,
-      height: 98,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: colorScheme.outlineVariant),
+    return ResponsiveMetricGrid(
+      minItemWidth: 145,
+      children: [
+        AnalyticsMetricCard(
+          label: 'Total works',
+          value: _formatCount(profile.worksCount),
+          icon: Icons.article_rounded,
+          color: AppColors.primary,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 19, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+        AnalyticsMetricCard(
+          label: 'Citations',
+          value: _formatCount(profile.citedByCount),
+          icon: Icons.format_quote_rounded,
+          color: AppColors.success,
         ),
-      ),
+        AnalyticsMetricCard(
+          label: 'Avg. citations / work',
+          value: averageCitations?.toStringAsFixed(2) ?? '-',
+          icon: Icons.calculate_outlined,
+          color: AppColors.info,
+        ),
+        AnalyticsMetricCard(
+          label: 'H-index',
+          value: profile.hIndex?.toString() ?? '-',
+          icon: Icons.workspace_premium_rounded,
+          color: AppColors.gold,
+        ),
+        AnalyticsMetricCard(
+          label: '2yr mean citedness',
+          value: profile.twoYearMeanCitedness == null
+              ? '-'
+              : profile.twoYearMeanCitedness!.toStringAsFixed(2),
+          icon: Icons.trending_up_rounded,
+          color: AppColors.info,
+        ),
+        AnalyticsMetricCard(
+          label: 'i10-index',
+          value: profile.i10Index?.toString() ?? '-',
+          icon: Icons.filter_9_plus_rounded,
+          color: AppColors.accent,
+        ),
+        AnalyticsMetricCard(
+          label: 'Open access',
+          value: '${profile.openAccessPercent.toStringAsFixed(0)}%',
+          icon: Icons.lock_open_rounded,
+          color: AppColors.success,
+        ),
+      ],
     );
   }
 }
@@ -977,43 +924,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    return AnalyticsSectionHeader(icon: icon, title: title, subtitle: subtitle);
   }
 }
 

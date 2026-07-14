@@ -64,17 +64,21 @@ class DashboardReportService {
           ),
           pw.SizedBox(height: 6),
           pw.Text('Research topic: ${data.topic}'),
-          pw.Text('Generated: ${DateTime.now().toLocal()}'),
+          pw.Text('Data source: OpenAlex'),
+          pw.Text('Generated: ${_formatDateTime(DateTime.now().toLocal())}'),
           pw.SizedBox(height: 20),
           _sectionTitle('Overview'),
           pw.Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _metric('Total publications', '${data.totalPublications}'),
+              _metric(
+                'Total publications',
+                _formatInteger(data.totalPublications),
+              ),
               _metric(
                 'Average citations',
-                data.averageCitations?.toString() ?? '-',
+                data.averageCitations?.toStringAsFixed(1) ?? '-',
               ),
               _metric(
                 'Most active year',
@@ -97,6 +101,11 @@ class DashboardReportService {
               color: PdfColors.indigo100,
             ),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            headerAlignments: const {0: pw.Alignment.centerLeft},
+            columnWidths: const {
+              0: pw.FixedColumnWidth(135),
+              1: pw.FlexColumnWidth(),
+            },
             cellPadding: const pw.EdgeInsets.all(6),
           ),
           pw.SizedBox(height: 20),
@@ -108,37 +117,62 @@ class DashboardReportService {
               headers: const ['Rank', 'Year', 'Publications'],
               data: [
                 for (var i = 0; i < topYears.take(_topItemLimit).length; i++)
-                  ['${i + 1}', '${topYears[i].key}', '${topYears[i].value}'],
-              ],
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColors.indigo100,
-              ),
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              cellPadding: const pw.EdgeInsets.all(5),
-            ),
-          pw.SizedBox(height: 20),
-          _sectionTitle('Top $_topItemLimit journals'),
-          if (reportJournals.isEmpty)
-            pw.Text('No journal data available.')
-          else
-            pw.TableHelper.fromTextArray(
-              headers: const ['Rank', 'Journal', 'Publications'],
-              data: [
-                for (var i = 0; i < reportJournals.length; i++)
                   [
                     '${i + 1}',
-                    reportJournals[i].name,
-                    '${reportJournals[i].worksCount}',
+                    '${topYears[i].key}',
+                    _formatInteger(topYears[i].value),
                   ],
               ],
               headerDecoration: const pw.BoxDecoration(
                 color: PdfColors.indigo100,
               ),
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              columnWidths: const {
+                0: pw.FixedColumnWidth(45),
+                1: pw.FlexColumnWidth(),
+                2: pw.FixedColumnWidth(95),
+              },
               cellPadding: const pw.EdgeInsets.all(5),
             ),
           pw.SizedBox(height: 20),
-          _sectionTitle('Top $_topItemLimit publications'),
+          if (reportJournals.isEmpty)
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _sectionTitle('Top $_topItemLimit journals'),
+                pw.Text('No journal data available.'),
+              ],
+            )
+          else
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _sectionTitle('Top $_topItemLimit journals'),
+                pw.TableHelper.fromTextArray(
+                  headers: const ['Rank', 'Journal', 'Publications'],
+                  data: [
+                    for (var i = 0; i < reportJournals.length; i++)
+                      [
+                        '${i + 1}',
+                        reportJournals[i].name,
+                        _formatInteger(reportJournals[i].worksCount),
+                      ],
+                  ],
+                  headerDecoration: const pw.BoxDecoration(
+                    color: PdfColors.indigo100,
+                  ),
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  columnWidths: const {
+                    0: pw.FixedColumnWidth(45),
+                    1: pw.FlexColumnWidth(),
+                    2: pw.FixedColumnWidth(95),
+                  },
+                  cellPadding: const pw.EdgeInsets.all(5),
+                ),
+              ],
+            ),
+          pw.SizedBox(height: 20),
+          _sectionTitle('Top $_topItemLimit most cited publications'),
           if (reportPublications.isEmpty)
             pw.Text('No publication data available.')
           else
@@ -162,7 +196,7 @@ class DashboardReportService {
                     pw.SizedBox(height: 3),
                     pw.Text(
                       '${publication.year ?? '-'} | '
-                      '${publication.citationCount} citations | '
+                      '${_formatInteger(publication.citationCount)} citations | '
                       '${publication.journalName}',
                       style: const pw.TextStyle(
                         fontSize: 9,
@@ -178,6 +212,22 @@ class DashboardReportService {
     );
 
     return document.save();
+  }
+
+  String _formatDateTime(DateTime value) {
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${twoDigits(value.day)}/${twoDigits(value.month)}/${value.year} '
+        '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
+  }
+
+  String _formatInteger(int value) {
+    final negative = value < 0;
+    final digits = value.abs().toString();
+    final formatted = digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
+    return negative ? '-$formatted' : formatted;
   }
 
   pw.Widget _sectionTitle(String value) {

@@ -7,9 +7,10 @@ import '../../core/widgets/app_error_view.dart';
 import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_markup_text.dart';
 import '../../data/repositories/journal_repository.dart';
-import '../providers/journal_provider.dart';
 import '../providers/entity_analytics_provider.dart';
+import '../providers/journal_provider.dart';
 import '../trends/widgets/trend_chart.dart';
+import '../widgets/analytics_ui.dart';
 import 'analytics_entity_detail_screen.dart';
 import 'publication_detail_screen.dart';
 
@@ -24,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
   final _scrollController = ScrollController();
+  final _publicationsKey = GlobalKey();
 
   @override
   void dispose() {
@@ -189,16 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: provider.isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary,
-                      ),
-                    )
-                  : const Icon(Icons.analytics_rounded, size: 20),
+              icon: const Icon(Icons.analytics_rounded, size: 20),
               label: Text(
                 provider.isLoading ? 'Building dashboard...' : 'Search Topic',
                 style: const TextStyle(
@@ -235,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return _Dashboard(
       provider: provider,
+      publicationsKey: _publicationsKey,
       onPageSelected: _loadPage,
       onSortSelected: _setSort,
     );
@@ -307,31 +301,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadPage(int page) async {
     await context.read<JournalProvider>().goToPage(page);
-    await _scrollToDashboardTop();
+    await _scrollToPublications();
   }
 
   Future<void> _setSort(PublicationListSort sort) async {
     await context.read<JournalProvider>().setPublicationSort(sort);
-    await _scrollToDashboardTop();
+    await _scrollToPublications();
   }
 
-  Future<void> _scrollToDashboardTop() async {
-    if (!mounted || !_scrollController.hasClients) return;
-    await _scrollController.animateTo(
-      0,
+  Future<void> _scrollToPublications() async {
+    final publicationsContext = _publicationsKey.currentContext;
+    if (!mounted || publicationsContext == null) return;
+    await Scrollable.ensureVisible(
+      publicationsContext,
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
+      alignment: 0,
     );
   }
 }
 
 class _Dashboard extends StatelessWidget {
   final JournalProvider provider;
+  final Key publicationsKey;
   final Future<void> Function(int page) onPageSelected;
   final Future<void> Function(PublicationListSort sort) onSortSelected;
 
   const _Dashboard({
     required this.provider,
+    required this.publicationsKey,
     required this.onPageSelected,
     required this.onSortSelected,
   });
@@ -355,6 +353,7 @@ class _Dashboard extends StatelessWidget {
         _Highlights(provider: provider),
         const SizedBox(height: 32),
         Row(
+          key: publicationsKey,
           children: [
             const Expanded(
               child: _SectionHeader(
@@ -383,34 +382,55 @@ class _TrendChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final entries = provider.sourceWorksByYear.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final previous = entries.length < 2 ? null : entries[entries.length - 2];
+    final change = previous == null || previous.value == 0
+        ? null
+        : ((entries.last.value - previous.value) / previous.value) * 100;
 
-    return Container(
+    return SizedBox(
       height: 300,
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final minWidth = provider.sourceWorksByYear.length * 44.0;
-          final chartWidth = minWidth > constraints.maxWidth
-              ? minWidth
-              : constraints.maxWidth;
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: chartWidth,
-              child: TrendChart(
-                data: provider.sourceWorksByYear,
-                yearSort: PublicationYearSort.descending,
+      child: AnalyticsSurfaceCard(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Yearly output',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const Spacer(),
+                if (change != null) InsightBadge(changePercent: change),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final minWidth = provider.sourceWorksByYear.length * 44.0;
+                  final chartWidth = minWidth > constraints.maxWidth
+                      ? minWidth
+                      : constraints.maxWidth;
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: chartWidth,
+                      child: TrendChart(
+                        data: provider.sourceWorksByYear,
+                        yearSort: PublicationYearSort.descending,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -423,33 +443,26 @@ class _MetricRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return ResponsiveMetricGrid(
+      minItemWidth: 145,
       children: [
-        Expanded(
-          child: _MetricCard(
-            title: 'Total Publications',
-            value: '${provider.totalWorks}',
-            icon: Icons.article_rounded,
-            color: AppColors.primary,
-          ),
+        AnalyticsMetricCard(
+          label: 'Total Publications',
+          value: '${provider.totalWorks}',
+          icon: Icons.article_rounded,
+          color: AppColors.primary,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MetricCard(
-            title: 'Avg Citations',
-            value: provider.avgCitationCount?.toString() ?? '-',
-            icon: Icons.format_quote_rounded,
-            color: AppColors.success,
-          ),
+        AnalyticsMetricCard(
+          label: 'Avg Citations',
+          value: provider.avgCitationCount?.toStringAsFixed(1) ?? '-',
+          icon: Icons.format_quote_rounded,
+          color: AppColors.success,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MetricCard(
-            title: 'Most Active Year',
-            value: provider.mostActiveYear?.toString() ?? '-',
-            icon: Icons.leaderboard_rounded,
-            color: AppColors.gold,
-          ),
+        AnalyticsMetricCard(
+          label: 'Most Active Year',
+          value: provider.mostActiveYear?.toString() ?? '-',
+          icon: Icons.leaderboard_rounded,
+          color: AppColors.gold,
         ),
       ],
     );
@@ -538,8 +551,25 @@ class _PublicationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isReloading =
+        provider.isLoadingJournalPublications &&
+        provider.journalPublications.isNotEmpty;
+
     return Column(
       children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: isReloading
+              ? const LinearProgressIndicator(
+                  key: ValueKey('publications_reload_indicator'),
+                  minHeight: 3,
+                )
+              : const SizedBox(
+                  key: ValueKey('publications_reload_placeholder'),
+                  height: 3,
+                ),
+        ),
+        const SizedBox(height: 9),
         if (provider.isLoadingJournalPublications &&
             provider.journalPublications.isEmpty)
           const AppLoading(message: 'Loading publications...')
@@ -550,7 +580,16 @@ class _PublicationSection extends StatelessWidget {
             onRetry: () => provider.goToPage(provider.currentPage, force: true),
           )
         else
-          _PublicationList(publications: provider.journalPublications),
+          AnimatedOpacity(
+            opacity: isReloading ? 0.45 : 1,
+            duration: const Duration(milliseconds: 180),
+            child: IgnorePointer(
+              ignoring: isReloading,
+              child: _PublicationList(
+                publications: provider.journalPublications,
+              ),
+            ),
+          ),
         if (provider.totalPages > 1) ...[
           const SizedBox(height: 14),
           _Pagination(provider: provider, onPageSelected: onPageSelected),
@@ -982,61 +1021,6 @@ class _HighlightRow extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _MetricCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: 96),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SectionHeader extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -1045,29 +1029,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
-          ),
-        ),
-      ],
-    );
+    return AnalyticsSectionHeader(icon: icon, title: title);
   }
 }
 

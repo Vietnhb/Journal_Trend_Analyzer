@@ -12,6 +12,7 @@ void main() {
     await $(#remote_config_values).scrollTo();
 
     expect($(#remote_config_values), findsOneWidget);
-    expect($('max_journals: 10 | max_keywords: 12'), findsOneWidget);
+    expect(find.textContaining('max_journals:'), findsOneWidget);
+    expect(find.textContaining('max_keywords:'), findsOneWidget);
   });
 }

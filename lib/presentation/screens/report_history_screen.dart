@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/app_empty_view.dart';
+import '../../core/widgets/app_loading.dart';
 import '../../data/services/firebase_service.dart';
 import '../providers/firebase_provider.dart';
 
@@ -30,6 +32,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     final start = currentPage * _pageSize;
     final end = (start + _pageSize).clamp(0, reports.length);
     final pageReports = reports.sublist(start, end);
+    final colorScheme = Theme.of(context).colorScheme;
 
     if (currentPage != _pageIndex) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -38,10 +41,11 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     }
 
     return Scaffold(
+      backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
         title: const Text('Report history'),
         actions: [
-          IconButton(
+          IconButton.filledTonal(
             tooltip: 'Refresh reports',
             onPressed: firebase.isLoadingReports
                 ? null
@@ -54,75 +58,56 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                   )
                 : const Icon(Icons.refresh_rounded),
           ),
+          const SizedBox(width: 12),
         ],
       ),
       body: SafeArea(
+        top: false,
         child: firebase.isLoadingReports && reports.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? const AppLoading(message: 'Loading uploaded reports...')
             : RefreshIndicator(
+                color: AppColors.primary,
                 onRefresh: context.read<FirebaseProvider>().loadUploadedReports,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-                  children: [
-                    Row(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 820),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const _SectionLabel('Reports'),
-                              const SizedBox(height: 4),
-                              Text(
-                                reports.isEmpty
-                                    ? 'No uploaded report yet.'
-                                    : '${reports.length} saved reports',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                              ),
-                            ],
-                          ),
+                        _ReportSummary(
+                          count: reports.length,
+                          totalBytes: _totalBytes(reports),
                         ),
-                        PopupMenuButton<bool>(
-                          tooltip: 'Sort reports',
-                          initialValue: _newestFirst,
-                          onSelected: (value) {
+                        if (_reportError(firebase.serviceError)
+                            case final error?) ...[
+                          const SizedBox(height: 12),
+                          _InlineError(
+                            message: error,
+                            onRetry: firebase.loadUploadedReports,
+                          ),
+                        ],
+                        const SizedBox(height: 22),
+                        _ListHeader(
+                          count: reports.length,
+                          newestFirst: _newestFirst,
+                          onSortChanged: (value) {
                             setState(() {
                               _newestFirst = value;
                               _pageIndex = 0;
                             });
                           },
-                          itemBuilder: (context) => const [
-                            PopupMenuItem(
-                              value: true,
-                              child: Text('Newest first'),
-                            ),
-                            PopupMenuItem(
-                              value: false,
-                              child: Text('Oldest first'),
-                            ),
-                          ],
-                          child: _SortButton(
-                            label: _newestFirst ? 'Newest' : 'Oldest',
-                          ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (reports.isEmpty)
-                      const _EmptyReports()
-                    else
-                      _SettingsCard(
-                        children: [
+                        const SizedBox(height: 12),
+                        if (reports.isEmpty)
+                          _EmptyReports(onRefresh: firebase.loadUploadedReports)
+                        else
                           for (
                             var index = 0;
                             index < pageReports.length;
                             index++
                           ) ...[
-                            if (index > 0) const Divider(height: 1, indent: 56),
+                            if (index > 0) const SizedBox(height: 10),
                             _ReportTile(
                               report: pageReports[index],
                               isDeleting:
@@ -139,24 +124,26 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                               ),
                             ),
                           ],
+                        if (pageCount > 1) ...[
+                          const SizedBox(height: 14),
+                          _PaginationBar(
+                            currentPage: currentPage,
+                            pageCount: pageCount,
+                            onPrevious: currentPage == 0
+                                ? null
+                                : () => setState(
+                                    () => _pageIndex = currentPage - 1,
+                                  ),
+                            onNext: currentPage >= pageCount - 1
+                                ? null
+                                : () => setState(
+                                    () => _pageIndex = currentPage + 1,
+                                  ),
+                          ),
                         ],
-                      ),
-                    if (pageCount > 1) ...[
-                      const SizedBox(height: 12),
-                      _PaginationBar(
-                        currentPage: currentPage,
-                        pageCount: pageCount,
-                        onPrevious: currentPage == 0
-                            ? null
-                            : () =>
-                                  setState(() => _pageIndex = currentPage - 1),
-                        onNext: currentPage >= pageCount - 1
-                            ? null
-                            : () =>
-                                  setState(() => _pageIndex = currentPage + 1),
-                      ),
-                    ],
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
       ),
@@ -173,6 +160,19 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     return sorted;
   }
 
+  int _totalBytes(List<UploadedReportFile> reports) {
+    return reports.fold(0, (sum, report) => sum + (report.sizeBytes ?? 0));
+  }
+
+  String? _reportError(String? error) {
+    if (error == null) return null;
+    if (error.startsWith('Report history:') ||
+        error.startsWith('Delete report:')) {
+      return error;
+    }
+    return null;
+  }
+
   Future<void> _confirmDeleteReport(
     BuildContext context,
     FirebaseProvider firebase,
@@ -181,10 +181,12 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
         title: const Text('Delete uploaded report?'),
         content: Text(
           'This will remove the report uploaded on '
           '${_formatReportDate(report.uploadedAt)}.',
+          textAlign: TextAlign.center,
         ),
         actions: [
           TextButton(
@@ -193,6 +195,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             child: const Text('Delete'),
           ),
         ],
@@ -216,6 +219,130 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 }
 
+class _ReportSummary extends StatelessWidget {
+  final int count;
+  final int totalBytes;
+
+  const _ReportSummary({required this.count, required this.totalBytes});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.13),
+            AppColors.accent.withValues(alpha: 0.07),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.cloud_done_outlined,
+              color: AppColors.primary,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  count == 0
+                      ? 'Your cloud reports'
+                      : '$count ${count == 1 ? 'report' : 'reports'} in Firebase',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  count == 0
+                      ? 'Uploaded PDF reports will be available here.'
+                      : '${_formatByteValue(totalBytes)} stored securely in the cloud',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ListHeader extends StatelessWidget {
+  final int count;
+  final bool newestFirst;
+  final ValueChanged<bool> onSortChanged;
+
+  const _ListHeader({
+    required this.count,
+    required this.newestFirst,
+    required this.onSortChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'REPORTS',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  letterSpacing: 1,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                count == 0 ? 'No uploaded report yet.' : '$count saved reports',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuButton<bool>(
+          tooltip: 'Sort reports',
+          initialValue: newestFirst,
+          onSelected: onSortChanged,
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: true, child: Text('Newest first')),
+            PopupMenuItem(value: false, child: Text('Oldest first')),
+          ],
+          child: _SortButton(label: newestFirst ? 'Newest' : 'Oldest'),
+        ),
+      ],
+    );
+  }
+}
+
 class _ReportTile extends StatelessWidget {
   final UploadedReportFile report;
   final bool isDeleting;
@@ -231,53 +358,97 @@ class _ReportTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onOpen,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      leading: Container(
-        width: 38,
-        height: 38,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Icon(
-          Icons.cloud_done_outlined,
-          size: 19,
-          color: AppColors.success,
-        ),
-      ),
-      title: const Text(
-        'Uploaded report',
-        style: TextStyle(fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        '${_formatReportDate(report.uploadedAt)}'
-        '${_formatReportSize(report.sizeBytes)}',
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'Open report',
-            onPressed: onOpen,
-            icon: const Icon(Icons.open_in_new_rounded),
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.surface,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: isDeleting ? null : onOpen,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colorScheme.outlineVariant),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.shadow.withValues(alpha: 0.035),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: 'Delete report',
-            onPressed: isDeleting ? null : onDelete,
-            icon: isDeleting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.delete_outline_rounded),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.picture_as_pdf_outlined,
+                  size: 22,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Uploaded report',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatReportDate(report.uploadedAt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (report.sizeBytes case final bytes? when bytes > 0) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        _formatByteValue(bytes),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Open report',
+                onPressed: isDeleting ? null : onOpen,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.open_in_new_rounded),
+              ),
+              IconButton(
+                tooltip: 'Delete report',
+                onPressed: isDeleting ? null : onDelete,
+                visualDensity: VisualDensity.compact,
+                color: AppColors.danger,
+                icon: isDeleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.delete_outline_rounded),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -290,18 +461,19 @@ class _SortButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      height: 38,
+      height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        color: colorScheme.surface,
+        border: Border.all(color: colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.sort_rounded, size: 18),
+          const Icon(Icons.swap_vert_rounded, size: 18),
           const SizedBox(width: 6),
           Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(width: 2),
@@ -327,102 +499,112 @@ class _PaginationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingsCard(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            children: [
-              IconButton(
-                tooltip: 'Previous page',
-                onPressed: onPrevious,
-                icon: const Icon(Icons.chevron_left_rounded),
-              ),
-              Expanded(
-                child: Text(
-                  'Page ${currentPage + 1} / $pageCount',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Next page',
-                onPressed: onNext,
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
-            ],
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Previous page',
+            onPressed: onPrevious,
+            icon: const Icon(Icons.chevron_left_rounded),
           ),
-        ),
-      ],
+          Expanded(
+            child: Text(
+              'Page ${currentPage + 1} / $pageCount',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Next page',
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _EmptyReports extends StatelessWidget {
-  const _EmptyReports();
+  final Future<void> Function() onRefresh;
+
+  const _EmptyReports({required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
-    return _SettingsCard(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.cloud_queue_outlined,
-                size: 42,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'No uploaded report yet.',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String value;
-
-  const _SectionLabel(this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      value.toUpperCase(),
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        letterSpacing: 1,
-        fontWeight: FontWeight.w800,
-      ),
-    );
-  }
-}
-
-class _SettingsCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _SettingsCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
+      padding: const EdgeInsets.only(bottom: 22),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
+      child: Column(
+        children: [
+          const SizedBox(
+            height: 180,
+            child: AppEmptyView(
+              message: 'No uploaded report yet.',
+              icon: Icons.cloud_queue_outlined,
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: onRefresh,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Refresh reports'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
+
+  const _InlineError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: colorScheme.onErrorContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Try again',
+            onPressed: onRetry,
+            color: colorScheme.onErrorContainer,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -435,11 +617,11 @@ String _formatReportDate(DateTime? value) {
       '${two(local.hour)}:${two(local.minute)}';
 }
 
-String _formatReportSize(int? bytes) {
-  if (bytes == null || bytes <= 0) return '';
-  if (bytes < 1024) return ' | $bytes B';
+String _formatByteValue(int bytes) {
+  if (bytes <= 0) return '0 B';
+  if (bytes < 1024) return '$bytes B';
   final kb = bytes / 1024;
-  if (kb < 1024) return ' | ${kb.toStringAsFixed(1)} KB';
+  if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
   final mb = kb / 1024;
-  return ' | ${mb.toStringAsFixed(1)} MB';
+  return '${mb.toStringAsFixed(1)} MB';
 }

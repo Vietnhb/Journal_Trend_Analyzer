@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -10,12 +9,13 @@ import '../../core/widgets/app_loading.dart';
 import '../../core/widgets/app_markup_text.dart';
 import '../../data/repositories/journal_repository.dart'
     show Publication, PublicationYearSort, RankedEntity;
-import '../providers/keyword_screen_provider.dart';
 import '../providers/entity_analytics_provider.dart';
 import '../providers/firebase_provider.dart';
 import '../providers/journal_provider.dart';
+import '../providers/keyword_screen_provider.dart';
 import '../trends/widgets/trend_chart.dart';
-import '../trends/widgets/year_ranking_list.dart';
+import '../trends/widgets/year_heatmap.dart';
+import '../widgets/analytics_ui.dart';
 import 'analytics_entity_detail_screen.dart';
 import 'publication_detail_screen.dart';
 
@@ -25,24 +25,15 @@ class KeywordsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<JournalProvider>();
-    final colorScheme = Theme.of(context).colorScheme;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: Colors.transparent,
-        systemStatusBarContrastEnforced: false,
-      ),
-      child: Scaffold(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        body: SafeArea(
-          top: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Header(provider: provider),
-              Expanded(child: _KeywordListBody(provider: provider)),
-            ],
-          ),
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Header(provider: provider),
+            Expanded(child: _KeywordListBody(provider: provider)),
+          ],
         ),
       ),
     );
@@ -56,88 +47,33 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topInset = MediaQuery.paddingOf(context).top;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 24),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.accent],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Keyword Explorer',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+          Text(
+            'Keywords',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 2),
           Text(
             provider.selectedKeyword.isEmpty
-                ? 'Discover what the research community is exploring now.'
-                : 'Trends and related terms for your research topic.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.82),
+                ? 'Explore frequent and trending research keywords.'
+                : 'Research topic: ${provider.selectedKeyword}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
-          if (provider.selectedKeyword.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.search_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 7),
-                  Flexible(
-                    child: Text(
-                      provider.selectedKeyword,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          const SizedBox(height: 12),
+          const Divider(height: 1),
         ],
       ),
     );
@@ -536,6 +472,8 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
               onRefresh: _load,
               color: AppColors.primary,
               child: ListView(
+                key: const Key('keyword_detail_scroll'),
+                cacheExtent: 20000,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
@@ -553,17 +491,17 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  const _SectionHeader(
+                    icon: Icons.bar_chart_rounded,
+                    title: 'Publication Trend',
+                  ),
+                  const SizedBox(height: 12),
+                  _TrendChartCard(data: _publicationsByYear),
+                  const SizedBox(height: 24),
                   if (_publicationsByYear.isNotEmpty) ...[
                     const _SectionHeader(
-                      icon: Icons.bar_chart_rounded,
-                      title: 'Publication Trend',
-                    ),
-                    const SizedBox(height: 12),
-                    _TrendChartCard(data: _publicationsByYear),
-                    const SizedBox(height: 24),
-                    const _SectionHeader(
                       icon: Icons.leaderboard_rounded,
-                      title: 'Year Ranking',
+                      title: 'Activity Heatmap',
                     ),
                     const SizedBox(height: 12),
                     _YearRankingCard(data: _publicationsByYear),
@@ -590,6 +528,27 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
                         .toList(),
                   ),
                   _HorizontalBarSection(
+                    key: const Key('keyword_top_authors'),
+                    title: 'Top Authors',
+                    icon: Icons.group_outlined,
+                    items: _authors
+                        .map(
+                          (author) => _BarItem(
+                            label: author.name,
+                            value: author.worksCount,
+                            valueLabel: '${author.worksCount} articles',
+                            onTap: () => _openEntityAnalytics(
+                              context,
+                              widget.keyword,
+                              widget.excludeFuturePublications,
+                              AnalyticsEntityType.author,
+                              author,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  _HorizontalBarSection(
                     title: 'Related Publications',
                     icon: Icons.auto_stories_outlined,
                     items: _publications
@@ -607,27 +566,6 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
                                 builder: (_) =>
                                     PublicationDetailScreen(publication: paper),
                               ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  _HorizontalBarSection(
-                    key: const Key('keyword_top_authors'),
-                    title: 'Top Authors',
-                    icon: Icons.group_outlined,
-                    items: _authors
-                        .map(
-                          (author) => _BarItem(
-                            label: author.name,
-                            value: author.worksCount,
-                            valueLabel: '${author.worksCount} articles',
-                            onTap: () => _openEntityAnalytics(
-                              context,
-                              widget.keyword,
-                              widget.excludeFuturePublications,
-                              AnalyticsEntityType.author,
-                              author,
                             ),
                           ),
                         )
@@ -686,29 +624,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
-          ),
-        ),
-      ],
-    );
+    return AnalyticsSectionHeader(icon: icon, title: title);
   }
 }
 
@@ -729,33 +645,28 @@ class _TrendChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
+    return SizedBox(
       height: 330,
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final minWidth = data.length * 44.0;
-          final chartWidth = minWidth > constraints.maxWidth
-              ? minWidth
-              : constraints.maxWidth;
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: chartWidth,
-              child: TrendChart(
-                data: data,
-                yearSort: PublicationYearSort.descending,
+      child: AnalyticsSurfaceCard(
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final minWidth = data.length * 44.0;
+            final chartWidth = minWidth > constraints.maxWidth
+                ? minWidth
+                : constraints.maxWidth;
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: chartWidth,
+                child: TrendChart(
+                  data: data,
+                  yearSort: PublicationYearSort.descending,
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -768,26 +679,16 @@ class _YearRankingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: YearRankingList(rankedYears: _rankedYears(data)),
+    final recent = Map<int, int>.fromEntries(
+      (data.entries.toList()..sort((a, b) => b.key.compareTo(a.key))).take(12),
     );
-  }
-
-  List<MapEntry<int, int>> _rankedYears(Map<int, int> values) {
-    final entries = values.entries.toList()
-      ..sort((a, b) {
-        final countCompare = b.value.compareTo(a.value);
-        return countCompare != 0 ? countCompare : b.key.compareTo(a.key);
-      });
-    return entries.take(10).toList();
+    return AnalyticsSurfaceCard(
+      child: YearHeatmap(
+        data: recent,
+        ascending: false,
+        valueLabel: 'publications',
+      ),
+    );
   }
 }
 
@@ -823,7 +724,6 @@ class _HorizontalBarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
     final maxValue = items
         .map((item) => item.value)
@@ -836,22 +736,28 @@ class _HorizontalBarSection extends StatelessWidget {
         children: [
           _SectionHeader(icon: icon, title: title),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colorScheme.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                for (var i = 0; i < items.length; i++) ...[
-                  if (i > 0)
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                  _BarRow(item: items[i], rank: i + 1, maxValue: maxValue),
+          if (items.isEmpty)
+            AppEmptyView(
+              message: 'No ${title.toLowerCase()} available.',
+              icon: icon,
+            )
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colorScheme.outlineVariant),
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < items.length; i++) ...[
+                    if (i > 0)
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    _BarRow(item: items[i], rank: i + 1, maxValue: maxValue),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
         ],
       ),
     );
