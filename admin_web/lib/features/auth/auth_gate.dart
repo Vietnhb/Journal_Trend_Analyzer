@@ -332,17 +332,6 @@ class _SignInCard extends StatelessWidget {
                 : const Icon(Icons.login_rounded),
             label: Text(loading ? 'Đang đăng nhập…' : 'Đăng nhập với Google'),
           ),
-          const SizedBox(height: 14),
-          Text(
-            _isLocalDevelopment
-                ? 'Local dùng Functions Emulator tại cổng 5001. Cảnh báo COOP của Flutter dev server không làm hỏng đăng nhập.'
-                : 'Phiên đăng nhập được xác thực qua Firebase.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.outline,
-              fontSize: 11,
-            ),
-          ),
         ],
       ),
     ),
@@ -355,8 +344,7 @@ class _SignInCard extends StatelessWidget {
     if (_isLocalDevelopment &&
         error is ApiException &&
         (error.code == 'network_error' || error.code == 'request_timeout')) {
-      return 'Không kết nối được Functions Emulator tại 127.0.0.1:5001. '
-          'Hãy chạy: npx firebase-tools emulators:start --only functions';
+      return 'Không kết nối được máy chủ local. Kiểm tra Functions Emulator rồi thử lại.';
     }
     return errorText(error);
   }
