@@ -89,22 +89,22 @@ class _MessagingPageState extends State<MessagingPage> {
     children: [
       PageHeading(
         eyebrow: 'Firebase Cloud Messaging',
-        title: _showComposer ? 'Tạo chiến dịch' : 'Chiến dịch thông báo',
+        title: _showComposer ? 'New Campaign' : 'Messaging',
         description: _showComposer
-            ? 'Soạn nội dung, chọn đối tượng và thời điểm phân phối.'
-            : 'Tạo, lên lịch và theo dõi các chiến dịch gửi qua FCM.',
+            ? 'Compose the content, select audience, and set the delivery time.'
+            : 'Create, schedule, and monitor push notification campaigns via FCM.',
         actions: [
           if (_showComposer)
             OutlinedButton.icon(
               onPressed: () => setState(() => _showComposer = false),
-              icon: const Icon(Icons.arrow_back_rounded),
-              label: const Text('Danh sách chiến dịch'),
+              icon: const Icon(Icons.arrow_back_rounded, size: 16),
+              label: const Text('Back to campaigns'),
             )
           else
             FilledButton.icon(
               onPressed: () => setState(() => _showComposer = true),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Chiến dịch mới'),
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('New campaign'),
             ),
         ],
       ),
