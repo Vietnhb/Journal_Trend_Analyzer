@@ -1,0 +1,69 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:journal_trend_admin_web/theme/app_theme.dart';
+import 'package:journal_trend_admin_web/widgets/admin_widgets.dart';
+
+void main() {
+  testWidgets('metric card renders the supplied operational data', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: MetricCard(
+            label: 'Tổng người dùng',
+            value: '42',
+            detail: '5 tài khoản mới',
+            icon: Icons.people_outline,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Tổng người dùng'), findsOneWidget);
+    expect(find.text('42'), findsOneWidget);
+    expect(find.text('5 tài khoản mới'), findsOneWidget);
+  });
+
+  testWidgets('typed confirmation stays disabled until exact text is entered', (
+    tester,
+  ) async {
+    late BuildContext hostContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) {
+            hostContext = context;
+            return const Scaffold(body: SizedBox());
+          },
+        ),
+      ),
+    );
+
+    final future = showTypedConfirmation(
+      context: hostContext,
+      title: 'Xuất bản?',
+      description: 'Thay đổi sẽ áp dụng cho mobile app.',
+      confirmationText: 'XUAT BAN',
+    );
+    await tester.pumpAndSettle();
+
+    var confirmButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Xác nhận'),
+    );
+    expect(confirmButton.onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField), 'XUAT BAN');
+    await tester.pump();
+    confirmButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Xác nhận'),
+    );
+    expect(confirmButton.onPressed, isNotNull);
+    await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận'));
+    await tester.pumpAndSettle();
+
+    expect(await future, isTrue);
+  });
+}
