@@ -205,7 +205,7 @@ class _LoginIntroduction extends StatelessWidget {
       const _BrandMark(),
       const SizedBox(height: 30),
       Text(
-        'Quản trị Firebase,\nkhông cần mở Console.',
+        'Trang quản trị\nJournal Trend',
         style: Theme.of(context).textTheme.displaySmall?.copyWith(
           fontWeight: FontWeight.w900,
           letterSpacing: -1.4,
@@ -216,7 +216,7 @@ class _LoginIntroduction extends StatelessWidget {
       ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 570),
         child: Text(
-          'Một giao diện Flutter Web an toàn để quản lý người dùng, cấu hình, báo cáo, Analytics, Crashlytics và Messaging.',
+          'Theo dõi người dùng, cấu hình và hoạt động của ứng dụng tại một nơi.',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w400,
@@ -279,7 +279,7 @@ class _SignInCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Chỉ tài khoản có custom claim admin: true mới được phép truy cập.',
+            'Sử dụng tài khoản Google đã được cấp quyền quản trị.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -330,15 +330,13 @@ class _SignInCard extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.login_rounded),
-            label: Text(
-              loading ? 'Đang kiểm tra quyền…' : 'Tiếp tục với Google',
-            ),
+            label: Text(loading ? 'Đang đăng nhập…' : 'Đăng nhập với Google'),
           ),
           const SizedBox(height: 14),
           Text(
             _isLocalDevelopment
                 ? 'Local dùng Functions Emulator tại cổng 5001. Cảnh báo COOP của Flutter dev server không làm hỏng đăng nhập.'
-                : 'ID token và App Check được xác minh tại Cloud Functions.',
+                : 'Phiên đăng nhập được xác thực qua Firebase.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Theme.of(context).colorScheme.outline,

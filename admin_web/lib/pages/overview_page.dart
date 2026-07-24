@@ -52,8 +52,7 @@ class _OverviewPageState extends State<OverviewPage> {
       PageHeading(
         eyebrow: 'Dashboard',
         title: 'System Overview',
-        description:
-            'Monitor users and Firebase services for Journal Trend Analyzer at a glance.',
+        description: 'Current user activity and Firebase service status.',
         actions: [
           FilledButton.icon(
             onPressed: () => widget.onNavigate(1),
