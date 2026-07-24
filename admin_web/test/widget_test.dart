@@ -66,4 +66,37 @@ void main() {
 
     expect(await future, isTrue);
   });
+
+  testWidgets('simple confirmation only requires an explicit button click', (
+    tester,
+  ) async {
+    late BuildContext hostContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) {
+            hostContext = context;
+            return const Scaffold(body: SizedBox());
+          },
+        ),
+      ),
+    );
+
+    final future = showConfirmation(
+      context: hostContext,
+      title: 'Xóa báo cáo?',
+      description: 'Thao tác này không thể hoàn tác.',
+      actionLabel: 'Xác nhận xóa',
+      danger: true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+    final confirm = find.widgetWithText(FilledButton, 'Xác nhận xóa');
+    expect(confirm, findsOneWidget);
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(await future, isTrue);
+  });
 }

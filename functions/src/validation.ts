@@ -12,6 +12,14 @@ export const usersQuerySchema = z.object({
   query: z.string().trim().min(1).max(320).optional(),
 });
 
+export type FirebaseUserLookupKind = "email" | "phone" | "uid";
+
+export function firebaseUserLookupKind(query: string): FirebaseUserLookupKind {
+  if (query.includes("@")) return "email";
+  if (/^\+[1-9]\d{1,14}$/u.test(query)) return "phone";
+  return "uid";
+}
+
 export const updateUserSchema = z
   .object({
     displayName: z.string().trim().min(1).max(256).nullable().optional(),
@@ -40,6 +48,10 @@ export const versionsQuerySchema = z.object({
   pageToken: z.string().min(1).max(2048).optional(),
 });
 
+export const remoteConfigVersionParamSchema = z.object({
+  versionNumber: z.string().regex(/^[1-9]\d*$/),
+});
+
 export const rollbackSchema = z
   .object({
     versionNumber: z.union([
@@ -63,11 +75,26 @@ const storageObjectPathSchema = z
     message: "Storage object path must not exceed 1024 UTF-8 bytes.",
   });
 
-export const reportPathQuerySchema = z.object({ path: storageObjectPathSchema });
+export const reportDownloadQuerySchema = z.object({
+  path: storageObjectPathSchema,
+  generation: z.string().regex(/^[1-9]\d*$/).max(32),
+});
 export const reportDeleteSchema = z
   .object({
     path: storageObjectPathSchema,
     generation: z.string().regex(/^[1-9]\d*$/).max(32),
+  })
+  .strict();
+
+export const reportsBulkDeleteSchema = z
+  .object({
+    reports: z.array(reportDeleteSchema).min(1).max(100),
+  })
+  .strict();
+
+export const reportsDeleteAllSchema = z
+  .object({
+    confirmation: z.literal("XOA TOAN BO BAO CAO"),
   })
   .strict();
 

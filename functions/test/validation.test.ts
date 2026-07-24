@@ -9,8 +9,12 @@ import {
   messageSchema,
   parseCrashlyticsTable,
   parseReportPath,
+  reportDownloadQuerySchema,
   reportDeleteSchema,
+  reportsBulkDeleteSchema,
+  reportsDeleteAllSchema,
   remoteConfigUpdateSchema,
+  remoteConfigVersionParamSchema,
   rollbackSchema,
   versionsQuerySchema,
 } from "../src/validation.js";
@@ -83,6 +87,47 @@ describe("request validation", () => {
       limit: 20,
       pageToken: "next-page-token",
     });
+  });
+
+  it("pins report downloads to the generation shown to the administrator", () => {
+    const input = {
+      path: "report/firebase-uid/analysis/dashboard_ai_123.pdf",
+      generation: "1700000000000000",
+    };
+    expect(reportDownloadQuerySchema.safeParse(input).success).toBe(true);
+    expect(reportDownloadQuerySchema.safeParse({ path: input.path }).success)
+      .toBe(false);
+  });
+
+  it("bounds bulk report deletion and requires an exact delete-all phrase", () => {
+    const report = {
+      path: "report/firebase-uid/analysis/dashboard_ai_123.pdf",
+      generation: "1700000000000000",
+    };
+    expect(reportsBulkDeleteSchema.safeParse({ reports: [report] }).success)
+      .toBe(true);
+    expect(reportsBulkDeleteSchema.safeParse({ reports: [] }).success)
+      .toBe(false);
+    expect(reportsBulkDeleteSchema.safeParse({
+      reports: Array.from({ length: 101 }, () => report),
+    }).success).toBe(false);
+    expect(reportsDeleteAllSchema.safeParse({
+      confirmation: "XOA TOAN BO BAO CAO",
+    }).success).toBe(true);
+    expect(reportsDeleteAllSchema.safeParse({ confirmation: "yes" }).success)
+      .toBe(false);
+  });
+
+  it("accepts only a positive integer Remote Config version path", () => {
+    expect(remoteConfigVersionParamSchema.safeParse({
+      versionNumber: "12",
+    }).success).toBe(true);
+    expect(remoteConfigVersionParamSchema.safeParse({
+      versionNumber: "0",
+    }).success).toBe(false);
+    expect(remoteConfigVersionParamSchema.safeParse({
+      versionNumber: "1/../../latest",
+    }).success).toBe(false);
   });
 
   it("accepts a fully qualified Crashlytics table", () => {

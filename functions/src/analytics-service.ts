@@ -1,7 +1,7 @@
 import { logger } from "firebase-functions";
 
 import { safeErrorDetails } from "./errors.js";
-import { ga4PropertyId } from "./params.js";
+import { ga4PropertyId, ga4StreamId } from "./params.js";
 
 type AnalyticsStatus =
   | "ready"
@@ -40,14 +40,25 @@ function numeric(value: unknown): number {
 function emptyResult(
   status: AnalyticsStatus,
   reason: string,
+  source?: Record<string, string>,
 ): Record<string, unknown> {
   return {
     status,
     reason,
+    source,
     summary: { activeUsers: 0, sessions: 0, eventCount: 0 },
     events: [],
     daily: [],
     eventDaily: [],
+  };
+}
+
+export function analyticsStreamFilter(streamId: string): Record<string, unknown> {
+  return {
+    filter: {
+      fieldName: "streamId",
+      stringFilter: { matchType: "EXACT", value: streamId },
+    },
   };
 }
 
@@ -97,10 +108,19 @@ export async function loadAnalytics(
   rawAccessToken: string | undefined,
 ): Promise<Record<string, unknown>> {
   const propertyId = ga4PropertyId.value().trim().replace(/^properties\//, "");
+  const streamId = ga4StreamId.value().trim();
+  const source = { propertyId, streamId };
   if (!/^\d+$/u.test(propertyId)) {
     return emptyResult(
       "unconfigured",
       "Chưa có GA4_PROPERTY_ID hợp lệ cho Firebase project.",
+    );
+  }
+  if (!/^\d+$/u.test(streamId)) {
+    return emptyResult(
+      "unconfigured",
+      "Chưa có GA4_STREAM_ID hợp lệ để giới hạn dữ liệu cho ứng dụng Android.",
+      source,
     );
   }
 
@@ -109,6 +129,7 @@ export async function loadAnalytics(
     return emptyResult(
       "authorization_required",
       "Kết nối tài khoản Google của bạn để cấp quyền chỉ đọc dữ liệu Analytics.",
+      source,
     );
   }
 
@@ -116,10 +137,12 @@ export async function loadAnalytics(
     startDate: range.start.slice(0, 10),
     endDate: range.end.slice(0, 10),
   }];
+  const dimensionFilter = analyticsStreamFilter(streamId);
   try {
     const [summary, events, daily, eventDaily] = await Promise.all([
       runReport(propertyId, accessToken, {
         dateRanges,
+        dimensionFilter,
         metrics: [
           { name: "activeUsers" },
           { name: "sessions" },
@@ -128,6 +151,7 @@ export async function loadAnalytics(
       }),
       runReport(propertyId, accessToken, {
         dateRanges,
+        dimensionFilter,
         dimensions: [{ name: "eventName" }],
         metrics: [
           { name: "eventCount" },
@@ -140,12 +164,14 @@ export async function loadAnalytics(
       }),
       runReport(propertyId, accessToken, {
         dateRanges,
+        dimensionFilter,
         dimensions: [{ name: "date" }],
         metrics: [{ name: "eventCount" }],
         orderBys: [{ dimension: { dimensionName: "date" } }],
       }),
       runReport(propertyId, accessToken, {
         dateRanges,
+        dimensionFilter,
         dimensions: [{ name: "date" }, { name: "eventName" }],
         metrics: [{ name: "eventCount" }],
         orderBys: [{ dimension: { dimensionName: "date" } }],
@@ -156,7 +182,8 @@ export async function loadAnalytics(
     const summaryMetrics = summary.rows?.[0]?.metricValues ?? [];
     return {
       status: "ready",
-      reason: "Dữ liệu được đọc bằng quyền Google Analytics của admin hiện tại.",
+      reason: "Dữ liệu chỉ đọc từ stream Android đã cấu hình bằng quyền Google Analytics của admin hiện tại.",
+      source,
       summary: {
         activeUsers: numeric(summaryMetrics[0]?.value),
         sessions: numeric(summaryMetrics[1]?.value),
@@ -188,11 +215,13 @@ export async function loadAnalytics(
       return emptyResult(
         "authorization_required",
         "Quyền Google Analytics đã hết hạn hoặc tài khoản này không có quyền xem Property.",
+        source,
       );
     }
     return emptyResult(
       "error",
       "Không thể đọc dữ liệu từ Google Analytics Data API. Hãy thử lại.",
+      source,
     );
   }
 }

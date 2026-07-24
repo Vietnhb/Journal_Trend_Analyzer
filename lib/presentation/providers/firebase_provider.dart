@@ -148,14 +148,14 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshRemoteConfig() async {
+  Future<void> refreshRemoteConfig({bool forceRefresh = false}) async {
     if (_isLoadingRemoteConfig) return;
     _isLoadingRemoteConfig = true;
     _serviceError = null;
     notifyListeners();
 
     try {
-      await _firebase.configureRemoteConfig();
+      await _firebase.configureRemoteConfig(forceRefresh: forceRefresh);
       _maxJournals = _firebase.getRemoteInt('max_journals');
       _maxKeywords = _firebase.getRemoteInt('max_keywords');
     } catch (error) {

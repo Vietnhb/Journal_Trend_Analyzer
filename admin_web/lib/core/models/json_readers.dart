@@ -70,3 +70,16 @@ List<T> readObjectList<T>(
       .map((item) => decode(readJsonMap(item, context: 'an item in "$key"')))
       .toList(growable: false);
 }
+
+List<String> readStringList(JsonMap json, String key) {
+  final value = json[key];
+  if (value == null) return const [];
+  return readJsonList(value, context: '"$key"')
+      .map((item) {
+        if (item is! String) {
+          throw FormatException('Expected an item in "$key" to be a string.');
+        }
+        return item;
+      })
+      .toList(growable: false);
+}

@@ -5,13 +5,17 @@ import { Router } from "express";
 import { writeMutationAudit } from "../audit.js";
 import { sendData } from "../errors.js";
 import {
+  deleteAllReports,
   deleteReport,
+  deleteReports,
   getValidatedPdf,
   listReportPage,
 } from "../report-service.js";
 import {
   reportDeleteSchema,
-  reportPathQuerySchema,
+  reportsBulkDeleteSchema,
+  reportsDeleteAllSchema,
+  reportDownloadQuerySchema,
   reportsQuerySchema,
   singleQueryValue,
 } from "../validation.js";
@@ -39,10 +43,11 @@ function contentDisposition(name: string): string {
 
 reportsRouter.get("/download", async (req, res, next) => {
   try {
-    const { path } = reportPathQuerySchema.parse({
+    const { path, generation } = reportDownloadQuerySchema.parse({
       path: singleQueryValue(req.query.path),
+      generation: singleQueryValue(req.query.generation),
     });
-    const report = await getValidatedPdf(path);
+    const report = await getValidatedPdf(path, generation);
     res.status(200);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", String(report.sizeBytes));
@@ -66,4 +71,37 @@ reportsRouter.delete("/", async (req, res) => {
     details: { generation },
   });
   sendData(res, { path, generation, deleted: true });
+});
+
+reportsRouter.delete("/bulk", async (req, res) => {
+  const { reports } = reportsBulkDeleteSchema.parse(req.body as unknown);
+  const result = await deleteReports(reports);
+  await writeMutationAudit(req, {
+    action: "report.bulk_delete",
+    targetType: "storage_report_batch",
+    targetId: `selected:${reports.length}`,
+    summary: `Deleted ${result.deleted.length} selected PDF reports from Cloud Storage.`,
+    details: {
+      requestedCount: reports.length,
+      deletedCount: result.deleted.length,
+      failedCount: result.failed.length,
+    },
+  });
+  sendData(res, result);
+});
+
+reportsRouter.delete("/all", async (req, res) => {
+  reportsDeleteAllSchema.parse(req.body as unknown);
+  const result = await deleteAllReports();
+  await writeMutationAudit(req, {
+    action: "report.delete_all",
+    targetType: "storage_report_collection",
+    targetId: "report-prefix",
+    summary: `Deleted ${result.deleted.length} PDF reports from Cloud Storage.`,
+    details: {
+      deletedCount: result.deleted.length,
+      failedCount: result.failed.length,
+    },
+  });
+  sendData(res, result);
 });

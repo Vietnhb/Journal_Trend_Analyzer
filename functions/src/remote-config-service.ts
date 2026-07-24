@@ -4,7 +4,7 @@ import type {
   RemoteConfigTemplate,
 } from "firebase-admin/remote-config";
 
-import { adminRemoteConfig } from "./firebase.js";
+import { getAdminRemoteConfig } from "./firebase.js";
 import { ApiError } from "./errors.js";
 import { serializeRemoteConfigVersion } from "./serializers.js";
 
@@ -52,7 +52,7 @@ function setNumberParameter(
     ...(existing ?? {}),
     defaultValue: { value: String(value) },
     valueType: "NUMBER",
-    description: existing?.description ?? fallbackDescription,
+    description: existing?.description?.trim() || fallbackDescription,
   };
 
   if (template.parameters[key] !== undefined) {
@@ -96,7 +96,15 @@ export function serializeRemoteConfig(template: RemoteConfigTemplate): Record<st
 }
 
 export async function getRemoteConfigData(): Promise<Record<string, unknown>> {
-  return serializeRemoteConfig(await adminRemoteConfig.getTemplate());
+  return serializeRemoteConfig(await getAdminRemoteConfig().getTemplate());
+}
+
+export async function getRemoteConfigVersionData(
+  versionNumber: number | string,
+): Promise<Record<string, unknown>> {
+  return serializeRemoteConfig(
+    await getAdminRemoteConfig().getTemplateAtVersion(versionNumber),
+  );
 }
 
 export function assertRemoteConfigEtag(actual: string, expected: string): void {
@@ -115,7 +123,8 @@ export async function updateRemoteConfig(input: {
   expectedEtag: string;
   description: string;
 }): Promise<Record<string, unknown>> {
-  const template = await adminRemoteConfig.getTemplate();
+  const remoteConfig = getAdminRemoteConfig();
+  const template = await remoteConfig.getTemplate();
   assertRemoteConfigEtag(template.etag, input.expectedEtag);
 
   setNumberParameter(
@@ -131,8 +140,8 @@ export async function updateRemoteConfig(input: {
     "Maximum number of keywords displayed in keyword rankings",
   );
   template.version = { description: input.description };
-  const validated = await adminRemoteConfig.validateTemplate(template);
-  const published = await adminRemoteConfig.publishTemplate(validated);
+  const validated = await remoteConfig.validateTemplate(template);
+  const published = await remoteConfig.publishTemplate(validated);
   return serializeRemoteConfig(published);
 }
 
@@ -140,8 +149,9 @@ export async function rollbackRemoteConfig(input: {
   versionNumber: number | string;
   expectedEtag: string;
 }): Promise<Record<string, unknown>> {
-  const target = await adminRemoteConfig.getTemplateAtVersion(input.versionNumber);
-  const current = await adminRemoteConfig.getTemplate();
+  const remoteConfig = getAdminRemoteConfig();
+  const target = await remoteConfig.getTemplateAtVersion(input.versionNumber);
+  const current = await remoteConfig.getTemplate();
   assertRemoteConfigEtag(current.etag, input.expectedEtag);
 
   // Publishing the retained template with the current ETag preserves optimistic
@@ -153,7 +163,7 @@ export async function rollbackRemoteConfig(input: {
       description: `Rollback to Remote Config version ${input.versionNumber}.`,
     },
   };
-  const validated = await adminRemoteConfig.validateTemplate(rollbackTemplate);
-  const published = await adminRemoteConfig.publishTemplate(validated);
+  const validated = await remoteConfig.validateTemplate(rollbackTemplate);
+  const published = await remoteConfig.publishTemplate(validated);
   return serializeRemoteConfig(published);
 }

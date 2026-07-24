@@ -28,6 +28,22 @@ function errorCode(error: unknown): string | undefined {
   return value === undefined ? undefined : String(value);
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message.toLowerCase() : "";
+}
+
+function isFirestoreNotConfigured(error: unknown): boolean {
+  const message = errorMessage(error);
+  return (
+    message.includes("firestore.googleapis.com") &&
+    (message.includes("has not been used") || message.includes("is disabled"))
+  ) || (
+    message.includes("database") &&
+    message.includes("(default)") &&
+    (message.includes("does not exist") || message.includes("not found"))
+  );
+}
+
 export function safeErrorDetails(error: unknown): Record<string, unknown> {
   return {
     errorName: error instanceof Error ? error.name : "UnknownError",
@@ -58,6 +74,13 @@ export function mapExternalError(error: unknown): ApiError {
   }
 
   const code = errorCode(error) ?? "";
+  if (isFirestoreNotConfigured(error)) {
+    return new ApiError(
+      503,
+      "firestore_not_configured",
+      "Cloud Firestore is not ready. Enable the Cloud Firestore API and create the default Firestore database for this Firebase project.",
+    );
+  }
   if (code.endsWith("/user-not-found") || code === "404") {
     return new ApiError(404, "not_found", "The requested resource was not found.");
   }

@@ -11,7 +11,7 @@ import {
   adminAuth,
   adminFirestore,
   adminMessaging,
-  adminRemoteConfig,
+  getAdminRemoteConfig,
 } from "./firebase.js";
 import { scanReportTotals } from "./report-service.js";
 import { requireRequestActor } from "./request-context.js";
@@ -47,7 +47,7 @@ apiRouter.get("/overview", async (_req, res) => {
   const [users, reports, template] = await Promise.all([
     listAllUsers(),
     scanReportTotals(),
-    adminRemoteConfig.getTemplate(),
+    getAdminRemoteConfig().getTemplate(),
   ]);
   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   sendData(res, {

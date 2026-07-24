@@ -42,7 +42,10 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
     super.dispose();
   }
 
-  Future<void> _load({bool initial = false}) async {
+  Future<void> _load({bool initial = false, bool preserveDraft = false}) async {
+    final draftJournals = _maxJournalsController.text;
+    final draftKeywords = _maxKeywordsController.text;
+    final draftDescription = _descriptionController.text;
     if (!initial) {
       setState(() => _refreshing = true);
     }
@@ -67,11 +70,13 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
     }
 
     final config = configResult.data!;
-    _maxJournalsController.text =
-        config.parameters.maxJournals?.toString() ?? '';
-    _maxKeywordsController.text =
-        config.parameters.maxKeywords?.toString() ?? '';
-    _descriptionController.clear();
+    _maxJournalsController.text = preserveDraft
+        ? draftJournals
+        : config.parameters.maxJournals?.toString() ?? '';
+    _maxKeywordsController.text = preserveDraft
+        ? draftKeywords
+        : config.parameters.maxKeywords?.toString() ?? '';
+    _descriptionController.text = preserveDraft ? draftDescription : '';
     setState(() {
       _config = config;
       _versions = versionsResult.data?.versions ?? const [];
@@ -97,6 +102,7 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
   }
 
   String? _validateDescription(String? raw) {
+    if (!_hasChanges) return null;
     final length = raw?.trim().length ?? 0;
     if (length < 1) return 'Vui lòng nhập ghi chú thay đổi.';
     if (length > 300) return 'Ghi chú không được vượt quá 300 ký tự.';
@@ -109,6 +115,15 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
     return _parseLimit(_maxJournalsController) !=
             config.parameters.maxJournals ||
         _parseLimit(_maxKeywordsController) != config.parameters.maxKeywords;
+  }
+
+  bool get _canPublish {
+    final description = _descriptionController.text.trim();
+    return !_mutating &&
+        _hasChanges &&
+        _validateLimit(_maxJournalsController.text) == null &&
+        _validateLimit(_maxKeywordsController.text) == null &&
+        _validateDescription(description) == null;
   }
 
   Future<void> _publish() async {
@@ -124,15 +139,7 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
       return;
     }
 
-    final confirmed = await showTypedConfirmation(
-      context: context,
-      title: 'Xuất bản cấu hình mới?',
-      description:
-          'Firebase sẽ phân phối các giá trị mới tới ứng dụng ở lần fetch tiếp theo. '
-          'ETag hiện tại được kiểm tra để tránh ghi đè thay đổi của quản trị viên khác.',
-      confirmationText: 'XUAT BAN',
-      actionLabel: 'Xuất bản',
-    );
+    final confirmed = await _confirmPublish(config);
     if (!confirmed || !mounted) return;
 
     setState(() => _mutating = true);
@@ -155,15 +162,105 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
     }
   }
 
+  Future<bool> _confirmPublish(RemoteConfigData config) async {
+    final maxJournals = _parseLimit(_maxJournalsController)!;
+    final maxKeywords = _parseLimit(_maxKeywordsController)!;
+    final description = _descriptionController.text.trim();
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: const Text('Xác nhận xuất bản cấu hình'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Cấu hình mới sẽ được gửi tới ứng dụng ở lần fetch tiếp theo.',
+              ),
+              const SizedBox(height: 18),
+              if (maxJournals != config.parameters.maxJournals)
+                _PublishChangeRow(
+                  name: 'max_journals',
+                  before: config.parameters.maxJournals,
+                  after: maxJournals,
+                ),
+              if (maxKeywords != config.parameters.maxKeywords)
+                _PublishChangeRow(
+                  name: 'max_keywords',
+                  before: config.parameters.maxKeywords,
+                  after: maxKeywords,
+                ),
+              const SizedBox(height: 8),
+              Text(
+                'Ghi chú',
+                style: Theme.of(dialogContext).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 6),
+              Text(description),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.verified_user_outlined,
+                    size: 18,
+                    color: Theme.of(dialogContext).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Hệ thống sẽ kiểm tra xung đột để không ghi đè cấu hình mới hơn.',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton.icon(
+            key: const Key('confirm_remote_config_publish'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.publish_rounded),
+            label: const Text('Xác nhận xuất bản'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _rollback(RemoteConfigVersion version) async {
     final config = _config;
     final versionNumber = version.versionNumber;
     if (config == null || versionNumber == null || _mutating) return;
 
+    RemoteConfigData target;
+    setState(() => _mutating = true);
+    try {
+      target = await widget.api.getRemoteConfigVersion(versionNumber);
+    } catch (error) {
+      if (mounted) showAppMessage(context, errorText(error), error: true);
+      if (mounted) setState(() => _mutating = false);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _mutating = false);
+
     final confirmed = await showTypedConfirmation(
       context: context,
       title: 'Khôi phục phiên bản $versionNumber?',
       description:
+          'Xem trước: max_journals = ${target.parameters.maxJournals ?? 'chưa cấu hình'}, '
+          'max_keywords = ${target.parameters.maxKeywords ?? 'chưa cấu hình'}.\n\n'
           'Nội dung của phiên bản này sẽ được xuất bản thành một phiên bản mới. '
           'Cấu hình đang hoạt động sẽ bị thay thế.',
       confirmationText: 'v$versionNumber',
@@ -196,7 +293,7 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
     required String action,
   }) async {
     if (error is ApiException && error.isConflict) {
-      await _load();
+      await _load(preserveDraft: true);
       if (!mounted) return;
       showAppMessage(
         context,
@@ -261,6 +358,7 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
           validateLimit: _validateLimit,
           validateDescription: _validateDescription,
           busy: _mutating,
+          canPublish: _canPublish,
           updatedAt: config.version.updatedAt,
           onChanged: () => setState(() {}),
           onPublish: _publish,
@@ -277,15 +375,13 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
             children: [editor, const SizedBox(height: 22), diff],
           );
         }
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(flex: 3, child: editor),
-              const SizedBox(width: 22),
-              Expanded(flex: 2, child: diff),
-            ],
-          ),
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 3, child: editor),
+            const SizedBox(width: 22),
+            Expanded(flex: 2, child: diff),
+          ],
         );
       },
     ),
@@ -294,9 +390,9 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionTitle(
-            title: 'Tất cả tham số',
+            title: 'Tham số hiện có trên Firebase',
             description:
-                'Các key không xuất hiện trong biểu mẫu vẫn được giữ nguyên khi xuất bản.',
+                'Khu vực chỉ đọc. Các key không xuất hiện trong biểu mẫu vẫn được giữ nguyên khi xuất bản.',
             trailing: Icon(Icons.data_object_rounded),
           ),
           const SizedBox(height: 18),
@@ -387,6 +483,7 @@ class _ConfigEditor extends StatelessWidget {
     required this.validateLimit,
     required this.validateDescription,
     required this.busy,
+    required this.canPublish,
     required this.updatedAt,
     required this.onChanged,
     required this.onPublish,
@@ -399,6 +496,7 @@ class _ConfigEditor extends StatelessWidget {
   final FormFieldValidator<String> validateLimit;
   final FormFieldValidator<String> validateDescription;
   final bool busy;
+  final bool canPublish;
   final String? updatedAt;
   final VoidCallback onChanged;
   final VoidCallback onPublish;
@@ -442,6 +540,7 @@ class _ConfigEditor extends StatelessWidget {
             maxLength: 300,
             maxLines: 3,
             minLines: 3,
+            onChanged: (_) => onChanged(),
             decoration: const InputDecoration(
               labelText: 'Ghi chú thay đổi',
               alignLabelWithHint: true,
@@ -463,7 +562,7 @@ class _ConfigEditor extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
-                onPressed: busy ? null : onPublish,
+                onPressed: canPublish ? onPublish : null,
                 icon: busy
                     ? const SizedBox.square(
                         dimension: 17,
@@ -566,17 +665,27 @@ class _DiffCard extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(top: 4),
+              leading: Icon(
+                Icons.verified_user_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('Đã bật bảo vệ xung đột'),
+              subtitle: const Text(
+                'Ngăn quản trị viên ghi đè cấu hình mới hơn.',
+              ),
               children: [
-                Text(
-                  'ETag chống ghi đè đồng thời',
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-                const SizedBox(height: 6),
-                SelectableText(
-                  config.etag.isEmpty ? '—' : config.etag,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: SelectableText(
+                    'Mã phiên bản kỹ thuật: ${config.etag.isEmpty ? '—' : config.etag}',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -638,6 +747,53 @@ class _DiffRow extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _PublishChangeRow extends StatelessWidget {
+  const _PublishChangeRow({
+    required this.name,
+    required this.before,
+    required this.after,
+  });
+
+  final String name;
+  final int? before;
+  final int after;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            name,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Text(before?.toString() ?? '—'),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 9),
+          child: Icon(Icons.arrow_forward_rounded, size: 17),
+        ),
+        Text(
+          after.toString(),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ],
     ),

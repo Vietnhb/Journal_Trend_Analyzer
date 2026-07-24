@@ -2,15 +2,17 @@ import { Router } from "express";
 
 import { writeMutationAudit } from "../audit.js";
 import { sendData } from "../errors.js";
-import { adminRemoteConfig } from "../firebase.js";
+import { getAdminRemoteConfig } from "../firebase.js";
 import {
   getRemoteConfigData,
+  getRemoteConfigVersionData,
   rollbackRemoteConfig,
   updateRemoteConfig,
 } from "../remote-config-service.js";
 import { serializeRemoteConfigVersion } from "../serializers.js";
 import {
   remoteConfigUpdateSchema,
+  remoteConfigVersionParamSchema,
   rollbackSchema,
   singleQueryValue,
   versionsQuerySchema,
@@ -44,7 +46,7 @@ remoteConfigRouter.get("/versions", async (req, res) => {
     limit: singleQueryValue(req.query.limit),
     pageToken: singleQueryValue(req.query.pageToken),
   });
-  const result = await adminRemoteConfig.listVersions({
+  const result = await getAdminRemoteConfig().listVersions({
     pageSize: limit,
     ...(pageToken === undefined ? {} : { pageToken }),
   });
@@ -52,6 +54,11 @@ remoteConfigRouter.get("/versions", async (req, res) => {
     versions: result.versions.map(serializeRemoteConfigVersion),
     nextPageToken: result.nextPageToken ?? null,
   });
+});
+
+remoteConfigRouter.get("/versions/:versionNumber", async (req, res) => {
+  const { versionNumber } = remoteConfigVersionParamSchema.parse(req.params);
+  sendData(res, await getRemoteConfigVersionData(versionNumber));
 });
 
 remoteConfigRouter.post("/rollback", async (req, res) => {

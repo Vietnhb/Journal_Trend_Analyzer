@@ -11,6 +11,7 @@ import {
   withAdminInvariantLock,
 } from "../user-service.js";
 import {
+  firebaseUserLookupKind,
   roleSchema,
   singleQueryValue,
   uidParamSchema,
@@ -34,10 +35,18 @@ usersRouter.get("/", async (req, res) => {
   });
 
   if (query.query !== undefined) {
+    const lookup = query.query;
     try {
-      const user = query.query.includes("@")
-        ? await adminAuth.getUserByEmail(query.query)
-        : await adminAuth.getUser(query.query);
+      const user = await (async () => {
+        switch (firebaseUserLookupKind(lookup)) {
+        case "email":
+          return adminAuth.getUserByEmail(lookup);
+        case "phone":
+          return adminAuth.getUserByPhoneNumber(lookup);
+        case "uid":
+          return adminAuth.getUser(lookup);
+        }
+      })();
       sendData(res, { users: [serializeUser(user)], nextPageToken: null });
     } catch (error) {
       if (codeOf(error).endsWith("/user-not-found")) {

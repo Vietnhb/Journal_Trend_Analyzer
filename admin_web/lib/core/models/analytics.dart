@@ -26,6 +26,7 @@ final class AnalyticsData {
     required this.events,
     required this.daily,
     required this.eventDaily,
+    required this.source,
   });
 
   factory AnalyticsData.fromJson(JsonMap json) => AnalyticsData(
@@ -41,6 +42,9 @@ final class AnalyticsData {
       'eventDaily',
       AnalyticsEventDaily.fromJson,
     ),
+    source: AnalyticsSource.fromJson(
+      readJsonMap(json['source'] ?? const <String, Object?>{}),
+    ),
   );
 
   final IntegrationStatus status;
@@ -49,6 +53,19 @@ final class AnalyticsData {
   final List<AnalyticsEvent> events;
   final List<AnalyticsDaily> daily;
   final List<AnalyticsEventDaily> eventDaily;
+  final AnalyticsSource source;
+}
+
+final class AnalyticsSource {
+  const AnalyticsSource({required this.propertyId, required this.streamId});
+
+  factory AnalyticsSource.fromJson(JsonMap json) => AnalyticsSource(
+    propertyId: readNullableString(json, 'propertyId') ?? '',
+    streamId: readNullableString(json, 'streamId') ?? '',
+  );
+
+  final String propertyId;
+  final String streamId;
 }
 
 final class AnalyticsSummary {

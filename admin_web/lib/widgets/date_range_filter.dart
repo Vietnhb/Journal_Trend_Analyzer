@@ -118,6 +118,7 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
       AdminDateRange.lastMinutes(12 * 60, '12 giờ qua'),
       AdminDateRange.lastMinutes(24 * 60, '24 giờ qua'),
       AdminDateRange.lastDays(7, '7 ngày qua'),
+      AdminDateRange.lastDays(28, '28 ngày qua'),
       AdminDateRange.lastDays(30, '30 ngày qua'),
       AdminDateRange.lastDays(90, '90 ngày qua'),
     ];

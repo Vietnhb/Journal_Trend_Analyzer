@@ -4,7 +4,6 @@ final class StoredReport {
   const StoredReport({
     required this.path,
     required this.name,
-    required this.viewUrl,
     required this.ownerUid,
     required this.ownerEmail,
     required this.topic,
@@ -18,7 +17,6 @@ final class StoredReport {
   factory StoredReport.fromJson(JsonMap json) => StoredReport(
     path: readString(json, 'path'),
     name: readString(json, 'name'),
-    viewUrl: readNullableString(json, 'viewUrl'),
     ownerUid: readString(json, 'ownerUid'),
     ownerEmail: readNullableString(json, 'ownerEmail'),
     topic: readNullableString(json, 'topic'),
@@ -31,7 +29,6 @@ final class StoredReport {
 
   final String path;
   final String name;
-  final String? viewUrl;
   final String ownerUid;
   final String? ownerEmail;
   final String? topic;
@@ -40,6 +37,31 @@ final class StoredReport {
   final String generation;
   final String? createdAt;
   final String? updatedAt;
+}
+
+final class ReportBulkDeleteResult {
+  const ReportBulkDeleteResult({required this.deleted, required this.failed});
+
+  factory ReportBulkDeleteResult.fromJson(JsonMap json) =>
+      ReportBulkDeleteResult(
+        deleted: readStringList(json, 'deleted'),
+        failed: readObjectList(json, 'failed', ReportDeleteFailure.fromJson),
+      );
+
+  final List<String> deleted;
+  final List<ReportDeleteFailure> failed;
+}
+
+final class ReportDeleteFailure {
+  const ReportDeleteFailure({required this.path, required this.code});
+
+  factory ReportDeleteFailure.fromJson(JsonMap json) => ReportDeleteFailure(
+    path: readString(json, 'path'),
+    code: readString(json, 'code'),
+  );
+
+  final String path;
+  final String code;
 }
 
 final class ReportPage {

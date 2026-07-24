@@ -18,7 +18,23 @@ export const ga4PropertyId = defineString("GA4_PROPERTY_ID", {
   description: "Numeric GA4 property ID used by the admin Analytics dashboard.",
 });
 
+export const ga4StreamId = defineString("GA4_STREAM_ID", {
+  default: "",
+  description: "Numeric GA4 data stream ID scoped by the admin Analytics dashboard.",
+});
+
 export const crashlyticsTable = defineString("CRASHLYTICS_TABLE", {
   default: "",
   description: "Crashlytics BigQuery table in project.dataset.table form.",
+});
+
+export const crashlyticsAppId = defineString("CRASHLYTICS_APP_ID", {
+  default: "",
+  description:
+    "Firebase Android package name whose Crashlytics batch and realtime tables are queried.",
+});
+
+export const adminServiceAccountPath = defineString("ADMIN_SERVICE_ACCOUNT_PATH", {
+  default: "",
+  description: "Local-only service account JSON path used by the Functions emulator.",
 });

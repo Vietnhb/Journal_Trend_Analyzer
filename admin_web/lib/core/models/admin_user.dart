@@ -4,6 +4,7 @@ final class AdminUser {
   const AdminUser({
     required this.uid,
     required this.email,
+    required this.phoneNumber,
     required this.displayName,
     required this.photoUrl,
     required this.disabled,
@@ -18,6 +19,7 @@ final class AdminUser {
   factory AdminUser.fromJson(JsonMap json) => AdminUser(
     uid: readString(json, 'uid'),
     email: readNullableString(json, 'email'),
+    phoneNumber: readNullableString(json, 'phoneNumber'),
     displayName: readNullableString(json, 'displayName'),
     photoUrl: readNullableString(json, 'photoURL'),
     disabled: readBool(json, 'disabled'),
@@ -34,6 +36,7 @@ final class AdminUser {
 
   final String uid;
   final String? email;
+  final String? phoneNumber;
   final String? displayName;
   final String? photoUrl;
   final bool disabled;

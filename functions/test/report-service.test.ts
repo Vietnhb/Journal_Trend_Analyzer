@@ -1,39 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  firebaseStorageViewUrl,
   mapReportDeleteError,
   summarizeListedReportFiles,
   validateReportDownloadMetadata,
   validatePdfSignature,
 } from "../src/report-service.js";
-
-describe("Firebase Storage view URL", () => {
-  it("builds a generation-pinned URL from object metadata", () => {
-    const result = firebaseStorageViewUrl({
-      bucket: "example.firebasestorage.app",
-      path: "report/user/analysis/report name.pdf",
-      generation: "1700000000000000",
-      downloadTokens: "valid_download-token_123",
-    });
-    const url = new URL(result!);
-
-    expect(url.origin).toBe("https://firebasestorage.googleapis.com");
-    expect(url.pathname).toContain("report%2Fuser%2Fanalysis%2Freport%20name.pdf");
-    expect(url.searchParams.get("alt")).toBe("media");
-    expect(url.searchParams.get("generation")).toBe("1700000000000000");
-    expect(url.searchParams.get("token")).toBe("valid_download-token_123");
-  });
-
-  it("does not expose a URL when the object has no valid token", () => {
-    expect(firebaseStorageViewUrl({
-      bucket: "example.firebasestorage.app",
-      path: "report/user/analysis/report.pdf",
-      generation: "1700000000000000",
-      downloadTokens: undefined,
-    })).toBeNull();
-  });
-});
 
 describe("report overview aggregation", () => {
   it("uses metadata returned by the Storage listing and ignores invalid paths", () => {

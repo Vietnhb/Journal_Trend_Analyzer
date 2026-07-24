@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { formatAnalyticsDate } from "../src/analytics-service.js";
+import {
+  analyticsStreamFilter,
+  formatAnalyticsDate,
+} from "../src/analytics-service.js";
 
 describe("Analytics Data API date formatting", () => {
   it("converts GA4 compact dates to ISO dates", () => {
@@ -10,5 +13,16 @@ describe("Analytics Data API date formatting", () => {
   it("preserves unknown date values safely", () => {
     expect(formatAnalyticsDate("not-a-date")).toBe("not-a-date");
     expect(formatAnalyticsDate(undefined)).toBe("");
+  });
+});
+
+describe("Analytics stream scoping", () => {
+  it("creates an exact GA4 streamId dimension filter", () => {
+    expect(analyticsStreamFilter("15254447622")).toEqual({
+      filter: {
+        fieldName: "streamId",
+        stringFilter: { matchType: "EXACT", value: "15254447622" },
+      },
+    });
   });
 });
