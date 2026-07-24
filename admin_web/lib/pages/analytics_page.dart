@@ -56,15 +56,15 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     children: [
       PageHeading(
         eyebrow: 'Google Analytics for Firebase',
-        title: 'Analytics sự kiện',
+        title: 'Analytics',
         description:
-            'Theo dõi toàn bộ sự kiện GA4 và xu hướng sử dụng ứng dụng theo thời gian.',
+            'Track all GA4 events and usage trends over time.',
         actions: [
           AdminDateRangeFilter(value: _range, onChanged: _changeRange),
           OutlinedButton.icon(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Làm mới'),
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh'),
           ),
         ],
       ),
@@ -73,7 +73,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const SectionCard(
-              child: LoadingPanel(label: 'Đang tải dữ liệu Analytics…'),
+              child: LoadingPanel(
+                style: LoadingStyle.spinner,
+                label: 'Loading Analytics data…',
+              ),
             );
           }
           if (snapshot.hasError) {
@@ -81,6 +84,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               child: ErrorPanel(
                 message: errorText(snapshot.error!),
                 onRetry: _refresh,
+                detail: snapshot.error.toString(),
               ),
             );
           }

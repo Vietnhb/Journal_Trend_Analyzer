@@ -50,13 +50,13 @@ class _CrashesPageState extends State<CrashesPage> {
         eyebrow: 'Firebase Crashlytics · BigQuery',
         title: 'Crash Analyzer',
         description:
-            'Phân tích fatal, non-fatal và các issue ảnh hưởng nhiều người dùng nhất.',
+            'Analyze fatal and non-fatal crashes, and issues affecting the most users.',
         actions: [
           AdminDateRangeFilter(value: _range, onChanged: _changeRange),
           OutlinedButton.icon(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Làm mới'),
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh'),
           ),
         ],
       ),
@@ -65,7 +65,10 @@ class _CrashesPageState extends State<CrashesPage> {
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const SectionCard(
-              child: LoadingPanel(label: 'Đang tải dữ liệu Crashlytics…'),
+              child: LoadingPanel(
+                style: LoadingStyle.spinner,
+                label: 'Loading Crashlytics data…',
+              ),
             );
           }
           if (snapshot.hasError) {
@@ -73,6 +76,7 @@ class _CrashesPageState extends State<CrashesPage> {
               child: ErrorPanel(
                 message: errorText(snapshot.error!),
                 onRetry: _refresh,
+                detail: snapshot.error.toString(),
               ),
             );
           }
