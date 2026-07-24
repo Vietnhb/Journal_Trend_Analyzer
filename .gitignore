@@ -64,6 +64,10 @@ macos/Runner/GoogleService-Info.plist
 *.p12
 *.pem
 *.key
+*.p8
+*.mobileprovision
+*.cer
+*.der
 android/key.properties
 key.properties
 serviceAccount*.json
@@ -72,6 +76,11 @@ service_account*.json
 *-service-account.json
 *firebase-adminsdk*.json
 google-application-credentials*.json
+client_secret*.json
+oauth-client*.json
+credentials*.json
+secrets/
+**/secrets/
 
 # Environment files
 .env
@@ -117,6 +126,9 @@ Thumbs.db
 migrate_working_dir/
 .metadata
 sonar-project.properties
+.scannerwork/
+emulator_*.png
+window.xml
 
 # Firebase deployment infrastructure is non-secret and must stay versioned.
 !/.firebaserc
