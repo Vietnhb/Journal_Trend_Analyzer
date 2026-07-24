@@ -27,6 +27,7 @@ class FirebaseProvider extends ChangeNotifier {
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<RemoteMessage>? _messageSubscription;
   StreamSubscription<RemoteMessage>? _openedMessageSubscription;
+  StreamSubscription<String>? _tokenRefreshSubscription;
 
   User? _user;
   bool _isInitialized = false;
@@ -287,6 +288,9 @@ class FirebaseProvider extends ChangeNotifier {
           settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
       _messagingToken = await _firebase.getMessagingToken();
+      if (_messagingToken != null) {
+        await _firebase.subscribeToBroadcasts();
+      }
     } catch (error) {
       _serviceError = 'FCM: ${_friendlyFirebaseError(error)}';
     } finally {
@@ -302,6 +306,17 @@ class FirebaseProvider extends ChangeNotifier {
           settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
       _messagingToken = await _firebase.getMessagingToken();
+      if (_messagingToken != null) {
+        await _firebase.subscribeToBroadcasts();
+      }
+
+      _tokenRefreshSubscription = _firebase.messaging.onTokenRefresh.listen((
+        token,
+      ) {
+        _messagingToken = token;
+        unawaited(_firebase.subscribeToBroadcasts());
+        notifyListeners();
+      });
 
       _messageSubscription = FirebaseMessaging.onMessage.listen((message) {
         _addNotification(message);
@@ -376,6 +391,7 @@ class FirebaseProvider extends ChangeNotifier {
     _authSubscription?.cancel();
     _messageSubscription?.cancel();
     _openedMessageSubscription?.cancel();
+    _tokenRefreshSubscription?.cancel();
     super.dispose();
   }
 }
