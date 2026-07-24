@@ -20,7 +20,7 @@ export const ga4PropertyId = defineString("GA4_PROPERTY_ID", {
 
 export const ga4StreamId = defineString("GA4_STREAM_ID", {
   default: "",
-  description: "Numeric GA4 data stream ID scoped by the admin Analytics dashboard.",
+  description: "Optional GA4 stream override; Android stream is discovered through admin OAuth.",
 });
 
 export const crashlyticsTable = defineString("CRASHLYTICS_TABLE", {

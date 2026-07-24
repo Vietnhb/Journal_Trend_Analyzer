@@ -22,9 +22,23 @@ interface AnalyticsDataApiReport {
   rows?: AnalyticsDataApiRow[];
 }
 
+export interface AnalyticsAdminDataStream {
+  name?: string;
+  type?: string;
+  androidAppStreamData?: {
+    packageName?: string;
+  };
+}
+
+interface AnalyticsAdminDataStreamsResponse {
+  dataStreams?: AnalyticsAdminDataStream[];
+}
+
+const androidPackageName = "com.prm393.journal_trend_analyzer";
+
 class AnalyticsDataApiError extends Error {
   constructor(readonly status: number) {
-    super(`Google Analytics Data API returned HTTP ${status}.`);
+    super(`Google Analytics API returned HTTP ${status}.`);
   }
 }
 
@@ -103,24 +117,48 @@ async function runReport(
   return await response.json() as AnalyticsDataApiReport;
 }
 
+export function selectAndroidStreamId(
+  streams: readonly AnalyticsAdminDataStream[],
+  packageName = androidPackageName,
+): string | null {
+  const androidStreams = streams.filter(
+    (stream) => stream.type === "ANDROID_APP_DATA_STREAM",
+  );
+  const selected = androidStreams.find(
+    (stream) => stream.androidAppStreamData?.packageName === packageName,
+  ) ?? (androidStreams.length === 1 ? androidStreams[0] : undefined);
+  const streamId = selected?.name?.split("/").at(-1) ?? "";
+  return /^\d+$/u.test(streamId) ? streamId : null;
+}
+
+async function discoverAndroidStreamId(
+  propertyId: string,
+  accessToken: string,
+): Promise<string | null> {
+  const url = new URL(
+    `https://analyticsadmin.googleapis.com/v1beta/properties/${propertyId}/dataStreams`,
+  );
+  url.searchParams.set("pageSize", "200");
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new AnalyticsDataApiError(response.status);
+  const payload = await response.json() as AnalyticsAdminDataStreamsResponse;
+  return selectAndroidStreamId(payload.dataStreams ?? []);
+}
+
 export async function loadAnalytics(
   range: { start: string; end: string },
   rawAccessToken: string | undefined,
 ): Promise<Record<string, unknown>> {
   const propertyId = ga4PropertyId.value().trim().replace(/^properties\//, "");
-  const streamId = ga4StreamId.value().trim();
-  const source = { propertyId, streamId };
+  let streamId = ga4StreamId.value().trim();
+  let source = { propertyId, streamId };
   if (!/^\d+$/u.test(propertyId)) {
     return emptyResult(
       "unconfigured",
       "Chưa có GA4_PROPERTY_ID hợp lệ cho Firebase project.",
-    );
-  }
-  if (!/^\d+$/u.test(streamId)) {
-    return emptyResult(
-      "unconfigured",
-      "Chưa có GA4_STREAM_ID hợp lệ để giới hạn dữ liệu cho ứng dụng Android.",
-      source,
     );
   }
 
@@ -133,12 +171,24 @@ export async function loadAnalytics(
     );
   }
 
-  const dateRanges = [{
-    startDate: range.start.slice(0, 10),
-    endDate: range.end.slice(0, 10),
-  }];
-  const dimensionFilter = analyticsStreamFilter(streamId);
   try {
+    if (!/^\d+$/u.test(streamId)) {
+      streamId = await discoverAndroidStreamId(propertyId, accessToken) ?? "";
+      source = { propertyId, streamId };
+      if (streamId.length === 0) {
+        return emptyResult(
+          "unconfigured",
+          "Không tìm thấy luồng dữ liệu Android của Journal Trend trong GA4 Property.",
+          source,
+        );
+      }
+    }
+
+    const dateRanges = [{
+      startDate: range.start.slice(0, 10),
+      endDate: range.end.slice(0, 10),
+    }];
+    const dimensionFilter = analyticsStreamFilter(streamId);
     const [summary, events, daily, eventDaily] = await Promise.all([
       runReport(propertyId, accessToken, {
         dateRanges,

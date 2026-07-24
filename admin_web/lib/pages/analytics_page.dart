@@ -259,10 +259,10 @@ class _AnalyticsIntegrationState extends StatelessWidget {
         ? 'Kết nối Google Analytics'
         : isPending
         ? 'Đang chờ lần export Analytics đầu tiên'
-        : 'Chưa cấu hình Analytics BigQuery';
+        : 'Chưa tìm thấy Analytics stream';
     final description = reason?.trim().isNotEmpty == true
         ? reason!.trim()
-        : 'Backend cần dataset GA4 do Firebase xuất sang BigQuery.';
+        : 'Không tìm thấy Android stream trong GA4 Property.';
 
     return SectionCard(
       child: LayoutBuilder(
@@ -368,17 +368,16 @@ class _AnalyticsIntegrationState extends StatelessWidget {
               ] else ...[
                 const _SetupStep(
                   number: 1,
-                  text:
-                      'Mở Firebase Console > Project settings > Integrations > BigQuery.',
+                  text: 'Mở Google Analytics > Admin > Data streams.',
                 ),
                 const _SetupStep(
                   number: 2,
                   text:
-                      'Chọn Manage/Link rồi bật export cho Google Analytics và các app cần quản lý.',
+                      'Kiểm tra Android stream của Journal Trend đã được tạo.',
                 ),
                 const _SetupStep(
                   number: 3,
-                  text: 'Chờ lần đồng bộ đầu tiên, sau đó bấm Kiểm tra lại.',
+                  text: 'Bấm Kiểm tra lại để tải dữ liệu.',
                 ),
               ],
               const SizedBox(height: 18),
