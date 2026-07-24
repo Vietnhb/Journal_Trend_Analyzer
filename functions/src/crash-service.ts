@@ -6,6 +6,7 @@ import { crashlyticsAppId, crashlyticsTable } from "./params.js";
 import { parseCrashlyticsTable } from "./validation.js";
 
 let bigQueryClient: BigQuery | undefined;
+const crashReportTimeZone = "Asia/Ho_Chi_Minh";
 
 function client(): BigQuery {
   bigQueryClient ??= new BigQuery();
@@ -379,7 +380,7 @@ export async function loadCrashes(
   const dailyQuery = `
     WITH ${crashesCte}
     SELECT
-      DATE(event_timestamp) AS event_date,
+      DATE(event_timestamp, "${crashReportTimeZone}") AS event_date,
       COUNT(DISTINCT IF(error_type = 'FATAL', event_id, NULL)) AS fatal,
       COUNT(DISTINCT IF(error_type = 'NON_FATAL', event_id, NULL)) AS non_fatal
     FROM crashes
@@ -389,7 +390,7 @@ export async function loadCrashes(
     WITH ${crashesCte}
     SELECT
       issue_id,
-      DATE(event_timestamp) AS event_date,
+      DATE(event_timestamp, "${crashReportTimeZone}") AS event_date,
       COUNT(DISTINCT event_id) AS events
     FROM crashes
     WHERE issue_id IS NOT NULL
