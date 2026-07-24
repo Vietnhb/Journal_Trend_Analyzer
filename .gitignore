@@ -45,9 +45,13 @@ windows/flutter/ephemeral/
 
 # Firebase local/debug output
 firebase-debug.log
+firebase-debug.*.log
 firestore-debug.log
 ui-debug.log
 firebase-export-*/
+.firebase/
+.runtimeconfig.json
+**/.secret.local
 
 # Local Firebase app config. Keep local copies outside git for public repos.
 android/app/google-services.json
@@ -63,12 +67,26 @@ macos/Runner/GoogleService-Info.plist
 android/key.properties
 key.properties
 serviceAccount*.json
+service-account*.json
+service_account*.json
 *-service-account.json
+*firebase-adminsdk*.json
+google-application-credentials*.json
 
 # Environment files
 .env
 .env.*
 !.env.example
+
+# Flutter Admin Web generated output
+admin_web/.dart_tool/
+admin_web/build/
+admin_web/coverage/
+
+# Node / Functions generated output
+**/node_modules/
+functions/lib/
+*.tsbuildinfo
 
 # Test/generated bundles
 patrol_tests/test_bundle.dart
@@ -99,7 +117,11 @@ Thumbs.db
 migrate_working_dir/
 .metadata
 sonar-project.properties
-remoteconfig.template.json
-storage.rules
-.firebaserc
-firebase.json
+
+# Firebase deployment infrastructure is non-secret and must stay versioned.
+!/.firebaserc
+!/firebase.json
+!/storage.rules
+!/firestore.rules
+!/firestore.indexes.json
+!/remoteconfig.template.json

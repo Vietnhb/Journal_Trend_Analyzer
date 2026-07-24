@@ -19,6 +19,21 @@ A Flutter mobile app for searching OpenAlex research publications and analyzing 
 - Display Firebase Remote Config values and provide Crashlytics demonstrations.
 - Cover the 11 required E2E scenarios with Patrol test scripts.
 
+## Admin Web
+
+The repository includes a separate, responsive Flutter Web administration portal for people who should not need to operate directly in Firebase Console. It is an independent Flutter project under `admin_web/`; the existing Android/iOS app remains unchanged. Access requires Firebase Authentication and the custom claim `admin: true`; privileged operations are handled by a trusted Node.js 22 Cloud Function rather than by the browser.
+
+Admin capabilities include:
+
+- User search, status management, session revocation, deletion, and Admin role assignment.
+- Cross-user PDF report inspection, download, and deletion in Firebase Storage.
+- Validated Remote Config editing and publishing for `max_journals` and `max_keywords`.
+- Read-only Analytics and Crashlytics/BigQuery dashboards.
+- Test FCM delivery to a manually supplied registration token or FID.
+- Append-only administrative audit history.
+
+See [ADMIN_WEB_SETUP.md](./ADMIN_WEB_SETUP.md) for Firebase products, environment variables, first-admin bootstrap, local emulators, security rules, and deployment instructions. The Flutter app does not need to be changed for this portal; its existing Firebase behavior remains intact.
+
 ## App Navigation
 
 - Home: Search Topic + Research Dashboard
@@ -41,6 +56,7 @@ A Flutter mobile app for searching OpenAlex research publications and analyzing 
 - `http` for OpenAlex API calls
 - `fl_chart` for trend charts
 - Firebase Authentication, Storage, Cloud Messaging, Analytics, Crashlytics, and Remote Config
+- Flutter Web, FlutterFire, and Firebase Functions for the Admin Web portal
 - Patrol for Android E2E testing
 
 ## Folder Structure
@@ -61,6 +77,12 @@ lib/
     screens/
     trends/
     widgets/
+admin_web/                 # Standalone Flutter Web admin portal
+functions/                 # Trusted Firebase Admin API (Node.js 22)
+tool/build_admin_web.dart  # Hosting predeploy builder
+firebase.json              # Hosting, Functions, emulators, rules, and headers
+firestore.rules            # Read-only admin audit access
+storage.rules              # Owner-only client access; admin uses audited API
 ```
 
 ## How To Run
@@ -71,8 +93,35 @@ flutter run
 ```
 
 Run on an Android emulator or a physical Android device with internet access.
-Complete the Firebase Console steps in `LAB03_FIREBASE_SETUP.md` before testing
-Google Sign-In and cloud services.
+Complete the Firebase Console setup before testing Google Sign-In and cloud
+services. Admin Web and shared Firebase deployment instructions are documented
+in [ADMIN_WEB_SETUP.md](./ADMIN_WEB_SETUP.md).
+
+For local Admin Web development:
+
+```powershell
+npm --prefix functions ci
+npx firebase-tools emulators:start --only functions
+```
+
+In another terminal:
+
+```powershell
+Set-Location admin_web
+flutter pub get
+flutter run -d chrome
+```
+
+On localhost, the Flutter client automatically uses the Functions Emulator on
+port `5001`. On Firebase Hosting it automatically uses the same-origin
+`/api/v1` rewrite.
+
+The Firebase Web App is already registered in the existing
+`journal-trend-analyzer` project; do not create a second Firebase project.
+Production Hosting builds `admin_web/build/web` with
+`dart run tool/build_admin_web.dart`. See
+[ADMIN_WEB_SETUP.md](./ADMIN_WEB_SETUP.md) for App Check, emulator, first-admin,
+and deployment commands.
 
 ## Patrol
 
