@@ -303,7 +303,9 @@ class ProfileScreen extends StatelessWidget {
                             tooltip: 'Refresh Remote Config',
                             onPressed: firebase.isLoadingRemoteConfig
                                 ? null
-                                : firebase.refreshRemoteConfig,
+                                : () => firebase.refreshRemoteConfig(
+                                    forceRefresh: true,
+                                  ),
                             icon: firebase.isLoadingRemoteConfig
                                 ? const SizedBox(
                                     width: 18,

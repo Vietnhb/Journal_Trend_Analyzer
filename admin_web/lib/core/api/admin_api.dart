@@ -99,6 +99,15 @@ final class AdminApi {
     );
   }
 
+  Future<RemoteConfigData> getRemoteConfigVersion(
+    String versionNumber,
+  ) => _client.get(
+    'remote-config/versions/${Uri.encodeComponent(_requiredText(versionNumber, 'versionNumber'))}',
+    (data) => RemoteConfigData.fromJson(
+      readJsonMap(data, context: 'Remote Config version'),
+    ),
+  );
+
   Future<RemoteConfigData> rollbackRemoteConfig({
     required String versionNumber,
     required String expectedEtag,
@@ -124,7 +133,10 @@ final class AdminApi {
   Future<ValidatedStorageFile> downloadReport(StoredReport report) async {
     final response = await _client.downloadBytes(
       'reports/download',
-      query: {'path': _requiredText(report.path, 'path')},
+      query: {
+        'path': _requiredText(report.path, 'path'),
+        'generation': _requiredText(report.generation, 'generation'),
+      },
     );
     if (response.contentLength != null &&
         response.contentLength != response.bytes.length) {
@@ -153,6 +165,35 @@ final class AdminApi {
     },
     (data) => ReportDeleteResult.fromJson(
       readJsonMap(data, context: 'report delete result'),
+    ),
+  );
+
+  Future<ReportBulkDeleteResult> deleteReports(List<StoredReport> reports) {
+    if (reports.isEmpty || reports.length > 100) {
+      throw ArgumentError.value(reports.length, 'reports');
+    }
+    return _client.delete(
+      'reports/bulk',
+      {
+        'reports': [
+          for (final report in reports)
+            {
+              'path': _requiredText(report.path, 'path'),
+              'generation': _requiredText(report.generation, 'generation'),
+            },
+        ],
+      },
+      (data) => ReportBulkDeleteResult.fromJson(
+        readJsonMap(data, context: 'bulk report delete result'),
+      ),
+    );
+  }
+
+  Future<ReportBulkDeleteResult> deleteAllReports() => _client.delete(
+    'reports/all',
+    const {'confirmation': 'XOA TOAN BO BAO CAO'},
+    (data) => ReportBulkDeleteResult.fromJson(
+      readJsonMap(data, context: 'delete all reports result'),
     ),
   );
 

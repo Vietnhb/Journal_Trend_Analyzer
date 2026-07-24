@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:journal_trend_admin_web/core/core.dart';
 
 import '../theme/app_theme.dart';
@@ -219,7 +220,7 @@ class _UsersPageState extends State<UsersPage> {
         eyebrow: 'Firebase Authentication',
         title: 'Quản lý người dùng',
         description:
-            'Tra cứu chính xác theo email hoặc UID, quản lý trạng thái tài khoản và custom claim Admin.',
+            'Tra cứu chính xác theo email, số điện thoại hoặc UID, quản lý trạng thái tài khoản và custom claim Admin.',
         actions: [
           OutlinedButton.icon(
             onPressed: _refresh,
@@ -241,7 +242,7 @@ class _UsersPageState extends State<UsersPage> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search_rounded),
-                      hintText: 'Nhập chính xác email hoặc UID…',
+                      hintText: 'Email, số điện thoại +84… hoặc UID…',
                       suffixIcon: _searchController.text.isEmpty
                           ? null
                           : IconButton(
@@ -304,7 +305,7 @@ class _UsersPageState extends State<UsersPage> {
                         : 'Không tìm thấy tài khoản',
                     description: _query.isEmpty
                         ? 'Tài khoản sẽ xuất hiện sau lần đăng nhập Firebase đầu tiên.'
-                        : 'Không có email hoặc UID khớp “$_query”.',
+                        : 'Không có email, số điện thoại hoặc UID khớp “$_query”.',
                     icon: Icons.person_search_outlined,
                   );
                 }
@@ -404,9 +405,11 @@ class _UsersTable extends StatelessWidget {
     child: DataTable(
       columns: const [
         DataColumn(label: Text('NGƯỜI DÙNG')),
+        DataColumn(label: Text('UID')),
         DataColumn(label: Text('VAI TRÒ')),
         DataColumn(label: Text('TRẠNG THÁI')),
         DataColumn(label: Text('PROVIDER')),
+        DataColumn(label: Text('NGÀY TẠO')),
         DataColumn(label: Text('ĐĂNG NHẬP GẦN NHẤT')),
         DataColumn(label: Text('')),
       ],
@@ -415,6 +418,7 @@ class _UsersTable extends StatelessWidget {
           DataRow(
             cells: [
               DataCell(SizedBox(width: 260, child: _UserIdentity(user: user))),
+              DataCell(_UidValue(uid: user.uid)),
               DataCell(
                 user.isAdmin
                     ? const StatusPill(
@@ -436,6 +440,12 @@ class _UsersTable extends StatelessWidget {
                   child: Text(
                     user.providers.isEmpty ? '—' : user.providers.join(', '),
                   ),
+                ),
+              ),
+              DataCell(
+                SizedBox(
+                  width: 150,
+                  child: Text(formatDateTime(user.createdAt)),
                 ),
               ),
               DataCell(
@@ -527,6 +537,16 @@ class _UsersCards extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 11),
+              _CardDetail(
+                label: 'UID',
+                child: _UidValue(uid: user.uid),
+              ),
+              const SizedBox(height: 7),
+              _CardDetail(
+                label: 'Ngày tạo',
+                child: Text(formatDateTime(user.createdAt)),
+              ),
+              const SizedBox(height: 7),
               Text(
                 'Đăng nhập gần nhất: ${formatDateTime(user.lastSignInAt)}',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -573,7 +593,9 @@ class _UserIdentity extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             Text(
-              user.email ?? 'Không có email',
+              user.email ??
+                  user.phoneNumber ??
+                  'Không có email hoặc số điện thoại',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -581,19 +603,64 @@ class _UserIdentity extends StatelessWidget {
                 fontSize: 12,
               ),
             ),
-            Tooltip(
-              message: user.uid,
-              child: Text(
-                truncateMiddle(user.uid),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.outline,
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                ),
-              ),
-            ),
           ],
         ),
+      ),
+    ],
+  );
+}
+
+class _UidValue extends StatelessWidget {
+  const _UidValue({required this.uid});
+
+  final String uid;
+
+  Future<void> _copy(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: uid));
+    if (context.mounted) showAppMessage(context, 'Đã sao chép UID.');
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Tooltip(
+        message: uid,
+        child: Text(
+          truncateMiddle(uid, keep: 6),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontFamily: 'monospace',
+            fontSize: 11,
+          ),
+        ),
+      ),
+      IconButton(
+        tooltip: 'Sao chép UID',
+        visualDensity: VisualDensity.compact,
+        onPressed: () => _copy(context),
+        icon: const Icon(Icons.copy_rounded, size: 17),
+      ),
+    ],
+  );
+}
+
+class _CardDetail extends StatelessWidget {
+  const _CardDetail({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      SizedBox(
+        width: 72,
+        child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ),
+      Expanded(
+        child: Align(alignment: Alignment.centerLeft, child: child),
       ),
     ],
   );

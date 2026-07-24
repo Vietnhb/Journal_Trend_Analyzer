@@ -5,6 +5,7 @@ export function serializeUser(user: UserRecord): Record<string, unknown> {
   return {
     uid: user.uid,
     email: user.email ?? null,
+    phoneNumber: user.phoneNumber ?? null,
     displayName: user.displayName ?? null,
     photoURL: user.photoURL ?? null,
     disabled: user.disabled,

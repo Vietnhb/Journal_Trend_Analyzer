@@ -113,7 +113,10 @@ class _AnalyticsContent extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       if (data.reason?.trim().isNotEmpty == true) ...[
-        _AnalyticsReadyNotice(message: data.reason!.trim()),
+        _AnalyticsReadyNotice(
+          message: data.reason!.trim(),
+          source: data.source,
+        ),
         const SizedBox(height: 22),
       ],
       AdaptiveGrid(
@@ -142,6 +145,12 @@ class _AnalyticsContent extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 22),
+      _BusinessEventsOverview(
+        events: data.events,
+        eventDaily: data.eventDaily,
+        rangeLabel: rangeLabel,
+      ),
+      const SizedBox(height: 22),
       _AnalyticsChart(daily: data.daily, rangeLabel: rangeLabel),
       const SizedBox(height: 22),
       _EventsSection(
@@ -154,9 +163,10 @@ class _AnalyticsContent extends StatelessWidget {
 }
 
 class _AnalyticsReadyNotice extends StatelessWidget {
-  const _AnalyticsReadyNotice({required this.message});
+  const _AnalyticsReadyNotice({required this.message, required this.source});
 
   final String message;
+  final AnalyticsSource source;
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +192,24 @@ class _AnalyticsReadyNotice extends StatelessWidget {
                     color: scheme.onSurfaceVariant,
                     height: 1.45,
                   ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    const StatusPill(
+                      'journal_trend_analyzer · Android',
+                      tone: StatusTone.success,
+                      icon: Icons.android_rounded,
+                    ),
+                    StatusPill(
+                      'Stream ${source.streamId.isEmpty ? "chưa cấu hình" : source.streamId}',
+                      tone: source.streamId.isEmpty
+                          ? StatusTone.warning
+                          : StatusTone.neutral,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -428,6 +456,171 @@ class _SetupStep extends StatelessWidget {
   );
 }
 
+const _businessEventNames = <String>[
+  'login',
+  'search_topic',
+  'view_publication',
+  'view_journal',
+  'view_keyword',
+  'export_pdf',
+  'logout',
+];
+
+bool _isBusinessEvent(String name) => _businessEventNames.contains(name);
+
+String _lastRecordedFor(
+  String eventName,
+  List<AnalyticsEventDaily> eventDaily,
+) {
+  final dates =
+      eventDaily
+          .where((point) => point.name == eventName && point.count > 0)
+          .map((point) => point.date)
+          .where((date) => date.isNotEmpty)
+          .toList()
+        ..sort();
+  return dates.isEmpty ? 'Chưa ghi nhận' : formatChartDate(dates.last);
+}
+
+class _BusinessEventsOverview extends StatelessWidget {
+  const _BusinessEventsOverview({
+    required this.events,
+    required this.eventDaily,
+    required this.rangeLabel,
+  });
+
+  final List<AnalyticsEvent> events;
+  final List<AnalyticsEventDaily> eventDaily;
+  final String rangeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final byName = {for (final event in events) event.name: event};
+    final active = _businessEventNames
+        .where((name) => (byName[name]?.count ?? 0) > 0)
+        .length;
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionTitle(
+            title: 'Kiểm tra event nghiệp vụ',
+            description:
+                '$active/${_businessEventNames.length} event đã được GA4 ghi nhận · $rangeLabel',
+            trailing: StatusPill(
+              active == _businessEventNames.length
+                  ? 'Đầy đủ'
+                  : '${_businessEventNames.length - active} chưa có dữ liệu',
+              tone: active == _businessEventNames.length
+                  ? StatusTone.success
+                  : StatusTone.warning,
+              icon: active == _businessEventNames.length
+                  ? Icons.verified_rounded
+                  : Icons.pending_actions_rounded,
+            ),
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) => GridView.count(
+              crossAxisCount: constraints.maxWidth >= 1050
+                  ? 4
+                  : constraints.maxWidth >= 680
+                  ? 2
+                  : 1,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: constraints.maxWidth >= 680 ? 3.2 : 3.8,
+              children: [
+                for (final name in _businessEventNames)
+                  _BusinessEventCard(
+                    name: name,
+                    event: byName[name],
+                    lastRecorded: _lastRecordedFor(name, eventDaily),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BusinessEventCard extends StatelessWidget {
+  const _BusinessEventCard({
+    required this.name,
+    required this.event,
+    required this.lastRecorded,
+  });
+
+  final String name;
+  final AnalyticsEvent? event;
+  final String lastRecorded;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = event?.count ?? 0;
+    final active = count > 0;
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: (active ? Colors.green : Colors.amber)
+                  .withValues(alpha: .12),
+              child: Icon(
+                active ? Icons.check_rounded : Icons.hourglass_empty_rounded,
+                color: active ? Colors.green : Colors.amber.shade800,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _eventLabel(name),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  Text(
+                    '$name · ${formatNumber(count)} lần',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                  Text(
+                    'Gần nhất: $lastRecorded',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AnalyticsChart extends StatelessWidget {
   const _AnalyticsChart({required this.daily, required this.rangeLabel});
 
@@ -637,21 +830,23 @@ class _EventsSection extends StatefulWidget {
 class _EventsSectionState extends State<_EventsSection> {
   static const _pageSize = 10;
   String _query = '';
+  _EventCategory _category = _EventCategory.all;
   int _page = 0;
 
   @override
   Widget build(BuildContext context) {
-    final ordered =
-        widget.events
-            .where(
-              (event) =>
-                  event.name.toLowerCase().contains(_query.toLowerCase()) ||
-                  _eventLabel(
-                    event.name,
-                  ).toLowerCase().contains(_query.toLowerCase()),
-            )
-            .toList()
-          ..sort((left, right) => right.count.compareTo(left.count));
+    final ordered = widget.events.where((event) {
+      final matchesCategory = switch (_category) {
+        _EventCategory.all => true,
+        _EventCategory.business => _isBusinessEvent(event.name),
+        _EventCategory.system => !_isBusinessEvent(event.name),
+      };
+      return matchesCategory &&
+          (event.name.toLowerCase().contains(_query.toLowerCase()) ||
+              _eventLabel(
+                event.name,
+              ).toLowerCase().contains(_query.toLowerCase()));
+    }).toList()..sort((left, right) => right.count.compareTo(left.count));
     final pageCount = (ordered.length / _pageSize).ceil().clamp(1, 999999);
     final safePage = _page.clamp(0, pageCount - 1);
     final start = safePage * _pageSize;
@@ -679,6 +874,22 @@ class _EventsSectionState extends State<_EventsSection> {
               ),
             ),
           ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final category in _EventCategory.values)
+                ChoiceChip(
+                  label: Text(category.label),
+                  selected: _category == category,
+                  onSelected: (_) => setState(() {
+                    _category = category;
+                    _page = 0;
+                  }),
+                ),
+            ],
+          ),
           const SizedBox(height: 18),
           if (ordered.isEmpty)
             EmptyPanel(
@@ -699,6 +910,10 @@ class _EventsSectionState extends State<_EventsSection> {
                       for (var index = 0; index < visible.length; index++) ...[
                         _EventCard(
                           event: visible[index],
+                          lastRecorded: _lastRecordedFor(
+                            visible[index].name,
+                            widget.eventDaily,
+                          ),
                           onTap: () => _showDetails(visible[index]),
                         ),
                         if (index != visible.length - 1)
@@ -727,10 +942,7 @@ class _EventsSectionState extends State<_EventsSection> {
                           label: Text('Sự kiện/người dùng'),
                           numeric: true,
                         ),
-                        DataColumn(
-                          label: Text('Tổng doanh thu'),
-                          numeric: true,
-                        ),
+                        DataColumn(label: Text('Ghi nhận gần nhất')),
                         DataColumn(label: Text('Chi tiết')),
                       ],
                       rows: [
@@ -797,7 +1009,7 @@ class _EventsSectionState extends State<_EventsSection> {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
-        DataCell(Text(formatCurrency(event.revenue))),
+        DataCell(Text(_lastRecordedFor(event.name, widget.eventDaily))),
         DataCell(
           IconButton(
             tooltip: 'Xem chi tiết ${event.name}',
@@ -855,8 +1067,8 @@ class _EventsSectionState extends State<_EventsSection> {
                       value: event.countPerUser.toStringAsFixed(2),
                     ),
                     _EventDetailMetric(
-                      label: 'Tổng doanh thu',
-                      value: formatCurrency(event.revenue),
+                      label: 'Ghi nhận gần nhất',
+                      value: _lastRecordedFor(event.name, widget.eventDaily),
                     ),
                   ],
                 ),
@@ -897,9 +1109,14 @@ class _EventsSectionState extends State<_EventsSection> {
 }
 
 class _EventCard extends StatelessWidget {
-  const _EventCard({required this.event, required this.onTap});
+  const _EventCard({
+    required this.event,
+    required this.lastRecorded,
+    required this.onTap,
+  });
 
   final AnalyticsEvent event;
+  final String lastRecorded;
   final VoidCallback onTap;
 
   @override
@@ -948,10 +1165,7 @@ class _EventCard extends StatelessWidget {
                     label: 'Sự kiện/người',
                     value: event.countPerUser.toStringAsFixed(2),
                   ),
-                  _InlineTextMetric(
-                    label: 'Doanh thu',
-                    value: formatCurrency(event.revenue),
-                  ),
+                  _InlineTextMetric(label: 'Gần nhất', value: lastRecorded),
                 ],
               ),
             ],
@@ -960,6 +1174,15 @@ class _EventCard extends StatelessWidget {
       ),
     );
   }
+}
+
+enum _EventCategory {
+  all('Tất cả'),
+  business('Nghiệp vụ'),
+  system('Hệ thống');
+
+  const _EventCategory(this.label);
+  final String label;
 }
 
 class _EventDetailMetric extends StatelessWidget {

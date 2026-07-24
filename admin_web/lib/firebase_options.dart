@@ -2,12 +2,12 @@ import 'package:firebase_core/firebase_core.dart';
 
 abstract final class DefaultFirebaseOptions {
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyA3I0PRtCcxS-_jCDouJ4o9oOjVH-XjQvs',
-    appId: '1:48277052775:web:af916acc2500cdd79263c2',
-    messagingSenderId: '48277052775',
-    projectId: 'journal-trend-analyzer',
-    authDomain: 'journal-trend-analyzer.firebaseapp.com',
-    storageBucket: 'journal-trend-analyzer.firebasestorage.app',
-    measurementId: 'G-NVP7Y9P21P',
+    apiKey: 'AIzaSyAi-HBeRQmoqnT8LGKrCnSB2YRt3udhAko',
+    appId: '1:1007589685877:web:3683839a83e17b1840963c',
+    messagingSenderId: '1007589685877',
+    projectId: 'laundry-locker-19a9d',
+    authDomain: 'laundry-locker-19a9d.firebaseapp.com',
+    storageBucket: 'laundry-locker-19a9d.firebasestorage.app',
+    measurementId: 'G-603470956Z',
   );
 }

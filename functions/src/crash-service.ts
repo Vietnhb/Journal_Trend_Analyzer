@@ -2,7 +2,7 @@ import { BigQuery } from "@google-cloud/bigquery";
 import { logger } from "firebase-functions";
 
 import { ApiError, safeErrorDetails } from "./errors.js";
-import { crashlyticsTable } from "./params.js";
+import { crashlyticsAppId, crashlyticsTable } from "./params.js";
 import { parseCrashlyticsTable } from "./validation.js";
 
 let bigQueryClient: BigQuery | undefined;
@@ -70,11 +70,24 @@ function emptyResult(
   };
 }
 
-export function selectCrashlyticsTableNames(names: readonly string[]): string[] {
+export function crashlyticsTablePrefix(appId: string): string {
+  const normalized = appId.trim().replaceAll(".", "_");
+  if (!/^[A-Za-z0-9_]+$/u.test(normalized)) return "";
+  return `${normalized}_ANDROID`;
+}
+
+export function selectCrashlyticsTableNames(
+  names: readonly string[],
+  appId = "",
+): string[] {
+  const configuredPrefix = crashlyticsTablePrefix(appId);
   return names
     .filter((name) =>
       !name.startsWith("firebase_sessions_") &&
-      /^[A-Za-z0-9_]+_(?:ANDROID|IOS)(?:_REALTIME)?$/u.test(name),
+      /^[A-Za-z0-9_]+_(?:ANDROID|IOS)(?:_REALTIME)?$/u.test(name) &&
+      (configuredPrefix.length === 0 ||
+        name === configuredPrefix ||
+        name === `${configuredPrefix}_REALTIME`),
     )
     .sort();
 }
@@ -82,13 +95,14 @@ export function selectCrashlyticsTableNames(names: readonly string[]): string[] 
 async function discoverCrashlyticsSource(): Promise<{
   source: string | null;
   datasetFound: boolean;
+  tables: string[];
 }> {
   const [datasets] = await client().getDatasets({ all: true });
   const crashDatasets = datasets.filter((dataset) =>
     dataset.id?.startsWith("firebase_crashlytics"),
   );
   if (crashDatasets.length === 0) {
-    return { source: null, datasetFound: false };
+    return { source: null, datasetFound: false, tables: [] };
   }
 
   const tableNames: string[] = [];
@@ -97,6 +111,7 @@ async function discoverCrashlyticsSource(): Promise<{
     const [tables] = await dataset.getTables();
     for (const name of selectCrashlyticsTableNames(
       tables.map((table) => table.id ?? ""),
+      crashlyticsAppId.value(),
     )) {
       const datasetId = dataset.id;
       if (
@@ -110,13 +125,14 @@ async function discoverCrashlyticsSource(): Promise<{
     }
   }
   if (tableNames.length === 0) {
-    return { source: null, datasetFound: true };
+    return { source: null, datasetFound: true, tables: [] };
   }
   return {
     source: tableNames.length === 1
       ? tableNames[0]!
       : `(${tableNames.map((table) => `SELECT * FROM ${table}`).join(" UNION ALL ")})`,
     datasetFound: true,
+    tables: tableNames,
   };
 }
 
@@ -131,9 +147,11 @@ async function discoverSessionsSource(): Promise<string | null> {
     const datasetId = dataset.id;
     if (datasetId === undefined || !/^[A-Za-z0-9_]+$/u.test(datasetId)) continue;
     const [tables] = await dataset.getTables();
-    for (const table of tables) {
-      const name = table.id ?? "";
-      if (/^[A-Za-z0-9_]+_(?:ANDROID|IOS)(?:_REALTIME)?$/u.test(name)) {
+    for (const name of selectCrashlyticsTableNames(
+      tables.map((table) => table.id ?? ""),
+      crashlyticsAppId.value(),
+    )) {
+      if (/^[A-Za-z0-9_]+_ANDROID(?:_REALTIME)?$/u.test(name)) {
         tableNames.push(`\`${projectId}.${datasetId}.${name}\``);
       }
     }
@@ -243,10 +261,12 @@ export async function loadCrashes(
       const discovered = await discoverCrashlyticsSource();
       if (discovered.source === null) {
         return emptyResult(
-          discovered.datasetFound ? "ready" : "unconfigured",
+          "unconfigured",
           discovered.datasetFound
-            ? "Đã kết nối Crashlytics BigQuery; đang chờ crash event đầu tiên được export."
-            : "Hãy bật Crashlytics BigQuery export cho Firebase project này.",
+            ? `Dataset firebase_crashlytics đã tồn tại nhưng chưa có bảng cho ứng dụng ${
+                crashlyticsAppId.value().trim() || "Android đã cấu hình"
+              }. Hãy bật Crashlytics BigQuery export cho app này và gửi ít nhất hai sự kiện mới.`
+            : "Chưa tìm thấy dataset firebase_crashlytics. Hãy bật Crashlytics BigQuery export cho Firebase project này.",
         );
       }
       source = discovered.source;

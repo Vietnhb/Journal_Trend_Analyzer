@@ -27,7 +27,6 @@ function pageTokenFrom(nextQuery: unknown): string | undefined {
 export interface ReportFileSummary {
   path: string;
   name: string;
-  viewUrl: string | null;
   ownerUid: string;
   ownerEmail: string | null;
   topic: string | null;
@@ -36,28 +35,6 @@ export interface ReportFileSummary {
   generation: string;
   createdAt: string | null;
   updatedAt: string | null;
-}
-
-export function firebaseStorageViewUrl(options: {
-  bucket: string;
-  path: string;
-  generation: string | number;
-  downloadTokens: unknown;
-}): string | null {
-  if (typeof options.downloadTokens !== "string") return null;
-  const token = options.downloadTokens
-    .split(",")
-    .map((value) => value.trim())
-    .find((value) => /^[A-Za-z0-9_-]{16,256}$/u.test(value));
-  if (token === undefined) return null;
-
-  const url = new URL(
-    `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(options.bucket)}/o/${encodeURIComponent(options.path)}`,
-  );
-  url.searchParams.set("alt", "media");
-  url.searchParams.set("token", token);
-  url.searchParams.set("generation", String(options.generation));
-  return url.toString();
 }
 
 export interface ValidatedReportMetadata {
@@ -197,12 +174,6 @@ export async function listReportPage(options: ReportPageOptions): Promise<{
     return {
       path: file.name,
       name: parsedPath.name,
-      viewUrl: firebaseStorageViewUrl({
-        bucket: bucket.name,
-        path: file.name,
-        generation: validatedGeneration(itemMetadata),
-        downloadTokens: itemMetadata.metadata?.firebaseStorageDownloadTokens,
-      }),
       ownerUid: parsedPath.ownerUid,
       ownerEmail: ownerEmails.get(parsedPath.ownerUid) ?? null,
       topic: customTopic(itemMetadata),
@@ -240,7 +211,7 @@ export async function scanReportTotals(): Promise<{ count: number; totalBytes: n
   return { count, totalBytes };
 }
 
-export async function getValidatedPdf(path: string): Promise<{
+export async function getValidatedPdf(path: string, expectedGeneration: string): Promise<{
   file: StorageFile;
   name: string;
   sizeBytes: number;
@@ -256,6 +227,13 @@ export async function getValidatedPdf(path: string): Promise<{
     throw error;
   }
   const validated = validateReportDownloadMetadata(metadata);
+  if (String(validated.generation) !== expectedGeneration) {
+    throw new ApiError(
+      409,
+      "report_generation_conflict",
+      "The report changed since it was loaded. Refresh and try again.",
+    );
+  }
   const versionedFile = adminStorage.bucket().file(path, {
     generation: validated.generation,
   });
@@ -281,6 +259,68 @@ export async function deleteReport(path: string, generation: string): Promise<vo
   } catch (error) {
     throw mapReportDeleteError(error);
   }
+}
+
+export interface ReportDeletionTarget {
+  path: string;
+  generation: string;
+}
+
+export interface ReportDeletionResult {
+  deleted: string[];
+  failed: Array<{ path: string; code: string }>;
+}
+
+export async function deleteReports(
+  reports: readonly ReportDeletionTarget[],
+): Promise<ReportDeletionResult> {
+  const results = await Promise.allSettled(
+    reports.map(async ({ path, generation }) => {
+      await deleteReport(path, generation);
+      return path;
+    }),
+  );
+  const deleted: string[] = [];
+  const failed: Array<{ path: string; code: string }> = [];
+  results.forEach((result, index) => {
+    const target = reports[index];
+    if (target === undefined) return;
+    if (result.status === "fulfilled") {
+      deleted.push(result.value);
+      return;
+    }
+    const mapped = mapReportDeleteError(result.reason);
+    failed.push({
+      path: target.path,
+      code: mapped instanceof ApiError ? mapped.code : "internal",
+    });
+  });
+  return { deleted, failed };
+}
+
+export async function deleteAllReports(): Promise<ReportDeletionResult> {
+  const bucket = adminStorage.bucket();
+  const combined: ReportDeletionResult = { deleted: [], failed: [] };
+  let pageToken: string | undefined;
+  do {
+    const [files, nextQuery] = await bucket.getFiles({
+      autoPaginate: false,
+      maxResults: 1000,
+      prefix: REPORT_PREFIX,
+      ...(pageToken === undefined ? {} : { pageToken }),
+    });
+    const targets = files
+      .filter((file) => isValidReportPath(file.name))
+      .map((file) => ({
+        path: file.name,
+        generation: String(validatedGeneration(file.metadata)),
+      }));
+    const page = await deleteReports(targets);
+    combined.deleted.push(...page.deleted);
+    combined.failed.push(...page.failed);
+    pageToken = pageTokenFrom(nextQuery);
+  } while (pageToken !== undefined);
+  return combined;
 }
 
 export function mapReportDeleteError(error: unknown): unknown {

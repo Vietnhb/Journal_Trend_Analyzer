@@ -100,18 +100,31 @@ class FirebaseService {
     ]);
   }
 
-  Future<void> configureRemoteConfig() async {
+  Future<void> configureRemoteConfig({bool forceRefresh = false}) async {
     await remoteConfig.setConfigSettings(
       RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 15),
-        minimumFetchInterval: const Duration(minutes: 5),
+        minimumFetchInterval: forceRefresh
+            ? Duration.zero
+            : const Duration(minutes: 5),
       ),
     );
     await remoteConfig.setDefaults(const {
       'max_journals': 10,
       'max_keywords': 12,
     });
-    await remoteConfig.fetchAndActivate();
+    try {
+      await remoteConfig.fetchAndActivate();
+    } finally {
+      if (forceRefresh) {
+        await remoteConfig.setConfigSettings(
+          RemoteConfigSettings(
+            fetchTimeout: const Duration(seconds: 15),
+            minimumFetchInterval: const Duration(minutes: 5),
+          ),
+        );
+      }
+    }
   }
 
   int getRemoteInt(String key) => remoteConfig.getInt(key);

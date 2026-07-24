@@ -9,30 +9,19 @@ import 'storage_file.dart';
 final class BrowserStorageFileService {
   final Set<String> _objectUrls = <String>{};
 
-  void previewUrl(String value) {
-    final url = _validatedFirebaseStorageUrl(value);
-    web.window.open(url.toString(), '_blank', 'noopener');
+  void previewFile(ValidatedStorageFile file) {
+    final objectUrl = _createObjectUrl(file);
+    final anchor = web.HTMLAnchorElement()
+      ..href = objectUrl
+      ..target = '_blank'
+      ..rel = 'noopener';
+    web.document.body?.append(anchor);
+    anchor.click();
+    anchor.remove();
+    _scheduleRelease(objectUrl, const Duration(minutes: 5));
   }
 
-  Future<void> downloadFromUrl({
-    required String url,
-    required String name,
-    required int expectedSize,
-  }) async {
-    final source = _validatedFirebaseStorageUrl(url);
-    final response = await web.window.fetch(source.toString().toJS).toDart;
-    if (!response.ok) {
-      throw StorageFileException(
-        'Không thể tải tệp từ Firebase Storage (HTTP ${response.status}).',
-      );
-    }
-    final bytes = (await response.arrayBuffer().toDart).toDart.asUint8List();
-    final file = ValidatedStorageFile.pdf(
-      name: name,
-      bytes: bytes,
-      expectedSize: expectedSize,
-      responseContentType: response.headers.get('content-type'),
-    );
+  void downloadFile(ValidatedStorageFile file) {
     final objectUrl = _createObjectUrl(file);
     final anchor = web.HTMLAnchorElement()
       ..href = objectUrl
@@ -42,21 +31,6 @@ final class BrowserStorageFileService {
     anchor.click();
     anchor.remove();
     _scheduleRelease(objectUrl, const Duration(minutes: 1));
-  }
-
-  Uri _validatedFirebaseStorageUrl(String value) {
-    final url = Uri.tryParse(value);
-    if (url == null ||
-        url.scheme != 'https' ||
-        url.host != 'firebasestorage.googleapis.com' ||
-        url.pathSegments.length < 5 ||
-        url.queryParameters['alt'] != 'media' ||
-        url.queryParameters['token']?.isNotEmpty != true) {
-      throw const StorageFileException(
-        'Liên kết Firebase Storage không hợp lệ.',
-      );
-    }
-    return url;
   }
 
   String _createObjectUrl(ValidatedStorageFile file) {

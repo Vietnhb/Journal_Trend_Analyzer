@@ -54,6 +54,21 @@ void main() {
       expect(data.reason, contains('analytics_542374527'));
     });
 
+    test('Analytics identifies the scoped GA4 Android stream', () {
+      final data = AnalyticsData.fromJson({
+        'status': 'ready',
+        'reason': 'Scoped Android analytics.',
+        'source': {'propertyId': '520062234', 'streamId': '15254447622'},
+        'summary': const <String, Object?>{},
+        'events': const [],
+        'daily': const [],
+        'eventDaily': const [],
+      });
+
+      expect(data.source.propertyId, '520062234');
+      expect(data.source.streamId, '15254447622');
+    });
+
     test('UserUpdate distinguishes omitted and explicitly cleared name', () {
       expect(
         const UserUpdate(clearDisplayName: true, disabled: true).toJson(),
@@ -68,6 +83,7 @@ void main() {
           {
             'uid': 'uid-1',
             'email': 'admin@example.com',
+            'phoneNumber': null,
             'displayName': null,
             'photoURL': null,
             'disabled': false,
@@ -86,8 +102,6 @@ void main() {
           {
             'path': 'report/uid-1/analysis/report.pdf',
             'name': 'report.pdf',
-            'viewUrl':
-                'https://firebasestorage.googleapis.com/v0/b/example/o/report.pdf?alt=media&token=test',
             'ownerUid': 'uid-1',
             'ownerEmail': 'user@example.com',
             'topic': 'AI',
@@ -102,9 +116,22 @@ void main() {
       });
 
       expect(users.users.single.isAdmin, isTrue);
+      expect(users.users.single.createdAt, '2026-07-01T00:00:00Z');
       expect(users.nextPageToken, isNull);
       expect(reports.nextPageToken, 'next');
-      expect(reports.reports.single.viewUrl, startsWith('https://'));
+      expect(reports.reports.single.path, contains('/analysis/'));
+
+      final deletion = ReportBulkDeleteResult.fromJson({
+        'deleted': ['report/uid-1/analysis/report.pdf'],
+        'failed': const [
+          {
+            'path': 'report/uid-2/analysis/stale.pdf',
+            'code': 'report_generation_conflict',
+          },
+        ],
+      });
+      expect(deletion.deleted, hasLength(1));
+      expect(deletion.failed.single.code, 'report_generation_conflict');
     });
 
     test('messaging campaign parses scheduling and delivery state', () {

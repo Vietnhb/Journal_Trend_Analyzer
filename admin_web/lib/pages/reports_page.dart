@@ -24,6 +24,8 @@ class _ReportsPageState extends State<ReportsPage> {
   late Future<ReportPage> _future;
   String _query = '';
   String? _busyPath;
+  bool _bulkBusy = false;
+  final Map<String, StoredReport> _selectedReports = {};
   int _pageIndex = 0;
   AdminDateRange _range = AdminDateRange.last30Days;
 
@@ -100,33 +102,21 @@ class _ReportsPageState extends State<ReportsPage> {
   }) async {
     if (_busyPath != null) return;
 
-    final viewUrl = report.viewUrl;
-    if (viewUrl == null) {
-      showAppMessage(
-        context,
-        'Tệp chưa có liên kết Firebase Storage hợp lệ.',
-        error: true,
-      );
-      return;
-    }
-    if (!download) {
-      try {
-        _fileService.previewUrl(viewUrl);
-      } catch (error) {
-        showAppMessage(context, errorText(error), error: true);
-      }
-      return;
-    }
-
     setState(() => _busyPath = report.path);
     try {
-      await _fileService.downloadFromUrl(
-        url: viewUrl,
-        name: report.name,
-        expectedSize: report.sizeBytes,
-      );
+      final file = await widget.api.downloadReport(report);
+      if (download) {
+        _fileService.downloadFile(file);
+      } else {
+        _fileService.previewFile(file);
+      }
       if (mounted) {
-        showAppMessage(context, 'Đã bắt đầu tải xuống ${report.name}.');
+        showAppMessage(
+          context,
+          download
+              ? 'Đã bắt đầu tải xuống ${report.name}.'
+              : 'Đã mở bản xem trước ${report.name}.',
+        );
       }
     } catch (error) {
       if (mounted) {
@@ -142,13 +132,13 @@ class _ReportsPageState extends State<ReportsPage> {
     required int pageItemCount,
   }) async {
     if (_busyPath != null) return;
-    final confirmed = await showTypedConfirmation(
+    final confirmed = await showConfirmation(
       context: context,
       title: 'Xóa báo cáo khỏi Storage?',
       description:
-          'Tệp cloud sẽ bị xóa vĩnh viễn. Bản PDF đã lưu cục bộ trên thiết bị người dùng không bị ảnh hưởng.',
-      confirmationText: report.name,
-      actionLabel: 'Xóa báo cáo',
+          'Bạn có chắc muốn xóa “${report.name}”? Tệp sẽ bị xóa vĩnh viễn khỏi Firebase Storage. '
+          'Bản PDF đã lưu cục bộ trên thiết bị người dùng không bị ảnh hưởng.',
+      actionLabel: 'Xác nhận xóa',
       danger: true,
     );
     if (!confirmed || !mounted) return;
@@ -160,6 +150,7 @@ class _ReportsPageState extends State<ReportsPage> {
         generation: report.generation,
       );
       if (!mounted) return;
+      _selectedReports.remove(report.path);
       if (pageItemCount == 1 && _pageIndex > 0) {
         _pageIndex--;
         _pageTokens.removeRange(_pageIndex + 1, _pageTokens.length);
@@ -172,6 +163,109 @@ class _ReportsPageState extends State<ReportsPage> {
       }
     } finally {
       if (mounted) setState(() => _busyPath = null);
+    }
+  }
+
+  void _selectReport(StoredReport report, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedReports[report.path] = report;
+      } else {
+        _selectedReports.remove(report.path);
+      }
+    });
+  }
+
+  void _selectVisible(List<StoredReport> reports, bool selected) {
+    setState(() {
+      for (final report in reports) {
+        if (selected) {
+          _selectedReports[report.path] = report;
+        } else {
+          _selectedReports.remove(report.path);
+        }
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_bulkBusy || _busyPath != null || _selectedReports.isEmpty) return;
+    final reports = _selectedReports.values.toList(growable: false);
+    if (reports.length > 100) {
+      showAppMessage(
+        context,
+        'Mỗi lần chỉ được xóa tối đa 100 báo cáo.',
+        error: true,
+      );
+      return;
+    }
+    final confirmed = await showConfirmation(
+      context: context,
+      title: 'Xóa ${reports.length} báo cáo đã chọn?',
+      description:
+          'Các tệp đã chọn sẽ bị xóa vĩnh viễn khỏi Firebase Storage. '
+          'Tệp cục bộ trên thiết bị người dùng không bị ảnh hưởng.',
+      actionLabel: 'Xác nhận xóa',
+      danger: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _bulkBusy = true);
+    try {
+      final result = await widget.api.deleteReports(reports);
+      if (!mounted) return;
+      for (final path in result.deleted) {
+        _selectedReports.remove(path);
+      }
+      showAppMessage(
+        context,
+        result.failed.isEmpty
+            ? 'Đã xóa ${result.deleted.length} báo cáo.'
+            : 'Đã xóa ${result.deleted.length} báo cáo; ${result.failed.length} tệp không thể xóa. Hãy làm mới và thử lại.',
+        error: result.failed.isNotEmpty,
+      );
+      setState(_load);
+    } catch (error) {
+      if (mounted) showAppMessage(context, errorText(error), error: true);
+    } finally {
+      if (mounted) setState(() => _bulkBusy = false);
+    }
+  }
+
+  Future<void> _deleteAll() async {
+    if (_bulkBusy || _busyPath != null) return;
+    final confirmed = await showConfirmation(
+      context: context,
+      title: 'Xóa toàn bộ báo cáo?',
+      description:
+          'Tất cả PDF trong report/{uid}/analysis của mọi người dùng sẽ bị xóa vĩnh viễn. '
+          'Thao tác này không thể hoàn tác.',
+      actionLabel: 'Xác nhận xóa toàn bộ',
+      danger: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _bulkBusy = true);
+    try {
+      final result = await widget.api.deleteAllReports();
+      if (!mounted) return;
+      _selectedReports.clear();
+      _pageTokens
+        ..clear()
+        ..add(null);
+      _pageIndex = 0;
+      showAppMessage(
+        context,
+        result.failed.isEmpty
+            ? 'Đã xóa toàn bộ ${result.deleted.length} báo cáo.'
+            : 'Đã xóa ${result.deleted.length} báo cáo; ${result.failed.length} tệp không thể xóa.',
+        error: result.failed.isNotEmpty,
+      );
+      setState(_load);
+    } catch (error) {
+      if (mounted) showAppMessage(context, errorText(error), error: true);
+    } finally {
+      if (mounted) setState(() => _bulkBusy = false);
     }
   }
 
@@ -189,7 +283,7 @@ class _ReportsPageState extends State<ReportsPage> {
             onChanged: (range) => setState(() => _range = range),
           ),
           OutlinedButton.icon(
-            onPressed: _busyPath == null ? _refresh : null,
+            onPressed: _busyPath == null && !_bulkBusy ? _refresh : null,
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Làm mới'),
           ),
@@ -262,6 +356,24 @@ class _ReportsPageState extends State<ReportsPage> {
                         },
                       ),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                      child: _ReportBulkActions(
+                        selectedCount: _selectedReports.length,
+                        visibleCount: filtered.length,
+                        allVisibleSelected:
+                            filtered.isNotEmpty &&
+                            filtered.every(
+                              (report) =>
+                                  _selectedReports.containsKey(report.path),
+                            ),
+                        busy: _bulkBusy || _busyPath != null,
+                        onToggleVisible: (selected) =>
+                            _selectVisible(filtered, selected),
+                        onDeleteSelected: _deleteSelected,
+                        onDeleteAll: _deleteAll,
+                      ),
+                    ),
                     const Divider(height: 1),
                     if (filtered.isEmpty)
                       EmptyPanel(
@@ -274,10 +386,12 @@ class _ReportsPageState extends State<ReportsPage> {
                     else
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          if (constraints.maxWidth < 820) {
+                          if (constraints.maxWidth < 1100) {
                             return _ReportCards(
                               reports: filtered,
                               busyPath: _busyPath,
+                              selectedPaths: _selectedReports.keys.toSet(),
+                              onSelected: _selectReport,
                               onPreview: (report) =>
                                   _openReport(report, download: false),
                               onDownload: (report) =>
@@ -291,6 +405,10 @@ class _ReportsPageState extends State<ReportsPage> {
                           return _ReportTable(
                             reports: filtered,
                             busyPath: _busyPath,
+                            selectedPaths: _selectedReports.keys.toSet(),
+                            onSelected: _selectReport,
+                            onSelectAll: (selected) =>
+                                _selectVisible(filtered, selected),
                             onPreview: (report) =>
                                 _openReport(report, download: false),
                             onDownload: (report) =>
@@ -391,12 +509,67 @@ class _ReportToolbar extends StatelessWidget {
   );
 }
 
+class _ReportBulkActions extends StatelessWidget {
+  const _ReportBulkActions({
+    required this.selectedCount,
+    required this.visibleCount,
+    required this.allVisibleSelected,
+    required this.busy,
+    required this.onToggleVisible,
+    required this.onDeleteSelected,
+    required this.onDeleteAll,
+  });
+
+  final int selectedCount;
+  final int visibleCount;
+  final bool allVisibleSelected;
+  final bool busy;
+  final ValueChanged<bool> onToggleVisible;
+  final VoidCallback onDeleteSelected;
+  final VoidCallback onDeleteAll;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 10,
+    runSpacing: 10,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      FilterChip(
+        selected: allVisibleSelected,
+        onSelected: busy || visibleCount == 0 ? null : onToggleVisible,
+        avatar: const Icon(Icons.select_all_rounded, size: 18),
+        label: Text('Chọn trang hiện tại ($visibleCount)'),
+      ),
+      OutlinedButton.icon(
+        onPressed: busy || selectedCount == 0 ? null : onDeleteSelected,
+        icon: busy && selectedCount > 0
+            ? const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.delete_sweep_outlined),
+        label: Text('Xóa đã chọn ($selectedCount)'),
+        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger),
+      ),
+      TextButton.icon(
+        onPressed: busy ? null : onDeleteAll,
+        icon: const Icon(Icons.delete_forever_outlined),
+        label: const Text('Xóa toàn bộ báo cáo'),
+        style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+      ),
+    ],
+  );
+}
+
 typedef _ReportCallback = void Function(StoredReport report);
 
 class _ReportTable extends StatelessWidget {
   const _ReportTable({
     required this.reports,
     required this.busyPath,
+    required this.selectedPaths,
+    required this.onSelected,
+    required this.onSelectAll,
     required this.onPreview,
     required this.onDownload,
     required this.onDelete,
@@ -404,6 +577,9 @@ class _ReportTable extends StatelessWidget {
 
   final List<StoredReport> reports;
   final String? busyPath;
+  final Set<String> selectedPaths;
+  final void Function(StoredReport report, bool selected) onSelected;
+  final ValueChanged<bool> onSelectAll;
   final _ReportCallback onPreview;
   final _ReportCallback onDownload;
   final _ReportCallback onDelete;
@@ -412,6 +588,7 @@ class _ReportTable extends StatelessWidget {
   Widget build(BuildContext context) => SingleChildScrollView(
     scrollDirection: Axis.horizontal,
     child: DataTable(
+      onSelectAll: (selected) => onSelectAll(selected ?? false),
       columns: const [
         DataColumn(label: Text('TỆP BÁO CÁO')),
         DataColumn(label: Text('CHỦ SỞ HỮU')),
@@ -423,6 +600,10 @@ class _ReportTable extends StatelessWidget {
       rows: [
         for (final report in reports)
           DataRow(
+            selected: selectedPaths.contains(report.path),
+            onSelectChanged: busyPath != null
+                ? null
+                : (selected) => onSelected(report, selected ?? false),
             cells: [
               DataCell(_FileIdentity(report: report)),
               DataCell(_OwnerIdentity(report: report)),
@@ -476,6 +657,8 @@ class _ReportCards extends StatelessWidget {
   const _ReportCards({
     required this.reports,
     required this.busyPath,
+    required this.selectedPaths,
+    required this.onSelected,
     required this.onPreview,
     required this.onDownload,
     required this.onDelete,
@@ -483,6 +666,8 @@ class _ReportCards extends StatelessWidget {
 
   final List<StoredReport> reports;
   final String? busyPath;
+  final Set<String> selectedPaths;
+  final void Function(StoredReport report, bool selected) onSelected;
   final _ReportCallback onPreview;
   final _ReportCallback onDownload;
   final _ReportCallback onDelete;
@@ -495,6 +680,8 @@ class _ReportCards extends StatelessWidget {
         for (var index = 0; index < reports.length; index++) ...[
           _ReportMobileCard(
             report: reports[index],
+            selected: selectedPaths.contains(reports[index].path),
+            onSelected: (selected) => onSelected(reports[index], selected),
             busy: busyPath == reports[index].path,
             disabled: busyPath != null,
             onPreview: onPreview,
@@ -511,6 +698,8 @@ class _ReportCards extends StatelessWidget {
 class _ReportMobileCard extends StatelessWidget {
   const _ReportMobileCard({
     required this.report,
+    required this.selected,
+    required this.onSelected,
     required this.busy,
     required this.disabled,
     required this.onPreview,
@@ -519,6 +708,8 @@ class _ReportMobileCard extends StatelessWidget {
   });
 
   final StoredReport report;
+  final bool selected;
+  final ValueChanged<bool> onSelected;
   final bool busy;
   final bool disabled;
   final _ReportCallback onPreview;
@@ -537,7 +728,18 @@ class _ReportMobileCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _FileIdentity(report: report),
+          Row(
+            children: [
+              Checkbox(
+                value: selected,
+                onChanged: disabled
+                    ? null
+                    : (value) => onSelected(value ?? false),
+              ),
+              const SizedBox(width: 4),
+              Expanded(child: _FileIdentity(report: report)),
+            ],
+          ),
           const SizedBox(height: 14),
           _OwnerIdentity(report: report),
           const SizedBox(height: 13),

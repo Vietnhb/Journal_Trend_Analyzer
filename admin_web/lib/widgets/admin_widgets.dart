@@ -516,6 +516,49 @@ Future<bool> showTypedConfirmation({
   return result ?? false;
 }
 
+Future<bool> showConfirmation({
+  required BuildContext context,
+  required String title,
+  required String description,
+  String actionLabel = 'Xác nhận',
+  bool danger = false,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      scrollable: true,
+      icon: danger
+          ? const Icon(
+              Icons.warning_amber_rounded,
+              color: AppTheme.danger,
+              size: 34,
+            )
+          : null,
+      title: Text(title),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Text(description),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          key: const Key('confirm_action'),
+          onPressed: () => Navigator.pop(dialogContext, true),
+          style: danger
+              ? FilledButton.styleFrom(backgroundColor: AppTheme.danger)
+              : null,
+          child: Text(actionLabel),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
+
 class _TypedConfirmationDialog extends StatefulWidget {
   const _TypedConfirmationDialog({
     required this.title,
