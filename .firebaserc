@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "journal-trend-analyzer"
+  },
+  "targets": {
+    "journal-trend-analyzer": {
+      "hosting": {
+        "admin": [
+          "journal-trend-analyzer"
+        ]
+      }
+    }
+  }
+}

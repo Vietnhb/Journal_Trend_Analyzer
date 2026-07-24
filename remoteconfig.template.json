@@ -1,0 +1,21 @@
+{
+  "parameters": {
+    "max_journals": {
+      "defaultValue": {
+        "value": "10"
+      },
+      "description": "Maximum number of journals displayed in journal rankings; managed by Admin Web",
+      "valueType": "NUMBER"
+    },
+    "max_keywords": {
+      "defaultValue": {
+        "value": "12"
+      },
+      "description": "Maximum number of keywords displayed in keyword rankings; managed by Admin Web",
+      "valueType": "NUMBER"
+    }
+  },
+  "version": {
+    "description": "Lab 03 and Admin Web baseline Remote Config template"
+  }
+}
