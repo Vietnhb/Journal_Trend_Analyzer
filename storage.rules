@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidReportFileName(fileName) {
+      return fileName.matches('^.+[.]pdf$');
+    }
+
+    match /report/{userId}/analysis {
+      allow list: if isOwner(userId);
+    }
+
+    match /report/{userId}/analysis/{fileName} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+                            && isValidReportFileName(fileName)
+                            && request.resource.size < 10 * 1024 * 1024
+                            && request.resource.contentType == 'application/pdf';
+      allow delete: if isOwner(userId);
+    }
+
+    // Admin Web deliberately has no direct client rule. Admin report access
+    // goes through adminApi for strict path validation, confirmation and audit.
+  }
+}
