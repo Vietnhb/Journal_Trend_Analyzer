@@ -97,6 +97,7 @@ final class CrashIssue {
     required this.subtitle,
     required this.versions,
     required this.trend,
+    required this.users,
     required this.latest,
   });
 
@@ -112,6 +113,7 @@ final class CrashIssue {
     subtitle: readNullableString(json, 'subtitle'),
     versions: _strings(json['versions']),
     trend: readObjectList(json, 'trend', CrashIssueTrend.fromJson),
+    users: readObjectList(json, 'users', CrashIssueUser.fromJson),
     latest: CrashIssueLatest.fromJson(
       readJsonMap(json['latest'] ?? const <String, Object?>{}),
     ),
@@ -128,6 +130,7 @@ final class CrashIssue {
   final String? subtitle;
   final List<String> versions;
   final List<CrashIssueTrend> trend;
+  final List<CrashIssueUser> users;
   final CrashIssueLatest latest;
 }
 
@@ -141,6 +144,46 @@ final class CrashIssueTrend {
 
   final String date;
   final int events;
+}
+
+final class CrashIssueUser {
+  const CrashIssueUser({
+    required this.installationId,
+    required this.userId,
+    required this.name,
+    required this.email,
+    required this.events,
+    required this.firstSeen,
+    required this.lastSeen,
+    required this.device,
+    required this.operatingSystem,
+  });
+
+  factory CrashIssueUser.fromJson(JsonMap json) => CrashIssueUser(
+    installationId: readString(json, 'installationId', fallback: 'unknown'),
+    userId: readNullableString(json, 'userId'),
+    name: readNullableString(json, 'name'),
+    email: readNullableString(json, 'email'),
+    events: readInt(json, 'events'),
+    firstSeen: readNullableString(json, 'firstSeen'),
+    lastSeen: readNullableString(json, 'lastSeen'),
+    device: CrashDevice.fromJson(
+      readJsonMap(json['device'] ?? const <String, Object?>{}),
+    ),
+    operatingSystem: CrashOperatingSystem.fromJson(
+      readJsonMap(json['operatingSystem'] ?? const <String, Object?>{}),
+    ),
+  );
+
+  final String installationId;
+  final String? userId;
+  final String? name;
+  final String? email;
+  final int events;
+  final String? firstSeen;
+  final String? lastSeen;
+  final CrashDevice device;
+  final CrashOperatingSystem operatingSystem;
 }
 
 final class CrashIssueLatest {

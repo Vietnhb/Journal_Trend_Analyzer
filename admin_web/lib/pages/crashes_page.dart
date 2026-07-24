@@ -1264,6 +1264,14 @@ class _IssueDetailsDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 22),
                     _DialogSection(
+                      title:
+                          'Người dùng bị ảnh hưởng (${formatNumber(issue.users.length)})',
+                      subtitle:
+                          'Tất cả người dùng và installation đã gặp issue trong khoảng thời gian đang chọn.',
+                      child: _AffectedUsersList(users: issue.users),
+                    ),
+                    const SizedBox(height: 18),
+                    _DialogSection(
                       title: 'Sự kiện gần nhất',
                       child: Wrap(
                         spacing: 28,
@@ -1279,17 +1287,17 @@ class _IssueDetailsDialog extends StatelessWidget {
                           ),
                           _DetailPair(
                             label: 'Thiết bị',
-                            value: [
+                            value: _joinDistinctParts([
                               latest.device.manufacturer,
                               latest.device.model,
-                            ].whereType<String>().join(' '),
+                            ]),
                           ),
                           _DetailPair(
                             label: 'Hệ điều hành',
-                            value: [
+                            value: _joinDistinctParts([
                               latest.operatingSystem.name,
                               latest.operatingSystem.version,
-                            ].whereType<String>().join(' '),
+                            ]),
                           ),
                           _DetailPair(
                             label: 'Kiến trúc',
@@ -1372,6 +1380,126 @@ class _IssueDetailsDialog extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AffectedUsersList extends StatelessWidget {
+  const _AffectedUsersList({required this.users});
+
+  final List<CrashIssueUser> users;
+
+  @override
+  Widget build(BuildContext context) {
+    if (users.isEmpty) {
+      return const Text('Không có installation ID trong dữ liệu Crashlytics.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < users.length; index++) ...[
+          _AffectedUserCard(user: users[index]),
+          if (index < users.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _AffectedUserCard extends StatelessWidget {
+  const _AffectedUserCard({required this.user});
+
+  final CrashIssueUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final title =
+        user.name ?? user.email ?? user.userId ?? 'Người dùng ẩn danh';
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: scheme.primaryContainer,
+                  child: Text(
+                    initials(user.name, user.email),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      if (user.email != null && user.email != title)
+                        SelectableText(
+                          user.email!,
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                StatusPill(
+                  '${formatNumber(user.events)} events',
+                  tone: StatusTone.warning,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 24,
+              runSpacing: 12,
+              children: [
+                _DetailPair(label: 'User ID', value: user.userId ?? '—'),
+                _DetailPair(
+                  label: 'Installation ID',
+                  value: user.installationId,
+                ),
+                _DetailPair(
+                  label: 'Lần đầu',
+                  value: formatDateTime(user.firstSeen),
+                ),
+                _DetailPair(
+                  label: 'Lần cuối',
+                  value: formatDateTime(user.lastSeen),
+                ),
+                _DetailPair(
+                  label: 'Thiết bị',
+                  value: _joinDistinctParts([
+                    user.device.manufacturer,
+                    user.device.model,
+                  ]),
+                ),
+                _DetailPair(
+                  label: 'Hệ điều hành',
+                  value: _joinDistinctParts([
+                    user.operatingSystem.name,
+                    user.operatingSystem.version,
+                  ]),
+                ),
+              ],
             ),
           ],
         ),
@@ -1625,6 +1753,19 @@ String _issueTitle(CrashIssue issue) {
 String _errorType(String? raw) {
   final value = raw?.trim().toUpperCase();
   return value == null || value.isEmpty ? 'UNKNOWN' : value;
+}
+
+String _joinDistinctParts(Iterable<String?> parts) {
+  final seen = <String>{};
+  final values = <String>[];
+  for (final part in parts) {
+    final value = part?.trim();
+    if (value == null || value.isEmpty || !seen.add(value.toLowerCase())) {
+      continue;
+    }
+    values.add(value);
+  }
+  return values.isEmpty ? '—' : values.join(' ');
 }
 
 String _compactAxisNumber(double value) {

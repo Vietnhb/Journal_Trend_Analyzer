@@ -395,6 +395,33 @@ export async function loadCrashes(
     WHERE issue_id IS NOT NULL
     GROUP BY issue_id, event_date
     ORDER BY event_date`;
+  const issueUsersQuery = `
+    WITH ${crashesCte}
+    SELECT
+      issue_id,
+      installation_uuid,
+      ARRAY_AGG(user.id IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+        AS user_id,
+      ARRAY_AGG(user.name IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+        AS user_name,
+      ARRAY_AGG(user.email IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+        AS user_email,
+      COUNT(DISTINCT event_id) AS events,
+      MIN(event_timestamp) AS first_seen,
+      MAX(event_timestamp) AS last_seen,
+      ARRAY_AGG(device.manufacturer IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+        AS device_manufacturer,
+      ARRAY_AGG(device.model IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+        AS device_model,
+      ARRAY_AGG(operating_system.name IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+        AS os_name,
+      ARRAY_AGG(operating_system.display_version IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+        AS os_version
+    FROM crashes
+    WHERE issue_id IS NOT NULL
+      AND installation_uuid IS NOT NULL
+    GROUP BY issue_id, installation_uuid
+    ORDER BY issue_id, last_seen DESC`;
 
   try {
     const sessionsSource = await discoverSessionsSource();
@@ -440,11 +467,13 @@ export async function loadCrashes(
       issuesResponse,
       dailyResponse,
       issueDailyResponse,
+      issueUsersResponse,
     ] = await Promise.all([
       client().query({ query: summaryQuery, params: rangeParams }),
       client().query({ query: issuesQuery, params: rangeParams }),
       client().query({ query: dailyQuery, params: rangeParams }),
       client().query({ query: issueDailyQuery, params: rangeParams }),
+      client().query({ query: issueUsersQuery, params: rangeParams }),
     ]);
     const crashFreeRows = crashFreeQuery === null
       ? []
@@ -458,6 +487,7 @@ export async function loadCrashes(
     const issues = issuesResponse[0] as Array<Record<string, unknown>>;
     const daily = dailyResponse[0] as Array<Record<string, unknown>>;
     const issueDaily = issueDailyResponse[0] as Array<Record<string, unknown>>;
+    const issueUsers = issueUsersResponse[0] as Array<Record<string, unknown>>;
     const crashFree = crashFreeRows[0];
     const trends = new Map<string, Array<Record<string, unknown>>>();
     for (const row of issueDaily) {
@@ -469,6 +499,31 @@ export async function loadCrashes(
         events: numeric(row.events),
       });
       trends.set(issueId, points);
+    }
+    const users = new Map<string, Array<Record<string, unknown>>>();
+    for (const row of issueUsers) {
+      const issueId = text(row.issue_id);
+      const installationId = text(row.installation_uuid);
+      if (issueId === null || installationId === null) continue;
+      const affected = users.get(issueId) ?? [];
+      affected.push({
+        installationId,
+        userId: text(row.user_id),
+        name: text(row.user_name),
+        email: text(row.user_email),
+        events: numeric(row.events),
+        firstSeen: text(row.first_seen),
+        lastSeen: text(row.last_seen),
+        device: {
+          manufacturer: text(row.device_manufacturer),
+          model: text(row.device_model),
+        },
+        operatingSystem: {
+          name: text(row.os_name),
+          version: text(row.os_version),
+        },
+      });
+      users.set(issueId, affected);
     }
     const eventCount = numeric(summary?.events);
     const totalSessions = numeric(crashFree?.total_sessions);
@@ -517,6 +572,7 @@ export async function loadCrashes(
           ? row.versions.filter((item): item is string => typeof item === "string")
           : [],
         trend: trends.get(text(row.issue_id) ?? "") ?? [],
+        users: users.get(text(row.issue_id) ?? "") ?? [],
         latest: latestIssueDetails(row),
       })),
       daily: daily.map((row) => ({
