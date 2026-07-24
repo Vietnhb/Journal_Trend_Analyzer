@@ -46,6 +46,8 @@ final class MessagingCampaign {
     required this.canceledAt,
     required this.messageId,
     required this.errorCode,
+    required this.createdByUid,
+    required this.createdByEmail,
   });
 
   factory MessagingCampaign.fromJson(JsonMap json) => MessagingCampaign(
@@ -68,6 +70,8 @@ final class MessagingCampaign {
     canceledAt: _date(json['canceledAt']),
     messageId: readNullableString(json, 'messageId'),
     errorCode: readNullableString(json, 'errorCode'),
+    createdByUid: readNullableString(json, 'createdByUid'),
+    createdByEmail: readNullableString(json, 'createdByEmail'),
   );
 
   final String id;
@@ -85,6 +89,8 @@ final class MessagingCampaign {
   final DateTime? canceledAt;
   final String? messageId;
   final String? errorCode;
+  final String? createdByUid;
+  final String? createdByEmail;
 }
 
 final class CampaignDraft {

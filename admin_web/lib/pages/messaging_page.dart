@@ -84,6 +84,11 @@ class _MessagingPageState extends State<MessagingPage> {
     }
   }
 
+  Future<void> _openCampaign(MessagingCampaign campaign) => showDialog<void>(
+    context: context,
+    builder: (context) => _CampaignDetailsDialog(campaign: campaign),
+  );
+
   @override
   Widget build(BuildContext context) => PageBody(
     children: [
@@ -118,6 +123,7 @@ class _MessagingPageState extends State<MessagingPage> {
           onRetry: _load,
           onCreate: () => setState(() => _showComposer = true),
           onCancel: _cancel,
+          onOpen: _openCampaign,
         ),
     ],
   );
@@ -717,6 +723,7 @@ class _CampaignList extends StatelessWidget {
     required this.onRetry,
     required this.onCreate,
     required this.onCancel,
+    required this.onOpen,
   });
 
   final List<MessagingCampaign> campaigns;
@@ -725,6 +732,7 @@ class _CampaignList extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onCreate;
   final ValueChanged<MessagingCampaign> onCancel;
+  final ValueChanged<MessagingCampaign> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -801,6 +809,7 @@ class _CampaignList extends StatelessWidget {
             _CampaignRow(
               campaign: campaigns[index],
               onCancel: () => onCancel(campaigns[index]),
+              onOpen: () => onOpen(campaigns[index]),
             ),
             if (index < campaigns.length - 1) const Divider(),
           ],
@@ -811,72 +820,405 @@ class _CampaignList extends StatelessWidget {
 }
 
 class _CampaignRow extends StatelessWidget {
-  const _CampaignRow({required this.campaign, required this.onCancel});
+  const _CampaignRow({
+    required this.campaign,
+    required this.onCancel,
+    required this.onOpen,
+  });
 
   final MessagingCampaign campaign;
   final VoidCallback onCancel;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onOpen,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: _statusColor(
+              campaign.status,
+            ).withValues(alpha: .12),
+            foregroundColor: _statusColor(campaign.status),
+            child: Icon(_statusIcon(campaign.status)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  campaign.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  campaign.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          if (MediaQuery.sizeOf(context).width >= 760) ...[
+            Expanded(
+              child: Text(
+                campaign.audience.label,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            Expanded(
+              child: Text(
+                _campaignTime(campaign),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+          StatusPill(
+            _statusLabel(campaign.status),
+            tone: _statusTone(campaign.status),
+          ),
+          if (campaign.status == CampaignStatus.scheduled) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Hủy lịch',
+              onPressed: onCancel,
+              icon: const Icon(Icons.cancel_schedule_send_outlined),
+            ),
+          ],
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded, size: 20),
+        ],
+      ),
+    ),
+  );
+}
+
+class _CampaignDetailsDialog extends StatelessWidget {
+  const _CampaignDetailsDialog({required this.campaign});
+
+  final MessagingCampaign campaign;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 720,
+          maxHeight: MediaQuery.sizeOf(context).height * .88,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 14, 18),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: _statusColor(
+                      campaign.status,
+                    ).withValues(alpha: .12),
+                    foregroundColor: _statusColor(campaign.status),
+                    child: Icon(_statusIcon(campaign.status)),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          campaign.name,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Chi tiết chiến dịch',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  StatusPill(
+                    _statusLabel(campaign.status),
+                    tone: _statusTone(campaign.status),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Đóng',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Nội dung thông báo',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.dividerColor),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const CircleAvatar(
+                            backgroundColor: Color(0xFFE0E7FF),
+                            foregroundColor: AppTheme.accent,
+                            child: Icon(Icons.notifications_none_rounded),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SelectableText(
+                                  campaign.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                SelectableText(
+                                  campaign.body,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Thông tin gửi',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _CampaignDetailItem(
+                          label: 'Đối tượng',
+                          value: campaign.audience.label,
+                        ),
+                        _CampaignDetailItem(
+                          label: 'Âm thanh',
+                          value: campaign.sound ? 'Bật' : 'Tắt',
+                        ),
+                        _CampaignDetailItem(
+                          label: 'Thời hạn thông báo',
+                          value: _formatTtl(campaign.ttlSeconds),
+                        ),
+                        _CampaignDetailItem(
+                          label: 'Ngày tạo',
+                          value: _optionalTime(campaign.createdAt),
+                        ),
+                        if (campaign.scheduleAt != null)
+                          _CampaignDetailItem(
+                            label: 'Lịch gửi',
+                            value: _optionalTime(campaign.scheduleAt),
+                          ),
+                        if (campaign.sentAt != null)
+                          _CampaignDetailItem(
+                            label: 'Đã gửi lúc',
+                            value: _optionalTime(campaign.sentAt),
+                          ),
+                        if (campaign.canceledAt != null)
+                          _CampaignDetailItem(
+                            label: 'Đã hủy lúc',
+                            value: _optionalTime(campaign.canceledAt),
+                          ),
+                        _CampaignDetailItem(
+                          label: 'Người tạo',
+                          value:
+                              campaign.createdByEmail ??
+                              campaign.createdByUid ??
+                              'Không có thông tin',
+                        ),
+                      ],
+                    ),
+                    if (campaign.data.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Dữ liệu tùy chỉnh',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: theme.dividerColor),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < campaign.data.entries.length;
+                              index++
+                            ) ...[
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 180,
+                                      child: SelectableText(
+                                        campaign.data.entries
+                                            .elementAt(index)
+                                            .key,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: SelectableText(
+                                        campaign.data.entries
+                                            .elementAt(index)
+                                            .value,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (index < campaign.data.length - 1)
+                                const Divider(height: 1),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (campaign.messageId != null ||
+                        campaign.errorCode != null) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Kết quả',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (campaign.messageId != null)
+                        _CampaignResultValue(
+                          label: 'Firebase message ID',
+                          value: campaign.messageId!,
+                        ),
+                      if (campaign.errorCode != null)
+                        _CampaignResultValue(
+                          label: 'Mã lỗi',
+                          value: campaign.errorCode!,
+                          danger: true,
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CampaignDetailItem extends StatelessWidget {
+  const _CampaignDetailItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 205,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).dividerColor),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 5),
+        SelectableText(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CampaignResultValue extends StatelessWidget {
+  const _CampaignResultValue({
+    required this.label,
+    required this.value,
+    this.danger = false,
+  });
+
+  final String label;
+  final String value;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-    child: Row(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          backgroundColor: _statusColor(campaign.status).withValues(alpha: .12),
-          foregroundColor: _statusColor(campaign.status),
-          child: Icon(_statusIcon(campaign.status)),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          flex: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                campaign.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                campaign.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 4),
+        SelectableText(
+          value,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            color: danger ? AppTheme.danger : null,
           ),
         ),
-        const SizedBox(width: 16),
-        if (MediaQuery.sizeOf(context).width >= 760) ...[
-          Expanded(
-            child: Text(
-              campaign.audience.label,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              _campaignTime(campaign),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ],
-        StatusPill(
-          _statusLabel(campaign.status),
-          tone: _statusTone(campaign.status),
-        ),
-        if (campaign.status == CampaignStatus.scheduled) ...[
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Hủy lịch',
-            onPressed: onCancel,
-            icon: const Icon(Icons.cancel_schedule_send_outlined),
-          ),
-        ],
       ],
     ),
   );
@@ -1058,6 +1400,16 @@ String _formatLocal(DateTime value) {
 String _campaignTime(MessagingCampaign campaign) {
   final value = campaign.sentAt ?? campaign.scheduleAt ?? campaign.createdAt;
   return value == null ? '—' : _formatLocal(value);
+}
+
+String _optionalTime(DateTime? value) =>
+    value == null ? 'Không có thông tin' : _formatLocal(value);
+
+String _formatTtl(int seconds) {
+  if (seconds % 86400 == 0) return '${seconds ~/ 86400} ngày';
+  if (seconds % 3600 == 0) return '${seconds ~/ 3600} giờ';
+  if (seconds % 60 == 0) return '${seconds ~/ 60} phút';
+  return '$seconds giây';
 }
 
 String _statusLabel(CampaignStatus status) => switch (status) {

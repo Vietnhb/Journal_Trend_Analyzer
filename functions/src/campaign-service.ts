@@ -73,6 +73,8 @@ export function serializeCampaign(id: string, value: DocumentData): Record<strin
     canceledAt: timestampIso(value.canceledAt),
     messageId: typeof value.messageId === "string" ? value.messageId : null,
     errorCode: typeof value.errorCode === "string" ? value.errorCode : null,
+    createdByUid: typeof value.createdByUid === "string" ? value.createdByUid : null,
+    createdByEmail: typeof value.createdByEmail === "string" ? value.createdByEmail : null,
   };
 }
 
