@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,6 +16,7 @@ class FirebaseService {
   FirebaseService._();
 
   static final FirebaseService instance = FirebaseService._();
+  static const broadcastTopic = 'all_users';
 
   final FirebaseAuth auth = FirebaseAuth.instance;
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
@@ -76,6 +78,27 @@ class FirebaseService {
   }
 
   Future<String?> getMessagingToken() => messaging.getToken();
+
+  Future<void> subscribeToBroadcasts() => configureCampaignAudiences();
+
+  Future<void> configureCampaignAudiences() async {
+    final platformTopic = Platform.isAndroid
+        ? 'platform_android'
+        : Platform.isIOS
+        ? 'platform_ios'
+        : null;
+    final languageCode = ui.PlatformDispatcher.instance.locale.languageCode
+        .toLowerCase();
+    final languageTopic = languageCode == 'vi' ? 'language_vi' : 'language_en';
+    await Future.wait([
+      messaging.subscribeToTopic(broadcastTopic),
+      if (platformTopic != null) messaging.subscribeToTopic(platformTopic),
+      messaging.subscribeToTopic(languageTopic),
+      messaging.unsubscribeFromTopic(
+        languageTopic == 'language_vi' ? 'language_en' : 'language_vi',
+      ),
+    ]);
+  }
 
   Future<void> configureRemoteConfig() async {
     await remoteConfig.setConfigSettings(
