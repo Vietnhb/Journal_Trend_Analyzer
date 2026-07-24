@@ -8,8 +8,8 @@ const originalAllowedOrigins = process.env.ADMIN_ALLOWED_ORIGINS;
 
 beforeEach(() => {
   process.env.ADMIN_ALLOWED_ORIGINS = [
-    "https://journal-trend-analyzer-admin.web.app",
-    "https://journal-trend-analyzer-admin.firebaseapp.com",
+    "https://journal-trend-analyzer.web.app",
+    "https://journal-trend-analyzer.firebaseapp.com",
   ].join(",");
 });
 
@@ -66,12 +66,12 @@ describe("Firebase Hosting rewrite CORS", () => {
     ["POST", "x-forwarded-host"],
     ["PUT", "x-fh-requested-host"],
   ])("accepts %s from an exact allowlisted forwarded host", (method, forwardedHeader) => {
-    const origin = "https://journal-trend-analyzer-admin.web.app";
+    const origin = "https://journal-trend-analyzer.web.app";
     const result = runCors(request(method, {
       host: "adminapi-random-id.a.run.app",
       origin,
       "x-forwarded-proto": "https",
-      [forwardedHeader]: "JOURNAL-TREND-ANALYZER-ADMIN.WEB.APP:443",
+      [forwardedHeader]: "JOURNAL-TREND-ANALYZER.WEB.APP:443",
     }));
 
     expect(result.error).toBeUndefined();
@@ -93,9 +93,9 @@ describe("Firebase Hosting rewrite CORS", () => {
   it("uses only the first value in a forwarded host chain", () => {
     const result = runCors(request("PUT", {
       host: "adminapi-random-id.a.run.app",
-      origin: "https://journal-trend-analyzer-admin.web.app",
+      origin: "https://journal-trend-analyzer.web.app",
       "x-forwarded-proto": "https",
-      "x-forwarded-host": "internal.invalid, journal-trend-analyzer-admin.web.app",
+      "x-forwarded-host": "internal.invalid, journal-trend-analyzer.web.app",
     }));
 
     expect(result.error).toMatchObject({ status: 403, code: "origin_not_allowed" });

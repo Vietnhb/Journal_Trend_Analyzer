@@ -20,15 +20,10 @@ void main() {
     test('uses same-origin Hosting API outside local development', () {
       final uri = ApiClient.resolveConfiguredApiBaseUri(
         configured: '',
-        pageUri: Uri.parse(
-          'https://journal-trend-analyzer-admin.web.app/dashboard',
-        ),
+        pageUri: Uri.parse('https://journal-trend-analyzer.web.app/dashboard'),
       );
 
-      expect(
-        uri.toString(),
-        'https://journal-trend-analyzer-admin.web.app/api/v1',
-      );
+      expect(uri.toString(), 'https://journal-trend-analyzer.web.app/api/v1');
     });
 
     test('uses Hosting rewrite on the local Hosting Emulator', () {

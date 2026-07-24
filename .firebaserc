@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "laundry-locker-19a9d"
+    "default": "journal-trend-analyzer"
   },
   "targets": {
-    "laundry-locker-19a9d": {
+    "journal-trend-analyzer": {
       "hosting": {
         "admin": [
-          "laundry-locker-19a9d"
+          "journal-trend-analyzer"
         ]
       }
     }

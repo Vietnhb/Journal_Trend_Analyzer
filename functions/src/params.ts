@@ -7,8 +7,8 @@ export const enforceAppCheck = defineBoolean("ENFORCE_APP_CHECK", {
 
 export const adminAllowedOrigins = defineString("ADMIN_ALLOWED_ORIGINS", {
   default: [
-    "https://journal-trend-analyzer-admin.web.app",
-    "https://journal-trend-analyzer-admin.firebaseapp.com",
+    "https://journal-trend-analyzer.web.app",
+    "https://journal-trend-analyzer.firebaseapp.com",
   ].join(","),
   description: "Comma-separated exact origins permitted through Firebase Hosting rewrites.",
 });

@@ -88,8 +88,8 @@ Trong đúng project `journal-trend-analyzer`:
 
 1. **Authentication → Sign-in method**: bật Google.
 2. **Authentication → Settings → Authorized domains**: đảm bảo có
-   `localhost`, `journal-trend-analyzer-admin.web.app` và
-   `journal-trend-analyzer-admin.firebaseapp.com`. Thêm custom domain nếu dùng.
+   `localhost`, `journal-trend-analyzer.web.app` và
+   `journal-trend-analyzer.firebaseapp.com`. Thêm custom domain nếu dùng.
 3. Firestore: dùng Native mode cho `admin_audit_logs`.
 4. Storage: giữ bucket/path mobile hiện có
    `report/{uid}/analysis/{filename}.pdf`.
@@ -170,7 +170,7 @@ Các parameter:
 
 ```dotenv
 ENFORCE_APP_CHECK=false
-ADMIN_ALLOWED_ORIGINS=https://journal-trend-analyzer-admin.web.app,https://journal-trend-analyzer-admin.firebaseapp.com
+ADMIN_ALLOWED_ORIGINS=https://journal-trend-analyzer.web.app,https://journal-trend-analyzer.firebaseapp.com
 GA4_PROPERTY_ID=
 CRASHLYTICS_TABLE=project_id.dataset_id.table_id
 ```
@@ -333,15 +333,13 @@ tránh ghi đè thay đổi đồng thời và giữ những parameter/condition
 
 ## 12. Firebase Hosting
 
-Admin Web dùng Hosting target `admin`, mặc định ánh xạ tới site
-`journal-trend-analyzer-admin`.
+Admin Web dùng Hosting target `admin`, ánh xạ tới default site
+`journal-trend-analyzer`.
 
-Nếu site chưa tồn tại:
+Thiết lập lại target nếu máy local chưa có ánh xạ:
 
 ```powershell
-npx firebase-tools hosting:sites:create journal-trend-analyzer-admin `
-  --project journal-trend-analyzer
-npx firebase-tools target:apply hosting admin journal-trend-analyzer-admin `
+npx firebase-tools target:apply hosting admin journal-trend-analyzer `
   --project journal-trend-analyzer
 ```
 
