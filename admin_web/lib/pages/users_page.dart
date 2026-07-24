@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:journal_trend_admin_web/core/core.dart';
 
 import '../theme/app_theme.dart';
@@ -63,40 +63,8 @@ class _UsersPageState extends State<UsersPage> {
     final controller = TextEditingController(text: user.displayName ?? '');
     final value = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Chỉnh sửa người dùng'),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(user.email ?? user.uid),
-              const SizedBox(height: 18),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: 256,
-                decoration: const InputDecoration(
-                  labelText: 'Tên hiển thị',
-                  helperText: 'Để trống nếu muốn xóa tên hiển thị.',
-                ),
-                onSubmitted: (text) => Navigator.pop(dialogContext, text),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('Lưu thay đổi'),
-          ),
-        ],
-      ),
+      builder: (dialogContext) =>
+          _EditUserDialog(user: user, controller: controller),
     );
     controller.dispose();
     if (value == null || !mounted) return;
@@ -108,7 +76,7 @@ class _UsersPageState extends State<UsersPage> {
             ? const UserUpdate(clearDisplayName: true)
             : UserUpdate(displayName: normalized),
       );
-    }, 'Đã cập nhật hồ sơ người dùng.');
+    }, 'Display name updated.');
   }
 
   Future<void> _action(AdminUser user, _UserAction action) async {
@@ -116,7 +84,7 @@ class _UsersPageState extends State<UsersPage> {
     if (self && action != _UserAction.revoke) {
       showAppMessage(
         context,
-        'Bạn không thể thực hiện thao tác này trên chính mình.',
+        'You cannot perform this action on your own account.',
         error: true,
       );
       return;
@@ -124,33 +92,33 @@ class _UsersPageState extends State<UsersPage> {
     final target = user.email ?? user.uid;
     final config = switch (action) {
       _UserAction.toggleRole => (
-        title: user.isAdmin ? 'Thu hồi quyền Admin?' : 'Cấp quyền Admin?',
+        title: user.isAdmin ? 'Revoke Admin role?' : 'Grant Admin role?',
         description: user.isAdmin
-            ? 'Tài khoản sẽ mất quyền truy cập trang quản trị và các phiên hiện có bị thu hồi.'
-            : 'Tài khoản sẽ được phép thực hiện mọi thao tác quản trị đặc quyền.',
-        label: user.isAdmin ? 'Thu hồi quyền' : 'Cấp quyền',
+            ? 'This account will lose admin access and all active sessions will be revoked.'
+            : 'This account will be able to perform all privileged admin operations.',
+        label: user.isAdmin ? 'Revoke role' : 'Grant role',
         danger: user.isAdmin,
       ),
       _UserAction.toggleStatus => (
-        title: user.disabled ? 'Mở khóa tài khoản?' : 'Khóa tài khoản?',
+        title: user.disabled ? 'Unblock account?' : 'Block account?',
         description: user.disabled
-            ? 'Người dùng có thể đăng nhập lại sau khi tài khoản được mở khóa.'
-            : 'Người dùng sẽ không thể tạo phiên đăng nhập Firebase mới.',
-        label: user.disabled ? 'Mở khóa' : 'Khóa tài khoản',
+            ? 'The user will be able to sign in again after the account is unblocked.'
+            : 'The user will not be able to create new Firebase sessions.',
+        label: user.disabled ? 'Unblock' : 'Block account',
         danger: !user.disabled,
       ),
       _UserAction.revoke => (
-        title: 'Thu hồi mọi phiên đăng nhập?',
+        title: 'Revoke all sessions?',
         description:
-            'Refresh token hiện có sẽ bị vô hiệu hóa. Người dùng cần đăng nhập lại.',
-        label: 'Thu hồi phiên',
+            'All existing refresh tokens will be invalidated. The user will need to sign in again.',
+        label: 'Revoke sessions',
         danger: true,
       ),
       _UserAction.delete => (
-        title: 'Xóa vĩnh viễn tài khoản?',
+        title: 'Permanently delete account?',
         description:
-            'Tài khoản Firebase Auth sẽ bị xóa. Báo cáo trong Storage không tự động bị xóa theo.',
-        label: 'Xóa tài khoản',
+            'The Firebase Auth account will be deleted. Reports in Storage are not automatically removed.',
+        label: 'Delete account',
         danger: true,
       ),
     };
@@ -169,7 +137,7 @@ class _UsersPageState extends State<UsersPage> {
         await _run(
           user.uid,
           () => widget.api.setAdminRole(user.uid, isAdmin: !user.isAdmin),
-          user.isAdmin ? 'Đã thu hồi quyền Admin.' : 'Đã cấp quyền Admin.',
+          user.isAdmin ? 'Admin role revoked.' : 'Admin role granted.',
         );
       case _UserAction.toggleStatus:
         await _run(
@@ -178,19 +146,19 @@ class _UsersPageState extends State<UsersPage> {
             user.uid,
             UserUpdate(disabled: !user.disabled),
           ),
-          user.disabled ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.',
+          user.disabled ? 'Account unblocked.' : 'Account blocked.',
         );
       case _UserAction.revoke:
         await _run(
           user.uid,
           () => widget.api.revokeUserSessions(user.uid),
-          'Đã thu hồi các phiên đăng nhập.',
+          'Sessions revoked.',
         );
       case _UserAction.delete:
         await _run(
           user.uid,
           () => widget.api.deleteUser(user.uid),
-          'Đã xóa tài khoản Firebase Auth.',
+          'Firebase Auth account deleted.',
         );
     }
   }
@@ -218,14 +186,14 @@ class _UsersPageState extends State<UsersPage> {
     children: [
       PageHeading(
         eyebrow: 'Firebase Authentication',
-        title: 'Quản lý người dùng',
+        title: 'User Management',
         description:
-            'Tra cứu chính xác theo email, số điện thoại hoặc UID, quản lý trạng thái tài khoản và custom claim Admin.',
+            'Search by email, phone number, or UID; manage account status and Admin custom claims.',
         actions: [
           OutlinedButton.icon(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Làm mới'),
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh'),
           ),
         ],
       ),
@@ -234,62 +202,53 @@ class _UsersPageState extends State<UsersPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── Search bar ─────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final search = TextField(
+                  final search = SearchField(
                     controller: _searchController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      hintText: 'Email, số điện thoại +84… hoặc UID…',
-                      suffixIcon: _searchController.text.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: 'Xóa từ khóa',
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                              icon: const Icon(Icons.close_rounded),
-                            ),
-                    ),
+                    hintText:
+                        'Search by email, phone number, or UID — press Enter ↵',
+                    onSubmitted: _search,
                     onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _search(),
                   );
                   final button = FilledButton.icon(
                     onPressed: _search,
-                    icon: const Icon(Icons.search_rounded),
-                    label: const Text('Tìm kiếm'),
+                    icon: const Icon(Icons.search_rounded, size: 16),
+                    label: const Text('Search'),
+                  );
+                  final badge = const StatusPill(
+                    'Role via custom claims',
+                    tone: StatusTone.purple,
+                    icon: Icons.key_rounded,
                   );
                   if (constraints.maxWidth < 620) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [search, const SizedBox(height: 10), button],
+                      children: [search, const SizedBox(height: 8), button],
                     );
                   }
                   return Row(
                     children: [
                       Expanded(child: search),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       button,
-                      const SizedBox(width: 14),
-                      const StatusPill(
-                        'Role từ custom claims',
-                        tone: StatusTone.purple,
-                        icon: Icons.key_rounded,
-                      ),
+                      const SizedBox(width: 12),
+                      badge,
                     ],
                   );
                 },
               ),
             ),
-            const Divider(height: 1),
+            const Divider(height: 0.5),
+            // ── User list ─────────────────────────────────────────────────
             FutureBuilder<UserPage>(
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
-                  return const LoadingPanel();
+                  return const LoadingPanel(rowCount: 8);
                 }
                 if (snapshot.hasError) {
                   return ErrorPanel(
@@ -301,11 +260,11 @@ class _UsersPageState extends State<UsersPage> {
                 if (data.users.isEmpty) {
                   return EmptyPanel(
                     title: _query.isEmpty
-                        ? 'Chưa có người dùng'
-                        : 'Không tìm thấy tài khoản',
+                        ? 'No users yet'
+                        : 'No accounts found',
                     description: _query.isEmpty
-                        ? 'Tài khoản sẽ xuất hiện sau lần đăng nhập Firebase đầu tiên.'
-                        : 'Không có email, số điện thoại hoặc UID khớp “$_query”.',
+                        ? 'Accounts will appear after the first Firebase sign-in.'
+                        : 'No email, phone number, or UID matching "$_query".',
                     icon: Icons.person_search_outlined,
                   );
                 }
@@ -329,48 +288,28 @@ class _UsersPageState extends State<UsersPage> {
                               onAction: _action,
                             ),
                     ),
-                    if (_page > 0 || data.nextPageToken != null)
-                      Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: _page == 0 || _busyUid != null
-                                  ? null
-                                  : () => setState(() {
-                                      _page--;
-                                      _load();
-                                    }),
-                              icon: const Icon(Icons.chevron_left_rounded),
-                              label: const Text('Trước'),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              child: Text('Trang ${_page + 1}'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed:
-                                  data.nextPageToken == null || _busyUid != null
-                                  ? null
-                                  : () => setState(() {
-                                      if (_tokens.length == _page + 1) {
-                                        _tokens.add(data.nextPageToken);
-                                      } else {
-                                        _tokens[_page + 1] = data.nextPageToken;
-                                      }
-                                      _page++;
-                                      _load();
-                                    }),
-                              iconAlignment: IconAlignment.end,
-                              icon: const Icon(Icons.chevron_right_rounded),
-                              label: const Text('Sau'),
-                            ),
-                          ],
-                        ),
+                    if (_page > 0 || data.nextPageToken != null) ...[
+                      const Divider(height: 0.5),
+                      TablePagination(
+                        page: _page,
+                        hasPrevious: _page > 0,
+                        hasNext: data.nextPageToken != null,
+                        busy: _busyUid != null,
+                        onPrevious: () => setState(() {
+                          _page--;
+                          _load();
+                        }),
+                        onNext: () => setState(() {
+                          if (_tokens.length == _page + 1) {
+                            _tokens.add(data.nextPageToken);
+                          } else {
+                            _tokens[_page + 1] = data.nextPageToken;
+                          }
+                          _page++;
+                          _load();
+                        }),
                       ),
+                    ],
                   ],
                 );
               },
@@ -382,7 +321,11 @@ class _UsersPageState extends State<UsersPage> {
   );
 }
 
+// ─── Actions enum ─────────────────────────────────────────────────────────────
+
 enum _UserAction { toggleRole, toggleStatus, revoke, delete }
+
+// ─── Desktop table ────────────────────────────────────────────────────────────
 
 class _UsersTable extends StatelessWidget {
   const _UsersTable({
@@ -400,75 +343,196 @@ class _UsersTable extends StatelessWidget {
   final void Function(AdminUser, _UserAction) onAction;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: DataTable(
-      columns: const [
-        DataColumn(label: Text('NGƯỜI DÙNG')),
-        DataColumn(label: Text('UID')),
-        DataColumn(label: Text('VAI TRÒ')),
-        DataColumn(label: Text('TRẠNG THÁI')),
-        DataColumn(label: Text('PROVIDER')),
-        DataColumn(label: Text('NGÀY TẠO')),
-        DataColumn(label: Text('ĐĂNG NHẬP GẦN NHẤT')),
-        DataColumn(label: Text('')),
-      ],
-      rows: [
-        for (final user in users)
-          DataRow(
-            cells: [
-              DataCell(SizedBox(width: 260, child: _UserIdentity(user: user))),
-              DataCell(_UidValue(uid: user.uid)),
-              DataCell(
-                user.isAdmin
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final headerBg = isDark
+        ? AppColors.darkSurfaceVariant
+        : AppColors.lightSurfaceVariant;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 800),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Custom header row
+            DecoratedBox(
+              decoration: BoxDecoration(color: headerBg),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 11,
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(width: 280, child: _HeaderCell('USER')),
+                    SizedBox(width: 110, child: _HeaderCell('ROLE')),
+                    SizedBox(width: 110, child: _HeaderCell('STATUS')),
+                    SizedBox(width: 140, child: _HeaderCell('PROVIDER')),
+                    SizedBox(width: 125, child: _HeaderCell('CREATED')),
+                    Expanded(child: _HeaderCell('LAST SIGN-IN')),
+                    const SizedBox(width: 64),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 0.5),
+            // Data rows
+            for (var i = 0; i < users.length; i++) ...[
+              _UserRow(
+                user: users[i],
+                isSelf: users[i].uid == currentUid,
+                busy: busyUid == users[i].uid,
+                onEdit: onEdit,
+                onAction: onAction,
+              ),
+              if (i < users.length - 1)
+                const Divider(height: 0.5, indent: 20, endIndent: 20),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderCell extends StatelessWidget {
+  const _HeaderCell(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: GoogleFonts.inter(
+      fontSize: 10.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.7,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
+  );
+}
+
+class _UserRow extends StatefulWidget {
+  const _UserRow({
+    required this.user,
+    required this.isSelf,
+    required this.busy,
+    required this.onEdit,
+    required this.onAction,
+  });
+
+  final AdminUser user;
+  final bool isSelf;
+  final bool busy;
+  final ValueChanged<AdminUser> onEdit;
+  final void Function(AdminUser, _UserAction) onAction;
+
+  @override
+  State<_UserRow> createState() => _UserRowState();
+}
+
+class _UserRowState extends State<_UserRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hoverBg = isDark
+        ? Colors.white.withValues(alpha: .025)
+        : Colors.black.withValues(alpha: .015);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        color: _hovered ? hoverBg : Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              // Identity
+              SizedBox(width: 280, child: _UserIdentity(user: widget.user)),
+              // Role
+              SizedBox(
+                width: 110,
+                child: widget.user.isAdmin
                     ? const StatusPill(
                         'Admin',
                         tone: StatusTone.purple,
                         icon: Icons.shield_outlined,
                       )
-                    : const StatusPill('User'),
+                    : const StatusDot('User'),
               ),
-              DataCell(
-                StatusPill(
-                  user.disabled ? 'Đã khóa' : 'Hoạt động',
-                  tone: user.disabled ? StatusTone.danger : StatusTone.success,
+              // Status
+              SizedBox(
+                width: 110,
+                child: StatusDot(
+                  widget.user.disabled ? 'Blocked' : 'Active',
+                  tone: widget.user.disabled
+                      ? StatusTone.danger
+                      : StatusTone.success,
                 ),
               ),
-              DataCell(
-                SizedBox(
-                  width: 120,
-                  child: Text(
-                    user.providers.isEmpty ? '—' : user.providers.join(', '),
+              // Provider
+              SizedBox(
+                width: 140,
+                child: Text(
+                  widget.user.providers.isEmpty
+                      ? '—'
+                      : widget.user.providers.join(', '),
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: cs.onSurfaceVariant,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              DataCell(
-                SizedBox(
-                  width: 150,
-                  child: Text(formatDateTime(user.createdAt)),
+              // Created
+              SizedBox(
+                width: 125,
+                child: Text(
+                  formatDateTime(widget.user.createdAt),
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              DataCell(
-                SizedBox(
-                  width: 150,
-                  child: Text(formatDateTime(user.lastSignInAt)),
+              // Last sign-in
+              Expanded(
+                child: Text(
+                  formatDateTime(widget.user.lastSignInAt),
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              DataCell(
-                _UserMenu(
-                  user: user,
-                  isSelf: user.uid == currentUid,
-                  busy: busyUid == user.uid,
-                  onEdit: onEdit,
-                  onAction: onAction,
+              // Actions
+              SizedBox(
+                width: 64,
+                child: _UserMenu(
+                  user: widget.user,
+                  isSelf: widget.isSelf,
+                  busy: widget.busy,
+                  onEdit: widget.onEdit,
+                  onAction: widget.onAction,
                 ),
               ),
             ],
           ),
-      ],
-    ),
-  );
+        ),
+      ),
+    );
+  }
 }
+
+// ─── Mobile cards ─────────────────────────────────────────────────────────────
 
 class _UsersCards extends StatelessWidget {
   const _UsersCards({
@@ -486,185 +550,180 @@ class _UsersCards extends StatelessWidget {
   final void Function(AdminUser, _UserAction) onAction;
 
   @override
-  Widget build(BuildContext context) => ListView.separated(
-    padding: const EdgeInsets.all(16),
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: users.length,
-    separatorBuilder: (_, _) => const SizedBox(height: 10),
-    itemBuilder: (context, index) {
-      final user = users[index];
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).dividerColor),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: _UserIdentity(user: user)),
-                  _UserMenu(
-                    user: user,
-                    isSelf: user.uid == currentUid,
-                    busy: busyUid == user.uid,
-                    onEdit: onEdit,
-                    onAction: onAction,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 13),
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: [
-                  StatusPill(
-                    user.isAdmin ? 'Admin' : 'User',
-                    tone: user.isAdmin ? StatusTone.purple : StatusTone.neutral,
-                  ),
-                  StatusPill(
-                    user.disabled ? 'Đã khóa' : 'Hoạt động',
-                    tone: user.disabled
-                        ? StatusTone.danger
-                        : StatusTone.success,
-                  ),
-                  StatusPill(
-                    user.emailVerified ? 'Đã xác minh' : 'Chưa xác minh',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 11),
-              _CardDetail(
-                label: 'UID',
-                child: _UidValue(uid: user.uid),
-              ),
-              const SizedBox(height: 7),
-              _CardDetail(
-                label: 'Ngày tạo',
-                child: Text(formatDateTime(user.createdAt)),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                'Đăng nhập gần nhất: ${formatDateTime(user.lastSignInAt)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+  Widget build(BuildContext context) {
+    final border = Theme.of(context).dividerColor;
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: users.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final user = users[index];
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: border, width: 0.5),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-        ),
-      );
-    },
-  );
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _UserIdentity(user: user)),
+                    _UserMenu(
+                      user: user,
+                      isSelf: user.uid == currentUid,
+                      busy: busyUid == user.uid,
+                      onEdit: onEdit,
+                      onAction: onAction,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    StatusPill(
+                      user.isAdmin ? 'Admin' : 'User',
+                      tone: user.isAdmin
+                          ? StatusTone.purple
+                          : StatusTone.neutral,
+                      icon: user.isAdmin ? Icons.shield_outlined : null,
+                    ),
+                    StatusPill(
+                      user.disabled ? 'Blocked' : 'Active',
+                      tone: user.disabled
+                          ? StatusTone.danger
+                          : StatusTone.success,
+                    ),
+                    if (user.emailVerified)
+                      const StatusPill(
+                        'Verified',
+                        tone: StatusTone.info,
+                        icon: Icons.verified_outlined,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Created: ${formatDateTime(user.createdAt)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Last sign-in: ${formatDateTime(user.lastSignInAt)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
+
+// ─── UserIdentity ─────────────────────────────────────────────────────────────
 
 class _UserIdentity extends StatelessWidget {
   const _UserIdentity({required this.user});
   final AdminUser user;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      CircleAvatar(
-        radius: 20,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        backgroundImage: user.photoUrl == null
-            ? null
-            : NetworkImage(user.photoUrl!),
-        child: user.photoUrl == null
-            ? Text(
-                initials(user.displayName, user.email),
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              )
-            : null,
-      ),
-      const SizedBox(width: 11),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
           children: [
-            Text(
-              user.displayName?.trim().isNotEmpty == true
-                  ? user.displayName!
-                  : 'Chưa đặt tên',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: cs.primaryContainer,
+              backgroundImage: user.photoUrl == null
+                  ? null
+                  : NetworkImage(user.photoUrl!),
+              child: user.photoUrl == null
+                  ? Text(
+                      initials(
+                        user.displayName,
+                        user.email ?? user.phoneNumber,
+                      ),
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    )
+                  : null,
             ),
-            Text(
-              user.email ??
-                  user.phoneNumber ??
-                  'Không có email hoặc số điện thoại',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 12,
+            if (user.emailVerified)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.brand,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: cs.surface, width: 1.5),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(1.5),
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: 8,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
-            ),
           ],
         ),
-      ),
-    ],
-  );
-}
-
-class _UidValue extends StatelessWidget {
-  const _UidValue({required this.uid});
-
-  final String uid;
-
-  Future<void> _copy(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: uid));
-    if (context.mounted) showAppMessage(context, 'Đã sao chép UID.');
-  }
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Tooltip(
-        message: uid,
-        child: Text(
-          truncateMiddle(uid, keep: 6),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontFamily: 'monospace',
-            fontSize: 11,
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                user.displayName?.trim().isNotEmpty == true
+                    ? user.displayName!
+                    : 'Unnamed',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface,
+                ),
+              ),
+              if (user.email != null || user.phoneNumber != null)
+                Text(
+                  user.email ?? user.phoneNumber!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: cs.onSurfaceVariant,
+                    fontSize: 11.5,
+                  ),
+                ),
+              CopyableText(user.uid),
+            ],
           ),
         ),
-      ),
-      IconButton(
-        tooltip: 'Sao chép UID',
-        visualDensity: VisualDensity.compact,
-        onPressed: () => _copy(context),
-        icon: const Icon(Icons.copy_rounded, size: 17),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
-class _CardDetail extends StatelessWidget {
-  const _CardDetail({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      SizedBox(
-        width: 72,
-        child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ),
-      Expanded(
-        child: Align(alignment: Alignment.centerLeft, child: child),
-      ),
-    ],
-  );
-}
+// ─── UserMenu ─────────────────────────────────────────────────────────────────
 
 class _UserMenu extends StatelessWidget {
   const _UserMenu({
@@ -684,78 +743,162 @@ class _UserMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (busy) {
-      return const Padding(
-        padding: EdgeInsets.all(10),
-        child: SizedBox.square(
-          dimension: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
+      return const Padding(padding: EdgeInsets.all(10), child: InlineSpinner());
     }
     return PopupMenuButton<String>(
-      tooltip: 'Thao tác',
+      tooltip: 'Actions',
       onSelected: (value) {
         if (value == 'edit') return onEdit(user);
         final action = _UserAction.values.byName(value);
         onAction(user, action);
       },
+      offset: const Offset(0, 36),
       itemBuilder: (context) => [
-        const PopupMenuItem(
+        _menuItem(
           value: 'edit',
-          child: ListTile(
-            dense: true,
-            leading: Icon(Icons.edit_outlined),
-            title: Text('Sửa tên hiển thị'),
-          ),
+          icon: Icons.edit_outlined,
+          label: 'Edit display name',
         ),
-        PopupMenuItem(
+        _menuItem(
           value: _UserAction.toggleStatus.name,
+          icon: user.disabled
+              ? Icons.lock_open_rounded
+              : Icons.lock_outline_rounded,
+          label: user.disabled ? 'Unblock account' : 'Block account',
           enabled: !isSelf,
-          child: ListTile(
-            dense: true,
-            leading: Icon(
-              user.disabled
-                  ? Icons.lock_open_rounded
-                  : Icons.lock_outline_rounded,
-            ),
-            title: Text(user.disabled ? 'Mở khóa' : 'Khóa tài khoản'),
-          ),
         ),
-        PopupMenuItem(
+        _menuItem(
           value: _UserAction.toggleRole.name,
+          icon: user.isAdmin
+              ? Icons.shield_outlined
+              : Icons.add_moderator_outlined,
+          label: user.isAdmin ? 'Revoke Admin role' : 'Grant Admin role',
           enabled: !isSelf,
-          child: ListTile(
-            dense: true,
-            leading: Icon(
-              user.isAdmin
-                  ? Icons.shield_outlined
-                  : Icons.add_moderator_outlined,
-            ),
-            title: Text(user.isAdmin ? 'Thu hồi Admin' : 'Cấp Admin'),
-          ),
         ),
-        PopupMenuItem(
+        _menuItem(
           value: _UserAction.revoke.name,
-          child: const ListTile(
-            dense: true,
-            leading: Icon(Icons.logout_rounded),
-            title: Text('Thu hồi phiên'),
-          ),
+          icon: Icons.logout_rounded,
+          label: 'Revoke sessions',
         ),
-        PopupMenuItem(
+        const PopupMenuDivider(height: 0.5),
+        _menuItem(
           value: _UserAction.delete.name,
+          icon: Icons.delete_outline_rounded,
+          label: 'Delete account',
           enabled: !isSelf,
-          child: const ListTile(
-            dense: true,
-            leading: Icon(Icons.delete_outline_rounded, color: AppTheme.danger),
-            title: Text(
-              'Xóa tài khoản',
-              style: TextStyle(color: AppTheme.danger),
-            ),
-          ),
+          danger: true,
         ),
       ],
-      icon: const Icon(Icons.more_horiz_rounded),
+      icon: const Icon(Icons.more_horiz_rounded, size: 18),
+      iconSize: 18,
+    );
+  }
+
+  PopupMenuItem<String> _menuItem({
+    required String value,
+    required IconData icon,
+    required String label,
+    bool enabled = true,
+    bool danger = false,
+  }) => PopupMenuItem<String>(
+    value: value,
+    enabled: enabled,
+    child: Opacity(
+      opacity: enabled ? 1.0 : 0.4,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: danger ? AppColors.danger : null),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: danger ? AppColors.danger : null,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// ─── EditUserDialog ───────────────────────────────────────────────────────────
+
+class _EditUserDialog extends StatelessWidget {
+  const _EditUserDialog({required this.user, required this.controller});
+
+  final AdminUser user;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final border = Theme.of(context).dividerColor;
+    final cs = Theme.of(context).colorScheme;
+
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Edit user',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.email ?? user.uid,
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    maxLength: 256,
+                    decoration: const InputDecoration(
+                      labelText: 'Display name',
+                      helperText: 'Leave empty to clear the display name.',
+                    ),
+                    onSubmitted: (text) => Navigator.pop(context, text),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+            Divider(height: 0.5, color: border),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, controller.text),
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

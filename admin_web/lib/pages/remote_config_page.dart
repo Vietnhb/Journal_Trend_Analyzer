@@ -311,36 +311,42 @@ class _RemoteConfigPageState extends State<RemoteConfigPage> {
     children: [
       PageHeading(
         eyebrow: 'Firebase Remote Config',
-        title: 'Cấu hình ứng dụng',
+        title: 'Remote Config',
         description:
-            'Quản lý giới hạn hiển thị, kiểm tra thay đổi và khôi phục an toàn '
-            'mà không cần thao tác trực tiếp trên Firebase Console.',
+            'Manage display limits, review changes, and safely roll back '
+            'without touching Firebase Console directly.',
         actions: [
           if (_config case final config?)
             StatusPill(
               config.version.versionNumber == null
-                  ? 'Chưa có phiên bản'
-                  : 'Phiên bản v${config.version.versionNumber}',
+                  ? 'No version yet'
+                  : 'v${config.version.versionNumber} active',
               tone: StatusTone.success,
               icon: Icons.cloud_done_outlined,
             ),
           OutlinedButton.icon(
             onPressed: _refreshing || _mutating ? null : _load,
             icon: _refreshing
-                ? const SizedBox.square(
-                    dimension: 17,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh_rounded),
-            label: const Text('Làm mới'),
+                ? const InlineSpinner(size: 16)
+                : const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh'),
           ),
         ],
       ),
       if (_loading)
-        const SectionCard(child: LoadingPanel(label: 'Đang tải Remote Config…'))
+        const SectionCard(
+          child: LoadingPanel(
+            style: LoadingStyle.spinner,
+            label: 'Loading Remote Config…',
+          ),
+        )
       else if (_loadError != null)
         SectionCard(
-          child: ErrorPanel(message: errorText(_loadError!), onRetry: _load),
+          child: ErrorPanel(
+            message: errorText(_loadError!),
+            onRetry: _load,
+            detail: _loadError.toString(),
+          ),
         )
       else
         ..._buildContent(_config!),

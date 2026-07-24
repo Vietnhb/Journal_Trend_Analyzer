@@ -93,11 +93,10 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     return PageBody(
       children: [
         PageHeading(
-          eyebrow: 'Structured admin audit',
-          title: 'Nhật ký quản trị',
+          eyebrow: 'Structured Admin Audit',
+          title: 'Audit Log',
           description:
-              'Theo dõi quản trị viên đã thực hiện thao tác gì, trên tài nguyên nào '
-              'và vào thời điểm nào.',
+              'Track what administrators did, on which resource, and when.',
           actions: [
             AdminDateRangeFilter(
               value: _range,
@@ -106,12 +105,9 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             OutlinedButton.icon(
               onPressed: _loading ? null : _load,
               icon: _loading
-                  ? const SizedBox.square(
-                      dimension: 17,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh_rounded),
-              label: const Text('Làm mới'),
+                  ? const InlineSpinner(size: 16)
+                  : const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Refresh'),
             ),
           ],
         ),
@@ -141,17 +137,21 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
               ),
               const Divider(height: 1),
               if (_loading && _logs.isEmpty)
-                const LoadingPanel(label: 'Đang tải nhật ký quản trị…')
+                const LoadingPanel(rowCount: 5)
               else if (_error != null)
-                ErrorPanel(message: errorText(_error!), onRetry: _load)
+                ErrorPanel(
+                  message: errorText(_error!),
+                  onRetry: _load,
+                  detail: _error.toString(),
+                )
               else if (filtered.isEmpty)
                 EmptyPanel(
                   title: _logs.isEmpty
-                      ? 'Chưa có nhật ký quản trị'
-                      : 'Không có bản ghi phù hợp',
+                      ? 'No audit logs yet'
+                      : 'No records match your filters',
                   description: _logs.isEmpty
-                      ? 'Các thao tác thay đổi dữ liệu từ trang Admin sẽ xuất hiện tại đây.'
-                      : 'Hãy thử thay đổi từ khóa hoặc bộ lọc thao tác.',
+                      ? 'Data-modifying operations from the Admin panel will appear here.'
+                      : 'Try changing the search term or action filter.',
                   icon: Icons.manage_search_rounded,
                 )
               else

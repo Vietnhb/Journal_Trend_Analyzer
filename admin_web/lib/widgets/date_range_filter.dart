@@ -50,6 +50,8 @@ final class AdminDateRange {
   }
 }
 
+/// Inline segmented presets for the 3 most‑common ranges, with a calendar
+/// button for custom ranges.  Matches the pattern used by Datadog / Vercel.
 class AdminDateRangeFilter extends StatelessWidget {
   const AdminDateRangeFilter({
     required this.value,
@@ -60,19 +62,145 @@ class AdminDateRangeFilter extends StatelessWidget {
   final AdminDateRange value;
   final ValueChanged<AdminDateRange> onChanged;
 
+  static final _presets = [
+    (label: '7d', range: AdminDateRange.lastDays(7, '7 ngày qua')),
+    (label: '30d', range: AdminDateRange.lastDays(30, '30 ngày qua')),
+    (label: '90d', range: AdminDateRange.lastDays(90, '90 ngày qua')),
+  ];
+
+  bool _isActive(AdminDateRange preset) {
+    if (value.isCustom) return false;
+    return value.label == preset.label;
+  }
+
+  Future<void> _openCustom(BuildContext context) async {
+    final result = await showDialog<AdminDateRange>(
+      context: context,
+      builder: (context) => _DateRangeDialog(initialValue: value),
+    );
+    if (result != null) onChanged(result);
+  }
+
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    onPressed: () async {
-      final result = await showDialog<AdminDateRange>(
-        context: context,
-        builder: (context) => _DateRangeDialog(initialValue: value),
-      );
-      if (result != null) onChanged(result);
-    },
-    icon: Icon(value.isCustom ? Icons.date_range_rounded : Icons.schedule),
-    label: Text(value.label),
-    style: const ButtonStyle(visualDensity: VisualDensity.compact),
-  );
+  Widget build(BuildContext context) {
+    final border = Theme.of(context).dividerColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: border, width: 0.5),
+        borderRadius: BorderRadius.circular(10),
+        color: isDark ? const Color(0xFF151D2E) : Colors.white,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < _presets.length; i++) ...[
+            _PresetChip(
+              label: _presets[i].label,
+              active: _isActive(_presets[i].range),
+              onTap: () => onChanged(_presets[i].range),
+              leftRounded: i == 0,
+              rightRounded: false,
+            ),
+            if (i < _presets.length - 1)
+              SizedBox(
+                height: 18,
+                child: VerticalDivider(width: 1, color: border),
+              ),
+          ],
+          SizedBox(height: 18, child: VerticalDivider(width: 1, color: border)),
+          _PresetChip(
+            label: value.isCustom ? value.label : 'Custom',
+            active: value.isCustom,
+            icon: Icons.calendar_month_outlined,
+            onTap: () => _openCustom(context),
+            leftRounded: false,
+            rightRounded: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PresetChip extends StatefulWidget {
+  const _PresetChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+    required this.leftRounded,
+    required this.rightRounded,
+    this.icon,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final bool leftRounded;
+  final bool rightRounded;
+  final IconData? icon;
+
+  @override
+  State<_PresetChip> createState() => _PresetChipState();
+}
+
+class _PresetChipState extends State<_PresetChip> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgActive = cs.primary.withValues(alpha: .1);
+    final bgHover = isDark
+        ? Colors.white.withValues(alpha: .04)
+        : Colors.black.withValues(alpha: .03);
+
+    final radius = BorderRadius.horizontal(
+      left: widget.leftRounded ? const Radius.circular(9) : Radius.zero,
+      right: widget.rightRounded ? const Radius.circular(9) : Radius.zero,
+    );
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.active ? bgActive : (_hovered ? bgHover : null),
+            borderRadius: radius,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.icon != null) ...[
+                Icon(
+                  widget.icon,
+                  size: 13,
+                  color: widget.active ? cs.primary : cs.onSurfaceVariant,
+                ),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                widget.label,
+                style: TextStyle(
+                  color: widget.active ? cs.primary : cs.onSurfaceVariant,
+                  fontSize: 12.5,
+                  fontWeight: widget.active ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _DateRangeDialog extends StatefulWidget {

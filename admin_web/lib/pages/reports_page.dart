@@ -274,9 +274,9 @@ class _ReportsPageState extends State<ReportsPage> {
     children: [
       PageHeading(
         eyebrow: 'Firebase Cloud Storage',
-        title: 'Báo cáo đã lưu',
+        title: 'Reports',
         description:
-            'Duyệt, xem trước và quản lý PDF của mọi người dùng trong phạm vi report/{uid}/analysis.',
+            'Browse, preview, and manage PDF files for all users under report/{uid}/analysis.',
         actions: [
           AdminDateRangeFilter(
             value: _range,
@@ -284,8 +284,8 @@ class _ReportsPageState extends State<ReportsPage> {
           ),
           OutlinedButton.icon(
             onPressed: _busyPath == null && !_bulkBusy ? _refresh : null,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Làm mới'),
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh'),
           ),
         ],
       ),
@@ -293,7 +293,7 @@ class _ReportsPageState extends State<ReportsPage> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const SectionCard(child: LoadingPanel());
+            return const SectionCard(child: LoadingPanel(rowCount: 4));
           }
           if (snapshot.hasError) {
             return SectionCard(
@@ -317,28 +317,29 @@ class _ReportsPageState extends State<ReportsPage> {
               AdaptiveGrid(
                 children: [
                   MetricCard(
-                    label: 'Tệp trên trang này',
+                    label: 'Files on this page',
                     value: formatNumber(reports.length),
-                    detail: 'Trang ${_pageIndex + 1} · tối đa $_pageSize tệp',
+                    detail: 'Page ${_pageIndex + 1} · max $_pageSize files',
                     icon: Icons.folder_open_rounded,
                     tone: MetricTone.violet,
                   ),
                   MetricCard(
-                    label: 'Dung lượng trên trang',
+                    label: 'Page storage',
                     value: formatBytes(pageBytes),
-                    detail: 'Tổng dung lượng của các tệp đang hiển thị',
+                    detail: 'Total size of visible files',
                     icon: Icons.storage_outlined,
                   ),
                   const MetricCard(
-                    label: 'Định dạng cho phép',
+                    label: 'Allowed format',
                     value: 'PDF',
-                    detail: 'Mỗi tệp tối đa 10 MB',
+                    detail: 'Max 10 MB per file',
                     icon: Icons.picture_as_pdf_outlined,
                     tone: MetricTone.green,
                   ),
                 ],
               ),
               const SizedBox(height: 22),
+
               SectionCard(
                 padding: EdgeInsets.zero,
                 child: Column(
