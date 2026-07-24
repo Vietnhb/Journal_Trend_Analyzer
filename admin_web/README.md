@@ -32,10 +32,9 @@ Chạy Functions và Hosting Emulator từ repository root:
 npx firebase-tools emulators:start --only functions,hosting
 ```
 
-Sau đó mở `http://localhost:5000`. UI luôn gọi API same-origin tại `/api/v1`;
-Hosting rewrite tự chuyển tiếp tới đúng Function, project và region trong
-`firebase.json`. Không có URL bucket hoặc URL Function hard-code trong giao
-diện.
+Sau đó mở `http://localhost:5000`. Khi chạy trên localhost, UI gọi trực tiếp
+Functions Emulator tại cổng `5001`. Bản production vẫn gọi `/api/v1` cùng
+origin qua Hosting rewrite.
 
 Kiểm tra mã Flutter từ thư mục `admin_web`:
 

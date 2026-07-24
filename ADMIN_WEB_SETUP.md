@@ -115,7 +115,7 @@ Hai Dart defines được hỗ trợ:
 
 | Define | Mặc định | Mục đích |
 |---|---|---|
-| `API_BASE_URL` | `/api/v1` cùng origin | Hosting rewrite xác định Function/project/region; không hard-code URL |
+| `API_BASE_URL` | Local dùng Functions Emulator; production dùng `/api/v1` | Ghi đè khi dùng gateway hoặc staging |
 | `APP_CHECK_SITE_KEY` | rỗng | Public reCAPTCHA Enterprise site key |
 
 Chạy local từ repository root:
@@ -158,8 +158,8 @@ dart run tool/build_admin_web.dart
 ```
 
 Build script tự chuyển hai biến này thành `--dart-define`. Nếu không đặt biến,
-mọi môi trường mặc định dùng `/api/v1` cùng origin qua Hosting rewrite, và App
-Check không được activate.
+localhost dùng Functions Emulator tại cổng `5001`; các môi trường khác dùng
+`/api/v1` cùng origin qua Hosting rewrite. App Check không được activate.
 
 ## 6. Cấu hình backend
 

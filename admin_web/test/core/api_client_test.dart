@@ -8,13 +8,17 @@ import 'package:journal_trend_admin_web/core/core.dart';
 
 void main() {
   group('ApiClient', () {
-    test('uses the same-origin API on a Flutter localhost server', () {
+    test('uses the Functions Emulator on a Flutter localhost server', () {
       final uri = ApiClient.resolveConfiguredApiBaseUri(
         configured: '',
         pageUri: Uri.parse('http://localhost:57601/'),
       );
 
-      expect(uri.toString(), 'http://localhost:57601/api/v1');
+      expect(
+        uri.toString(),
+        'http://127.0.0.1:5001/'
+        'journal-trend-analyzer/asia-southeast1/adminApi/api/v1',
+      );
     });
 
     test('uses same-origin Hosting API outside local development', () {
@@ -26,13 +30,17 @@ void main() {
       expect(uri.toString(), 'https://journal-trend-analyzer.web.app/api/v1');
     });
 
-    test('uses Hosting rewrite on the local Hosting Emulator', () {
+    test('uses the Functions Emulator from the local Hosting Emulator', () {
       final uri = ApiClient.resolveConfiguredApiBaseUri(
         configured: '',
         pageUri: Uri.parse('http://localhost:5000/'),
       );
 
-      expect(uri.toString(), 'http://localhost:5000/api/v1');
+      expect(
+        uri.toString(),
+        'http://127.0.0.1:5001/'
+        'journal-trend-analyzer/asia-southeast1/adminApi/api/v1',
+      );
     });
 
     test(

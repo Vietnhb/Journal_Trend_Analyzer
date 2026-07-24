@@ -12,6 +12,9 @@ typedef AppCheckTokenProvider = Future<String?> Function({bool forceRefresh});
 typedef ApiDecoder<T> = T Function(Object? data);
 
 const configuredApiBaseUrl = String.fromEnvironment('API_BASE_URL');
+const localEmulatorApiBaseUrl =
+    'http://127.0.0.1:5001/'
+    'journal-trend-analyzer/asia-southeast1/adminApi/api/v1';
 
 final class ApiBytes {
   const ApiBytes({
@@ -54,7 +57,9 @@ final class ApiClient {
     final currentPage = pageUri ?? Uri.base;
     var value = configured.trim();
     if (value.isEmpty) {
-      value = '/api/v1';
+      value = currentPage.host == 'localhost' || currentPage.host == '127.0.0.1'
+          ? localEmulatorApiBaseUrl
+          : '/api/v1';
     }
     final parsed = Uri.tryParse(value);
     if (parsed == null) {
