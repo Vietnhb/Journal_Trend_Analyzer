@@ -69,6 +69,20 @@ void main() {
       expect(data.source.streamId, '15254447622');
     });
 
+    test('Crash data exposes the latest observed app version', () {
+      final data = CrashData.fromJson({
+        'status': 'ready',
+        'currentVersion': '1.0.0 (1)',
+        'summary': const <String, Object?>{},
+        'crashFree': const <String, Object?>{},
+        'releases': const ['1.0.0 (1)'],
+        'issues': const [],
+        'daily': const [],
+      });
+
+      expect(data.currentVersion, '1.0.0 (1)');
+    });
+
     test('UserUpdate distinguishes omitted and explicitly cleared name', () {
       expect(
         const UserUpdate(clearDisplayName: true, disabled: true).toJson(),

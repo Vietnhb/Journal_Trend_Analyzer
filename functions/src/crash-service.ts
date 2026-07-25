@@ -65,6 +65,7 @@ function emptyResult(
       totalUsers: 0,
       totalSessions: 0,
     },
+    currentVersion: null,
     releases: [],
     issues: [],
     daily: [],
@@ -377,6 +378,19 @@ export async function loadCrashes(
       COUNT(DISTINCT IF(error_type = 'NON_FATAL', event_id, NULL)) AS non_fatal,
       COUNT(DISTINCT installation_uuid) AS affected_users,
       ARRAY_AGG(
+        IF(
+          application.display_version IS NULL,
+          NULL,
+          CONCAT(
+            application.display_version,
+            IF(application.build_version IS NULL, '', CONCAT(' (', application.build_version, ')'))
+          )
+        )
+        IGNORE NULLS
+        ORDER BY event_timestamp DESC, received_timestamp DESC
+        LIMIT 1
+      )[SAFE_OFFSET(0)] AS current_version,
+      ARRAY_AGG(
         DISTINCT IF(
           application.display_version IS NULL,
           NULL,
@@ -595,6 +609,7 @@ export async function loadCrashes(
         totalUsers,
         totalSessions,
       },
+      currentVersion: text(summary?.current_version),
       releases: Array.isArray(summary?.releases)
         ? summary.releases.filter((item): item is string => typeof item === "string")
         : [],

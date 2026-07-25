@@ -7,6 +7,7 @@ final class CrashData {
     required this.reason,
     required this.summary,
     required this.crashFree,
+    required this.currentVersion,
     required this.releases,
     required this.issues,
     required this.daily,
@@ -21,6 +22,7 @@ final class CrashData {
     crashFree: CrashFree.fromJson(
       readJsonMap(json['crashFree'] ?? const <String, Object?>{}),
     ),
+    currentVersion: readNullableString(json, 'currentVersion'),
     releases: _strings(json['releases']),
     issues: readObjectList(json, 'issues', CrashIssue.fromJson),
     daily: readObjectList(json, 'daily', CrashDaily.fromJson),
@@ -30,6 +32,7 @@ final class CrashData {
   final String? reason;
   final CrashSummary summary;
   final CrashFree crashFree;
+  final String? currentVersion;
   final List<String> releases;
   final List<CrashIssue> issues;
   final List<CrashDaily> daily;

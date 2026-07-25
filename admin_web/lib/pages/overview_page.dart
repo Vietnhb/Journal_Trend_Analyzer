@@ -129,6 +129,16 @@ class _OverviewPageState extends State<OverviewPage> {
                     tone: MetricTone.amber,
                     onTap: () => widget.onNavigate(2),
                   ),
+                  MetricCard(
+                    label: 'Current App Version',
+                    value: data.crashes.currentVersion ?? 'No data',
+                    detail: data.crashes.currentVersion == null
+                        ? 'Waiting for a Crashlytics event'
+                        : 'Latest version observed by Crashlytics',
+                    icon: Icons.system_update_alt_rounded,
+                    tone: MetricTone.blue,
+                    onTap: () => widget.onNavigate(5),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
