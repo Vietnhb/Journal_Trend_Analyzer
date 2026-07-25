@@ -88,6 +88,10 @@ class _OverviewPageState extends State<OverviewPage> {
             );
           }
           final data = snapshot.requireData;
+          final currentAppVersion = data.crashes.currentVersion
+              ?.split(' (')
+              .first
+              .trim();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -131,10 +135,12 @@ class _OverviewPageState extends State<OverviewPage> {
                   ),
                   MetricCard(
                     label: 'Current App Version',
-                    value: data.crashes.currentVersion ?? 'No data',
-                    detail: data.crashes.currentVersion == null
+                    value: currentAppVersion?.isNotEmpty == true
+                        ? currentAppVersion!
+                        : 'No data',
+                    detail: currentAppVersion?.isNotEmpty != true
                         ? 'Waiting for a Crashlytics event'
-                        : 'Latest version observed by Crashlytics',
+                        : 'Current mobile release',
                     icon: Icons.system_update_alt_rounded,
                     tone: MetricTone.blue,
                     onTap: () => widget.onNavigate(5),
