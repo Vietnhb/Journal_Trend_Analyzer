@@ -716,16 +716,16 @@ class _UserIdentity extends StatelessWidget {
                 ),
               ),
               if (user.email != null || user.phoneNumber != null)
-                Text(
+                CopyableText(
                   user.email ?? user.phoneNumber!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  display: user.email ?? user.phoneNumber!,
+                  copyLabel: user.email != null ? 'email' : 'phone number',
                   style: GoogleFonts.inter(
                     color: cs.onSurfaceVariant,
                     fontSize: 11.5,
                   ),
                 ),
-              CopyableText(user.uid),
+              CopyableText(user.uid, copyLabel: 'user ID'),
             ],
           ),
         ),

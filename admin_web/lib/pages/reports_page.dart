@@ -532,36 +532,60 @@ class _ReportBulkActions extends StatelessWidget {
   final VoidCallback onDeleteAll;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 10,
-    runSpacing: 10,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: [
-      FilterChip(
-        selected: allVisibleSelected,
-        onSelected: busy || visibleCount == 0 ? null : onToggleVisible,
-        avatar: const Icon(Icons.select_all_rounded, size: 18),
-        label: Text('Select current page ($visibleCount)'),
-      ),
-      OutlinedButton.icon(
-        onPressed: busy || selectedCount == 0 ? null : onDeleteSelected,
-        icon: busy && selectedCount > 0
-            ? const SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.delete_sweep_outlined),
-        label: Text('Delete selected ($selectedCount)'),
-        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger),
-      ),
-      TextButton.icon(
-        onPressed: busy ? null : onDeleteAll,
-        icon: const Icon(Icons.delete_forever_outlined),
-        label: const Text('Delete all reports'),
-        style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final selectEnabled = !busy && visibleCount > 0;
+    final disabledForeground = isDark
+        ? const Color(0xFF747A8B)
+        : theme.colorScheme.onSurface.withValues(alpha: .38);
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilterChip(
+          selected: allVisibleSelected,
+          onSelected: selectEnabled ? onToggleVisible : null,
+          avatar: Icon(
+            Icons.select_all_rounded,
+            size: 18,
+            color: selectEnabled
+                ? theme.colorScheme.onSurfaceVariant
+                : disabledForeground,
+          ),
+          labelStyle: TextStyle(
+            color: selectEnabled
+                ? theme.colorScheme.onSurfaceVariant
+                : disabledForeground,
+            fontWeight: FontWeight.w600,
+          ),
+          label: Text('Select current page ($visibleCount)'),
+        ),
+        OutlinedButton.icon(
+          onPressed: busy || selectedCount == 0 ? null : onDeleteSelected,
+          icon: busy && selectedCount > 0
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.delete_sweep_outlined),
+          label: Text('Delete selected ($selectedCount)'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppTheme.danger,
+            disabledForegroundColor: disabledForeground,
+          ),
+        ),
+        TextButton.icon(
+          onPressed: busy ? null : onDeleteAll,
+          icon: const Icon(Icons.delete_forever_outlined),
+          label: const Text('Delete all reports'),
+          style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+        ),
+      ],
+    );
+  }
 }
 
 typedef _ReportCallback = void Function(StoredReport report);

@@ -4,6 +4,38 @@ import 'package:journal_trend_admin_web/theme/app_theme.dart';
 import 'package:journal_trend_admin_web/widgets/admin_widgets.dart';
 
 void main() {
+  testWidgets('dark theme keeps controls legible in all control states', (
+    tester,
+  ) async {
+    late ThemeData theme;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(
+          builder: (context) {
+            theme = Theme.of(context);
+            return const Scaffold(body: SizedBox());
+          },
+        ),
+      ),
+    );
+
+    final outlinedStyle = theme.outlinedButtonTheme.style!;
+    final disabledText = outlinedStyle.foregroundColor!.resolve({
+      WidgetState.disabled,
+    })!;
+    final chipText = theme.chipTheme.labelStyle!.color!;
+
+    expect(theme.colorScheme.onSurface.computeLuminance(), greaterThan(.7));
+    expect(
+      theme.colorScheme.onSurfaceVariant.computeLuminance(),
+      greaterThan(.4),
+    );
+    expect(disabledText.computeLuminance(), greaterThan(.15));
+    expect(chipText.computeLuminance(), greaterThan(.4));
+    expect(theme.checkboxTheme.side!.color.computeLuminance(), greaterThan(.3));
+  });
+
   testWidgets('metric card renders the supplied operational data', (
     tester,
   ) async {
@@ -24,6 +56,23 @@ void main() {
     expect(find.text('TOTAL USERS'), findsOneWidget);
     expect(find.text('42'), findsOneWidget);
     expect(find.text('5 new accounts'), findsOneWidget);
+  });
+
+  testWidgets('copyable text exposes a visible copy action', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: const Scaffold(
+          body: CopyableText(
+            'full-user-id',
+            display: 'short-id',
+            copyLabel: 'user ID',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
   });
 
   testWidgets('typed confirmation stays disabled until exact text is entered', (

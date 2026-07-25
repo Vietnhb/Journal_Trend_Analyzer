@@ -34,6 +34,7 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   int _selected = 0;
+  bool _sidebarCollapsed = false;
   final Map<int, Widget> _pageCache = {};
 
   Widget _page(int index) => _pageCache.putIfAbsent(
@@ -53,6 +54,9 @@ class _AdminShellState extends State<AdminShell> {
 
   void _select(int index) => setState(() => _selected = index);
 
+  void _toggleSidebar() =>
+      setState(() => _sidebarCollapsed = !_sidebarCollapsed);
+
   Future<void> _confirmSignOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -70,6 +74,7 @@ class _AdminShellState extends State<AdminShell> {
       final rail = !wide && constraints.maxWidth >= 840;
       final border = Theme.of(context).dividerColor;
       final desktopChrome = wide || rail;
+      final collapsedSidebar = wide && _sidebarCollapsed;
 
       return Scaffold(
         drawer: desktopChrome
@@ -114,16 +119,32 @@ class _AdminShellState extends State<AdminShell> {
         body: Row(
           children: [
             if (wide)
-              SizedBox(
-                width: 276,
-                child: _SideNavigation(
-                  selected: _selected,
-                  onSelected: _select,
-                  identity: widget.session.identity,
-                ),
+              AnimatedContainer(
+                key: const Key('desktop_sidebar'),
+                width: collapsedSidebar ? 104 : 276,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOutCubic,
+                child: collapsedSidebar
+                    ? _CompactRail(
+                        selected: _selected,
+                        onSelected: _select,
+                        showLabels: false,
+                        onToggleSidebar: _toggleSidebar,
+                      )
+                    : _SideNavigation(
+                        selected: _selected,
+                        onSelected: _select,
+                        identity: widget.session.identity,
+                        onToggleSidebar: _toggleSidebar,
+                      ),
               )
             else if (rail)
-              _CompactRail(selected: _selected, onSelected: _select),
+              _CompactRail(
+                selected: _selected,
+                onSelected: _select,
+                showLabels: true,
+                onToggleSidebar: null,
+              ),
             if (desktopChrome) VerticalDivider(width: .5, color: border),
             Expanded(
               child: Column(
@@ -258,12 +279,14 @@ class _SideNavigation extends StatelessWidget {
     required this.selected,
     required this.onSelected,
     required this.identity,
+    this.onToggleSidebar,
     this.closeOnSelect = false,
   });
 
   final int selected;
   final ValueChanged<int> onSelected;
   final AdminIdentity identity;
+  final VoidCallback? onToggleSidebar;
   final bool closeOnSelect;
 
   @override
@@ -278,8 +301,8 @@ class _SideNavigation extends StatelessWidget {
         children: [
           // ── Brand ─────────────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-            child: _SidebarBrand(),
+            padding: const EdgeInsets.fromLTRB(12, 14, 18, 12),
+            child: _SidebarBrand(onToggleSidebar: onToggleSidebar),
           ),
           Divider(height: 0.5, color: border),
 
@@ -507,49 +530,77 @@ class _SidebarFooter extends StatelessWidget {
 // ─── Compact rail (tablet) ───────────────────────────────────────────────────
 
 class _CompactRail extends StatelessWidget {
-  const _CompactRail({required this.selected, required this.onSelected});
+  const _CompactRail({
+    required this.selected,
+    required this.onSelected,
+    required this.showLabels,
+    required this.onToggleSidebar,
+  });
 
   final int selected;
   final ValueChanged<int> onSelected;
+  final bool showLabels;
+  final VoidCallback? onToggleSidebar;
 
   @override
-  Widget build(BuildContext context) => NavigationRail(
-    backgroundColor: AppColors.navigation,
-    selectedIndex: selected,
-    onDestinationSelected: onSelected,
-    labelType: NavigationRailLabelType.all,
-    groupAlignment: -0.85,
-    indicatorColor: Colors.white.withValues(alpha: .1),
-    selectedIconTheme: const IconThemeData(color: Color(0xFF9B9DFF), size: 20),
-    unselectedIconTheme: IconThemeData(
-      color: Colors.white.withValues(alpha: .52),
-      size: 20,
-    ),
-    selectedLabelTextStyle: GoogleFonts.inter(
-      color: Colors.white,
-      fontSize: 10,
-      fontWeight: FontWeight.w700,
-    ),
-    unselectedLabelTextStyle: GoogleFonts.inter(
-      color: Colors.white.withValues(alpha: .5),
-      fontSize: 10,
-      fontWeight: FontWeight.w500,
-    ),
-    leading: Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: _LogoIcon(),
-    ),
-    minWidth: 84,
-    destinations: [
-      for (final d in _destinations)
-        NavigationRailDestination(
-          icon: Icon(d.icon),
-          selectedIcon: Icon(d.selectedIcon),
-          label: Text(d.shortLabel),
-          padding: const EdgeInsets.symmetric(vertical: 2),
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return NavigationRail(
+      backgroundColor: isDark ? const Color(0xFF0A0C13) : AppColors.navigation,
+      selectedIndex: selected,
+      onDestinationSelected: onSelected,
+      labelType: showLabels
+          ? NavigationRailLabelType.all
+          : NavigationRailLabelType.none,
+      groupAlignment: -0.85,
+      indicatorColor: Colors.white.withValues(alpha: .1),
+      selectedIconTheme: const IconThemeData(
+        color: Color(0xFF9B9DFF),
+        size: 20,
+      ),
+      unselectedIconTheme: IconThemeData(
+        color: Colors.white.withValues(alpha: .52),
+        size: 20,
+      ),
+      selectedLabelTextStyle: GoogleFonts.inter(
+        color: Colors.white,
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+      ),
+      unselectedLabelTextStyle: GoogleFonts.inter(
+        color: Colors.white.withValues(alpha: .5),
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+      ),
+      leading: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onToggleSidebar != null)
+              _SidebarToggleButton(
+                collapsed: true,
+                onPressed: onToggleSidebar!,
+              ),
+            _LogoIcon(),
+          ],
         ),
-    ],
-  );
+      ),
+      minWidth: showLabels ? 84 : 104,
+      destinations: [
+        for (final d in _destinations)
+          NavigationRailDestination(
+            icon: Tooltip(message: d.label, child: Icon(d.icon)),
+            selectedIcon: Tooltip(
+              message: d.label,
+              child: Icon(d.selectedIcon),
+            ),
+            label: Text(d.shortLabel),
+            padding: const EdgeInsets.symmetric(vertical: 2),
+          ),
+      ],
+    );
+  }
 }
 
 class _WorkspaceBar extends StatelessWidget {
@@ -779,11 +830,17 @@ class _Avatar extends StatelessWidget {
 // ─── SidebarBrand ─────────────────────────────────────────────────────────────
 
 class _SidebarBrand extends StatelessWidget {
-  const _SidebarBrand();
+  const _SidebarBrand({required this.onToggleSidebar});
+
+  final VoidCallback? onToggleSidebar;
 
   @override
   Widget build(BuildContext context) => Row(
     children: [
+      if (onToggleSidebar != null) ...[
+        _SidebarToggleButton(collapsed: false, onPressed: onToggleSidebar!),
+        const SizedBox(width: 2),
+      ],
       _LogoIcon(),
       const SizedBox(width: 11),
       Expanded(
@@ -812,6 +869,28 @@ class _SidebarBrand extends StatelessWidget {
         ),
       ),
     ],
+  );
+}
+
+class _SidebarToggleButton extends StatelessWidget {
+  const _SidebarToggleButton({
+    required this.collapsed,
+    required this.onPressed,
+  });
+
+  final bool collapsed;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+    child: IconButton(
+      key: const Key('sidebar_toggle_button'),
+      onPressed: onPressed,
+      color: Colors.white.withValues(alpha: .82),
+      hoverColor: Colors.white.withValues(alpha: .08),
+      icon: const Icon(Icons.menu_rounded, size: 22),
+    ),
   );
 }
 

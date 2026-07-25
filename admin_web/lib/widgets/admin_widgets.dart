@@ -1467,11 +1467,20 @@ class InlineSpinner extends StatelessWidget {
 
 /// Monospace text with an inline copy button — useful for UIDs, paths, etc.
 class CopyableText extends StatefulWidget {
-  const CopyableText(this.text, {this.display, this.fontSize = 11, super.key});
+  const CopyableText(
+    this.text, {
+    this.display,
+    this.fontSize = 11,
+    this.style,
+    this.copyLabel,
+    super.key,
+  });
 
   final String text;
   final String? display;
   final double fontSize;
+  final TextStyle? style;
+  final String? copyLabel;
 
   @override
   State<CopyableText> createState() => _CopyableTextState();
@@ -1481,8 +1490,14 @@ class _CopyableTextState extends State<CopyableText> {
   bool _copied = false;
 
   Future<void> _copy() async {
-    await Clipboard.setData(ClipboardData(text: widget.text));
+    if (!mounted) return;
     setState(() => _copied = true);
+    try {
+      await Clipboard.setData(ClipboardData(text: widget.text));
+    } catch (_) {
+      if (mounted) setState(() => _copied = false);
+      return;
+    }
     await Future<void>.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => _copied = false);
   }
@@ -1490,36 +1505,48 @@ class _CopyableTextState extends State<CopyableText> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final label = widget.copyLabel ?? 'value';
     return Tooltip(
-      message: widget.text,
-      child: GestureDetector(
-        onTap: _copy,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  widget.display ?? _truncateMiddle(widget.text),
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.robotoMono(
-                    color: cs.outline,
-                    fontSize: widget.fontSize,
+      message: _copied ? 'Copied!' : 'Copy $label',
+      child: Semantics(
+        button: true,
+        label: _copied ? '$label copied' : 'Copy $label',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _copy,
+            borderRadius: BorderRadius.circular(5),
+            hoverColor: cs.primary.withValues(alpha: .08),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      widget.display ?? _truncateMiddle(widget.text),
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          widget.style ??
+                          GoogleFonts.robotoMono(
+                            color: cs.onSurfaceVariant,
+                            fontSize: widget.fontSize,
+                          ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 5),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      _copied ? Icons.check_rounded : Icons.copy_rounded,
+                      key: ValueKey(_copied),
+                      size: 14,
+                      color: _copied ? AppColors.success : cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  _copied ? Icons.check_rounded : Icons.copy_rounded,
-                  key: ValueKey(_copied),
-                  size: 11,
-                  color: _copied ? AppColors.success : cs.outline,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

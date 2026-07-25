@@ -147,12 +147,36 @@ abstract final class AppTheme {
   }) {
     final isDark = brightness == Brightness.dark;
 
-    final scheme = ColorScheme.fromSeed(
+    final generatedScheme = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
       surface: surface,
       error: AppColors.danger,
     );
+    final scheme = isDark
+        ? generatedScheme.copyWith(
+            primary: const Color(0xFFA7A8FF),
+            onPrimary: const Color(0xFF111329),
+            primaryContainer: const Color(0xFF30336E),
+            onPrimaryContainer: const Color(0xFFE2E3FF),
+            secondary: const Color(0xFF54D7C7),
+            onSecondary: const Color(0xFF00201C),
+            secondaryContainer: const Color(0xFF123B38),
+            onSecondaryContainer: const Color(0xFFB7F3EA),
+            surface: surface,
+            onSurface: const Color(0xFFF1F2F8),
+            onSurfaceVariant: const Color(0xFFB8BDCC),
+            outline: const Color(0xFF484E60),
+            outlineVariant: AppColors.darkBorder,
+            surfaceContainerLowest: const Color(0xFF080A10),
+            surfaceContainerLow: const Color(0xFF0E1119),
+            surfaceContainer: AppColors.darkSurface,
+            surfaceContainerHigh: AppColors.darkSurfaceVariant,
+            surfaceContainerHighest: const Color(0xFF202534),
+            error: const Color(0xFFFF6675),
+            onError: const Color(0xFF35000A),
+          )
+        : generatedScheme;
 
     final baseText = GoogleFonts.interTextTheme(
       brightness == Brightness.dark
@@ -223,10 +247,14 @@ abstract final class AppTheme {
       colorScheme: scheme,
       textTheme: textTheme,
       scaffoldBackgroundColor: scaffold,
+      disabledColor: isDark
+          ? const Color(0xFF747A8B)
+          : scheme.onSurface.withValues(alpha: .38),
       visualDensity: const VisualDensity(horizontal: -.2, vertical: -.2),
       dividerColor: border,
       focusColor: seed.withValues(alpha: .12),
       hoverColor: seed.withValues(alpha: .055),
+      iconTheme: IconThemeData(color: scheme.onSurfaceVariant),
 
       // ── AppBar ──────────────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
@@ -302,6 +330,14 @@ abstract final class AppTheme {
       // ── Buttons ─────────────────────────────────────────────────────────────
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
+          disabledBackgroundColor: isDark
+              ? const Color(0xFF242836)
+              : scheme.onSurface.withValues(alpha: .12),
+          disabledForegroundColor: isDark
+              ? const Color(0xFF858B9C)
+              : scheme.onSurface.withValues(alpha: .38),
           minimumSize: const Size(0, 44),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
           elevation: 0,
@@ -317,23 +353,55 @@ abstract final class AppTheme {
       ),
 
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-          side: BorderSide(color: border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          textStyle: GoogleFonts.inter(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.1,
-          ),
-        ),
+        style:
+            OutlinedButton.styleFrom(
+              foregroundColor: isDark
+                  ? const Color(0xFFD9DCE8)
+                  : scheme.primary,
+              disabledForegroundColor: isDark
+                  ? const Color(0xFF747A8B)
+                  : scheme.onSurface.withValues(alpha: .38),
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              textStyle: GoogleFonts.inter(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.1,
+              ),
+            ).copyWith(
+              side: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return BorderSide(
+                    color: isDark
+                        ? const Color(0xFF303646)
+                        : border.withValues(alpha: .65),
+                  );
+                }
+                if (states.contains(WidgetState.hovered)) {
+                  return BorderSide(
+                    color: scheme.primary.withValues(alpha: .8),
+                  );
+                }
+                return BorderSide(color: border);
+              }),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered)) {
+                  return scheme.primary.withValues(alpha: isDark ? .08 : .045);
+                }
+                return Colors.transparent;
+              }),
+            ),
       ),
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
+          foregroundColor: isDark ? const Color(0xFFC7CAFF) : scheme.primary,
+          disabledForegroundColor: isDark
+              ? const Color(0xFF747A8B)
+              : scheme.onSurface.withValues(alpha: .38),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
@@ -346,15 +414,46 @@ abstract final class AppTheme {
 
       // ── Chip ────────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
+        backgroundColor: isDark
+            ? const Color(0xFF151925)
+            : AppColors.lightSurfaceVariant,
+        selectedColor: scheme.primary.withValues(alpha: isDark ? .2 : .1),
+        disabledColor: isDark
+            ? const Color(0xFF11141C)
+            : scheme.onSurface.withValues(alpha: .04),
         side: BorderSide(color: border),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.full),
         ),
         labelStyle: GoogleFonts.inter(
+          color: scheme.onSurfaceVariant,
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
+        secondaryLabelStyle: GoogleFonts.inter(
+          color: isDark ? const Color(0xFFD9DAFF) : scheme.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        iconTheme: IconThemeData(color: scheme.onSurfaceVariant, size: 18),
+        checkmarkColor: scheme.primary,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      ),
+
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return isDark ? const Color(0xFF202431) : Colors.transparent;
+          }
+          if (states.contains(WidgetState.selected)) return scheme.primary;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStatePropertyAll(scheme.onPrimary),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF9AA0B2) : scheme.outline,
+          width: 1.7,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
       ),
 
       // ── SnackBar ─────────────────────────────────────────────────────────────

@@ -1303,6 +1303,7 @@ class _IssueDetailsDialog extends StatelessWidget {
                           _DetailPair(
                             label: 'Event ID',
                             value: latest.eventId ?? '—',
+                            copyable: latest.eventId != null,
                           ),
                           _DetailPair(
                             label: 'Time',
@@ -1477,8 +1478,10 @@ class _AffectedUserCard extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       if (user.email != null && user.email != title)
-                        SelectableText(
+                        CopyableText(
                           user.email!,
+                          display: user.email!,
+                          copyLabel: 'email',
                           style: TextStyle(
                             color: scheme.onSurfaceVariant,
                             fontSize: 12,
@@ -1498,10 +1501,15 @@ class _AffectedUserCard extends StatelessWidget {
               spacing: 24,
               runSpacing: 12,
               children: [
-                _DetailPair(label: 'User ID', value: user.userId ?? '—'),
+                _DetailPair(
+                  label: 'User ID',
+                  value: user.userId ?? '—',
+                  copyable: user.userId != null,
+                ),
                 _DetailPair(
                   label: 'Installation ID',
                   value: user.installationId,
+                  copyable: user.installationId.isNotEmpty,
                 ),
                 _DetailPair(
                   label: 'First seen',
@@ -1554,9 +1562,14 @@ class _DetailTile extends StatelessWidget {
 }
 
 class _DetailPair extends StatelessWidget {
-  const _DetailPair({required this.label, required this.value});
+  const _DetailPair({
+    required this.label,
+    required this.value,
+    this.copyable = false,
+  });
   final String label;
   final String value;
+  final bool copyable;
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
@@ -1573,10 +1586,18 @@ class _DetailPair extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        SelectableText(
-          value.isEmpty ? '—' : value,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+        if (copyable && value.isNotEmpty && value != '—')
+          CopyableText(
+            value,
+            display: value,
+            copyLabel: label.toLowerCase(),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          )
+        else
+          SelectableText(
+            value.isEmpty ? '—' : value,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
       ],
     ),
   );
@@ -1685,18 +1706,18 @@ class _IssueIdentity extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              CopyableText(
                 _issueTitle(issue),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                display: _issueTitle(issue),
+                copyLabel: 'issue title',
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 2),
               if (issue.subtitle?.trim().isNotEmpty == true) ...[
-                Text(
+                CopyableText(
                   issue.subtitle!.trim(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  display: issue.subtitle!.trim(),
+                  copyLabel: 'issue subtitle',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,
@@ -1704,17 +1725,14 @@ class _IssueIdentity extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
               ],
-              Tooltip(
-                message: issue.issueId,
-                child: Text(
-                  truncateMiddle(issue.issueId, keep: 9),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                  ),
+              CopyableText(
+                issue.issueId,
+                display: truncateMiddle(issue.issueId, keep: 9),
+                copyLabel: 'issue ID',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
                 ),
               ),
             ],
