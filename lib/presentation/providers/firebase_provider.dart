@@ -81,8 +81,10 @@ class FirebaseProvider extends ChangeNotifier {
     if (_isInitialized) return;
 
     _user = _firebase.currentUser;
+    await _firebase.syncCrashlyticsUser(_user);
     _authSubscription = _firebase.authStateChanges.listen((user) {
       _user = user;
+      unawaited(_firebase.syncCrashlyticsUser(user));
       if (user == null) {
         _uploadedReports = const [];
       } else {

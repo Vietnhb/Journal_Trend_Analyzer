@@ -31,6 +31,14 @@ class FirebaseService {
 
   User? get currentUser => auth.currentUser;
 
+  Future<void> syncCrashlyticsUser(User? user) async {
+    try {
+      await crashlytics.setUserIdentifier(user?.uid.trim() ?? '');
+    } catch (_) {
+      // Crash reporting metadata must never block authentication.
+    }
+  }
+
   Future<UserCredential> signInWithGoogle() async {
     if (!_googleSignInInitialized) {
       await GoogleSignIn.instance.initialize();
@@ -45,6 +53,7 @@ class FirebaseService {
 
     final credential = GoogleAuthProvider.credential(idToken: idToken);
     final result = await auth.signInWithCredential(credential);
+    await syncCrashlyticsUser(result.user);
     await analytics.setUserId(id: result.user?.uid);
     await analytics.logLogin(loginMethod: 'google');
     return result;
@@ -52,6 +61,7 @@ class FirebaseService {
 
   Future<void> signOut() async {
     await auth.signOut();
+    await syncCrashlyticsUser(null);
     if (!_googleSignInInitialized) {
       await GoogleSignIn.instance.initialize();
       _googleSignInInitialized = true;
