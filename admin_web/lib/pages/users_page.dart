@@ -465,13 +465,16 @@ class _UserRowState extends State<_UserRow> {
               // Role
               SizedBox(
                 width: 112,
-                child: widget.user.isAdmin
-                    ? const StatusPill(
-                        'Admin',
-                        tone: StatusTone.purple,
-                        icon: Icons.shield_outlined,
-                      )
-                    : const StatusDot('User'),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: widget.user.isAdmin
+                      ? const StatusPill(
+                          'Admin',
+                          tone: StatusTone.purple,
+                          icon: Icons.shield_outlined,
+                        )
+                      : const StatusDot('User'),
+                ),
               ),
               // Status
               SizedBox(
