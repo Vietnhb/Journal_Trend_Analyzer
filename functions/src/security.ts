@@ -22,7 +22,7 @@ export function mergeAdminClaim(
   existingClaims: Readonly<Record<string, unknown>> | undefined,
   admin: boolean,
 ): Record<string, unknown> {
-  const claims = { ...(existingClaims ?? {}) };
+  const claims = { ...existingClaims };
   if (admin) claims.admin = true;
   else delete claims.admin;
   return claims;

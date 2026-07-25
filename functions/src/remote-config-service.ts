@@ -49,7 +49,7 @@ function setNumberParameter(
 ): void {
   const existing = findParameter(template, key);
   const next: RemoteConfigParameter = {
-    ...(existing ?? {}),
+    ...existing,
     defaultValue: { value: String(value) },
     valueType: "NUMBER",
     description: existing?.description?.trim() || fallbackDescription,

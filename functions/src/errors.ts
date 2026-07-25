@@ -22,6 +22,53 @@ interface CodedError extends Error {
   type?: string;
 }
 
+type ApiErrorSpec = readonly [status: number, code: string, message: string];
+
+const exactErrorSpecs = new Map<string, ApiErrorSpec>([
+  ["404", [404, "not_found", "The requested resource was not found."]],
+  ["412", [409, "conflict", "The resource changed or already exists."]],
+  ["400", [400, "invalid_argument", "The request contains an invalid value."]],
+  ["401", [401, "unauthenticated", "Authentication is required."]],
+  ["403", [403, "permission_denied", "The operation is not permitted."]],
+  ["429", [429, "resource_exhausted", "The service is temporarily rate limited."]],
+  [
+    "remote-config/failed-precondition",
+    [409, "conflict", "The resource changed or already exists."],
+  ],
+  [
+    "messaging/payload-size-limit-exceeded",
+    [413, "message_payload_too_large", "The message payload is too large."],
+  ],
+  [
+    "messaging/invalid-data-payload-key",
+    [400, "invalid_message_payload", "The message data contains a reserved key."],
+  ],
+  [
+    "messaging/installation-id-not-registered",
+    [410, "message_target_not_registered", "The message target is no longer registered."],
+  ],
+  [
+    "messaging/registration-token-not-registered",
+    [410, "message_target_not_registered", "The message target is no longer registered."],
+  ],
+]);
+
+const invalidArgumentSuffixes = [
+  "/invalid-email",
+  "/invalid-uid",
+  "/invalid-argument",
+  "/argument-error",
+] as const;
+const authenticationFragments = [
+  "unauthenticated",
+  "id-token",
+  "session-cookie",
+] as const;
+const invalidTargetSuffixes = [
+  "/invalid-registration-token",
+  "/invalid-recipient",
+] as const;
+
 function errorCode(error: unknown): string | undefined {
   if (!(error instanceof Error)) return undefined;
   const value = (error as CodedError).code;
@@ -51,27 +98,70 @@ export function safeErrorDetails(error: unknown): Record<string, unknown> {
   };
 }
 
-export function mapExternalError(error: unknown): ApiError {
-  if (error instanceof ApiError) return error;
-  if (error instanceof ZodError) {
-    const issue = error.issues[0];
-    const field = issue?.path.join(".");
-    return new ApiError(
-      400,
-      "invalid_argument",
-      `${field ? `${field}: ` : ""}${issue?.message ?? "Invalid request."}`,
-    );
-  }
+function apiErrorFromSpec(spec: ApiErrorSpec): ApiError {
+  return new ApiError(spec[0], spec[1], spec[2]);
+}
 
-  if (
-    error instanceof Error &&
-    ((error as CodedError).status === 400 || (error as CodedError).type === "entity.parse.failed")
-  ) {
+function mapZodError(error: ZodError): ApiError {
+  const issue = error.issues[0];
+  const field = issue?.path.join(".");
+  const prefix = field === undefined || field.length === 0 ? "" : `${field}: `;
+  return new ApiError(
+    400,
+    "invalid_argument",
+    prefix + (issue?.message ?? "Invalid request."),
+  );
+}
+
+function mapRequestBodyError(error: unknown): ApiError | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const coded = error as CodedError;
+  if (coded.status === 400 || coded.type === "entity.parse.failed") {
     return new ApiError(400, "invalid_json", "The request body is not valid JSON.");
   }
-  if (error instanceof Error && (error as CodedError).status === 413) {
+  if (coded.status === 413) {
     return new ApiError(413, "payload_too_large", "The request body is too large.");
   }
+  return undefined;
+}
+
+function mapPatternedError(code: string): ApiError | undefined {
+  if (code.endsWith("/user-not-found")) {
+    return new ApiError(404, "not_found", "The requested resource was not found.");
+  }
+  if (code.endsWith("/email-already-exists") || code.includes("etag-mismatch")) {
+    return new ApiError(409, "conflict", "The resource changed or already exists.");
+  }
+  if (code.startsWith("app-check/")) {
+    return new ApiError(401, "unauthenticated", "Authentication is required.");
+  }
+  if (invalidArgumentSuffixes.some((suffix) => code.endsWith(suffix))) {
+    return new ApiError(400, "invalid_argument", "The request contains an invalid value.");
+  }
+  if (
+    authenticationFragments.some((fragment) => code.includes(fragment)) ||
+    code.endsWith("/user-disabled")
+  ) {
+    return new ApiError(401, "unauthenticated", "Authentication is required.");
+  }
+  if (code.includes("permission-denied")) {
+    return new ApiError(403, "permission_denied", "The operation is not permitted.");
+  }
+  if (code.includes("quota")) {
+    return new ApiError(429, "resource_exhausted", "The service is temporarily rate limited.");
+  }
+  if (invalidTargetSuffixes.some((suffix) => code.endsWith(suffix))) {
+    return new ApiError(400, "invalid_message_target", "The FCM token or installation ID is invalid.");
+  }
+  return undefined;
+}
+
+export function mapExternalError(error: unknown): ApiError {
+  if (error instanceof ApiError) return error;
+  if (error instanceof ZodError) return mapZodError(error);
+
+  const requestBodyError = mapRequestBodyError(error);
+  if (requestBodyError !== undefined) return requestBodyError;
 
   const code = errorCode(error) ?? "";
   if (isFirestoreNotConfigured(error)) {
@@ -81,70 +171,10 @@ export function mapExternalError(error: unknown): ApiError {
       "Cloud Firestore is not ready. Enable the Cloud Firestore API and create the default Firestore database for this Firebase project.",
     );
   }
-  if (code.endsWith("/user-not-found") || code === "404") {
-    return new ApiError(404, "not_found", "The requested resource was not found.");
-  }
-  if (
-    code.endsWith("/email-already-exists") ||
-    code.includes("etag-mismatch") ||
-    code === "remote-config/failed-precondition" ||
-    code === "412"
-  ) {
-    return new ApiError(409, "conflict", "The resource changed or already exists.");
-  }
-
-  if (code === "messaging/payload-size-limit-exceeded") {
-    return new ApiError(413, "message_payload_too_large", "The message payload is too large.");
-  }
-
-  if (code === "messaging/invalid-data-payload-key") {
-    return new ApiError(400, "invalid_message_payload", "The message data contains a reserved key.");
-  }
-
-  if (
-    code === "messaging/installation-id-not-registered" ||
-    code === "messaging/registration-token-not-registered"
-  ) {
-    return new ApiError(
-      410,
-      "message_target_not_registered",
-      "The message target is no longer registered.",
-    );
-  }
-  if (code.startsWith("app-check/")) {
-    return new ApiError(401, "unauthenticated", "Authentication is required.");
-  }
-  if (
-    code.endsWith("/invalid-email") ||
-    code.endsWith("/invalid-uid") ||
-    code.endsWith("/invalid-argument") ||
-    code.endsWith("/argument-error") ||
-    code === "400"
-  ) {
-    return new ApiError(400, "invalid_argument", "The request contains an invalid value.");
-  }
-  if (
-    code === "401" ||
-    code.includes("unauthenticated") ||
-    code.includes("id-token") ||
-    code.includes("session-cookie") ||
-    code.endsWith("/user-disabled")
-  ) {
-    return new ApiError(401, "unauthenticated", "Authentication is required.");
-  }
-  if (code === "403" || code.includes("permission-denied")) {
-    return new ApiError(403, "permission_denied", "The operation is not permitted.");
-  }
-  if (code === "429" || code.includes("quota")) {
-    return new ApiError(429, "resource_exhausted", "The service is temporarily rate limited.");
-  }
-  if (
-    code.endsWith("/invalid-registration-token") ||
-    code.endsWith("/invalid-recipient")
-  ) {
-    return new ApiError(400, "invalid_message_target", "The FCM token or installation ID is invalid.");
-  }
-  return new ApiError(500, "internal", "The server could not complete the request.");
+  const exactError = exactErrorSpecs.get(code);
+  if (exactError !== undefined) return apiErrorFromSpec(exactError);
+  return mapPatternedError(code) ??
+    new ApiError(500, "internal", "The server could not complete the request.");
 }
 
 export function sendData(res: Response, data: unknown, status = 200): void {
@@ -158,7 +188,6 @@ export function errorMiddleware(
   res: Response,
   next: NextFunction,
 ): void {
-  void next;
   const mapped = mapExternalError(error);
   const context = getRequestContext(req);
 
@@ -173,7 +202,7 @@ export function errorMiddleware(
   });
 
   if (res.headersSent) {
-    res.destroy();
+    next(error);
     return;
   }
   res.status(mapped.status).json({

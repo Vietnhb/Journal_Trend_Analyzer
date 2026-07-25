@@ -406,11 +406,14 @@ class _AuditTable extends StatelessWidget {
                   ),
                   DataCell(
                     SizedBox(
-                      width: 175,
-                      child: StatusPill(
-                        friendlyAction(log.action),
-                        tone: StatusTone.purple,
-                        icon: Icons.task_alt_rounded,
+                      width: 220,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: StatusPill(
+                          friendlyAction(log.action),
+                          tone: StatusTone.purple,
+                          icon: Icons.task_alt_rounded,
+                        ),
                       ),
                     ),
                   ),

@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 
-class SceneDelegate: FlutterSceneDelegate {
+// Flutter requires this concrete scene-delegate bridge even without overrides.
+class SceneDelegate: FlutterSceneDelegate { // NOSONAR
 
 }

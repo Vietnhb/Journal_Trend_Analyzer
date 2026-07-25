@@ -257,7 +257,8 @@ export const auditQuerySchema = z.object({
 });
 
 const reportPathPattern = /^report\/([^/]{1,128})\/analysis\/([^/]+\.pdf)$/;
-const bigQueryTablePattern = /^[a-z][a-z0-9-]{4,28}[a-z0-9]\.[A-Za-z_][A-Za-z0-9_]{0,1023}\.[A-Za-z_][A-Za-z0-9_$-]{0,1023}$/;
+const bigQueryTablePattern =
+  /^[a-z][a-z0-9-]{4,28}[a-z0-9]\.[A-Za-z_]\w{0,1023}\.[A-Za-z_][\w$-]{0,1023}$/;
 
 export interface ParsedReportPath {
   path: string;
@@ -269,7 +270,9 @@ export function parseReportPath(path: string): ParsedReportPath {
   const match = reportPathPattern.exec(path);
   const ownerUid = match?.[1];
   const name = match?.[2];
-  const containsControlCharacter = [...path].some((character) => character.charCodeAt(0) < 32);
+  const containsControlCharacter = [...path].some(
+    (character) => character.codePointAt(0)! < 32,
+  );
   if (
     ownerUid === undefined ||
     name === undefined ||

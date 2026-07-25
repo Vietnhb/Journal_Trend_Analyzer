@@ -74,6 +74,19 @@ export const adminFirestore = getFirestore(firebaseApp);
 export const adminMessaging = getMessaging(firebaseApp);
 export const adminStorage = getStorage(firebaseApp);
 
+function remoteConfigTemplate(
+  data: Record<string, unknown>,
+  etag: string,
+): Record<string, unknown> {
+  return {
+    conditions: [],
+    parameters: {},
+    parameterGroups: {},
+    ...data,
+    etag,
+  };
+}
+
 function remoteConfigRestClient(
   credentialsPath: string,
   projectId: string,
@@ -111,27 +124,17 @@ function remoteConfigRestClient(
     return { data, etag: response.headers.get("etag") ?? etag ?? "" };
   }
 
-  function template(data: Record<string, unknown>, etag: string): Record<string, unknown> {
-    return {
-      conditions: [],
-      parameters: {},
-      parameterGroups: {},
-      ...data,
-      etag,
-    };
-  }
-
   return {
     async getTemplate() {
       const result = await request("GET", "remoteConfig");
-      return template(result.data, result.etag);
+      return remoteConfigTemplate(result.data, result.etag);
     },
     async getTemplateAtVersion(versionNumber: number | string) {
       const result = await request(
         "GET",
         `remoteConfig?versionNumber=${encodeURIComponent(String(versionNumber))}`,
       );
-      return template(result.data, result.etag);
+      return remoteConfigTemplate(result.data, result.etag);
     },
     async listVersions(options?: { pageSize?: number; pageToken?: string }) {
       const query = new URLSearchParams();
@@ -149,12 +152,12 @@ function remoteConfigRestClient(
     async validateTemplate(input: { etag: string }) {
       const { etag, ...body } = input;
       const result = await request("PUT", "remoteConfig?validate_only=true", body, etag);
-      return template(result.data, etag);
+      return remoteConfigTemplate(result.data, etag);
     },
     async publishTemplate(input: { etag: string }) {
       const { etag, ...body } = input;
       const result = await request("PUT", "remoteConfig", body, etag);
-      return template(result.data, result.etag);
+      return remoteConfigTemplate(result.data, result.etag);
     },
   } as unknown as ReturnType<typeof getRemoteConfig>;
 }

@@ -86,7 +86,9 @@ usersRouter.patch("/:uid", async (req, res) => {
   const updated = input.disabled === true
     ? await withAdminInvariantLock(update)
     : await update();
-  const changedFields = Object.keys(input).sort();
+  const changedFields = Object.keys(input).sort((left, right) =>
+    left.localeCompare(right)
+  );
   await writeMutationAudit(req, {
     action: "user.update",
     targetType: "user",

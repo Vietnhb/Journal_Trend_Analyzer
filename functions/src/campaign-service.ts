@@ -207,8 +207,7 @@ async function claimScheduledCampaign(reference: DocumentReference): Promise<Sto
     const snapshot = await transaction.get(reference);
     const data = snapshot.data() as StoredCampaign | undefined;
     if (
-      data === undefined ||
-      data.status !== "scheduled" ||
+      data?.status !== "scheduled" ||
       !(data.scheduleAt instanceof Timestamp) ||
       data.scheduleAt.toMillis() > Date.now()
     ) {

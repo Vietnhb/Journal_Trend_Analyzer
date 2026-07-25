@@ -73,7 +73,7 @@ function emptyResult(
 
 export function crashlyticsTablePrefix(appId: string): string {
   const normalized = appId.trim().replaceAll(".", "_");
-  if (!/^[A-Za-z0-9_]+$/u.test(normalized)) return "";
+  if (!/^\w+$/u.test(normalized)) return "";
   return `${normalized}_ANDROID`;
 }
 
@@ -85,12 +85,20 @@ export function selectCrashlyticsTableNames(
   return names
     .filter((name) =>
       !name.startsWith("firebase_sessions_") &&
-      /^[A-Za-z0-9_]+_(?:ANDROID|IOS)(?:_REALTIME)?$/u.test(name) &&
+      /^\w+_(?:ANDROID|IOS)(?:_REALTIME)?$/u.test(name) &&
       (configuredPrefix.length === 0 ||
         name === configuredPrefix ||
         name === `${configuredPrefix}_REALTIME`),
     )
-    .sort();
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function unionAllSource(tableNames: readonly string[]): string {
+  if (tableNames.length === 1) return tableNames[0]!;
+  const selections = tableNames
+    .map((table) => `SELECT * FROM ${table}`)
+    .join(" UNION ALL ");
+  return `(${selections})`;
 }
 
 async function discoverCrashlyticsSource(): Promise<{
@@ -119,7 +127,7 @@ async function discoverCrashlyticsSource(): Promise<{
         projectId !== undefined &&
         datasetId !== undefined &&
         /^[A-Za-z0-9_-]+$/u.test(projectId) &&
-        /^[A-Za-z0-9_]+$/u.test(datasetId)
+        /^\w+$/u.test(datasetId)
       ) {
         tableNames.push(`\`${projectId}.${datasetId}.${name}\``);
       }
@@ -129,9 +137,7 @@ async function discoverCrashlyticsSource(): Promise<{
     return { source: null, datasetFound: true, tables: [] };
   }
   return {
-    source: tableNames.length === 1
-      ? tableNames[0]!
-      : `(${tableNames.map((table) => `SELECT * FROM ${table}`).join(" UNION ALL ")})`,
+    source: unionAllSource(tableNames),
     datasetFound: true,
     tables: tableNames,
   };
@@ -146,21 +152,19 @@ async function discoverSessionsSource(): Promise<string | null> {
     item.id?.startsWith("firebase_sessions"),
   )) {
     const datasetId = dataset.id;
-    if (datasetId === undefined || !/^[A-Za-z0-9_]+$/u.test(datasetId)) continue;
+    if (datasetId === undefined || !/^\w+$/u.test(datasetId)) continue;
     const [tables] = await dataset.getTables();
     for (const name of selectCrashlyticsTableNames(
       tables.map((table) => table.id ?? ""),
       crashlyticsAppId.value(),
     )) {
-      if (/^[A-Za-z0-9_]+_ANDROID(?:_REALTIME)?$/u.test(name)) {
+      if (/^\w+_ANDROID(?:_REALTIME)?$/u.test(name)) {
         tableNames.push(`\`${projectId}.${datasetId}.${name}\``);
       }
     }
   }
   if (tableNames.length === 0) return null;
-  return tableNames.length === 1
-    ? tableNames[0]!
-    : `(${tableNames.map((table) => `SELECT * FROM ${table}`).join(" UNION ALL ")})`;
+  return unionAllSource(tableNames);
 }
 
 function jsonArray(value: unknown): Array<Record<string, unknown>> {
@@ -240,45 +244,114 @@ function externalCode(error: unknown): string {
   return typeof code === "string" || typeof code === "number" ? String(code) : "";
 }
 
+type CrashSourceResolution =
+  | { status: "ready"; source: string }
+  | { status: "unavailable"; result: Record<string, unknown> };
+
+async function resolveCrashSource(): Promise<CrashSourceResolution> {
+  const configuredTable = crashlyticsTable.value().trim();
+  if (configuredTable.length > 0) {
+    try {
+      return {
+        status: "ready",
+        source: `\`${parseCrashlyticsTable(configuredTable)}\``,
+      };
+    } catch (error) {
+      if (!(error instanceof ApiError)) throw error;
+      return {
+        status: "unavailable",
+        result: emptyResult(
+          "unconfigured",
+          "CRASHLYTICS_TABLE is not a valid project.dataset.table identifier.",
+        ),
+      };
+    }
+  }
+
+  try {
+    const discovered = await discoverCrashlyticsSource();
+    if (discovered.source !== null) {
+      return { status: "ready", source: discovered.source };
+    }
+    return {
+      status: "unavailable",
+      result: emptyResult(
+        "unconfigured",
+        discovered.datasetFound
+          ? `Dataset firebase_crashlytics đã tồn tại nhưng chưa có bảng cho ứng dụng ${
+              crashlyticsAppId.value().trim() || "Android đã cấu hình"
+            }. Hãy bật Crashlytics BigQuery export cho app này và gửi ít nhất hai sự kiện mới.`
+          : "Chưa tìm thấy dataset firebase_crashlytics. Hãy bật Crashlytics BigQuery export cho Firebase project này.",
+      ),
+    };
+  } catch (error) {
+    logger.error("crashlytics_discovery_failed", safeErrorDetails(error));
+    return {
+      status: "unavailable",
+      result: emptyResult(
+        "error",
+        "Cannot inspect the Crashlytics BigQuery dataset. Check BigQuery IAM access.",
+      ),
+    };
+  }
+}
+
+function groupIssueTrends(
+  rows: readonly Record<string, unknown>[],
+): Map<string, Array<Record<string, unknown>>> {
+  const trends = new Map<string, Array<Record<string, unknown>>>();
+  for (const row of rows) {
+    const issueId = text(row.issue_id);
+    if (issueId === null) continue;
+    const points = trends.get(issueId) ?? [];
+    points.push({
+      date: text(row.event_date) ?? "",
+      events: numeric(row.events),
+    });
+    trends.set(issueId, points);
+  }
+  return trends;
+}
+
+function groupIssueUsers(
+  rows: readonly Record<string, unknown>[],
+): Map<string, Array<Record<string, unknown>>> {
+  const users = new Map<string, Array<Record<string, unknown>>>();
+  for (const row of rows) {
+    const issueId = text(row.issue_id);
+    const installationId = text(row.installation_uuid);
+    if (issueId === null || installationId === null) continue;
+    const affected = users.get(issueId) ?? [];
+    affected.push({
+      installationId,
+      userId: text(row.user_id),
+      name: text(row.user_name),
+      email: text(row.user_email),
+      events: numeric(row.events),
+      firstSeen: text(row.first_seen),
+      lastSeen: text(row.last_seen),
+      device: {
+        manufacturer: text(row.device_manufacturer),
+        model: text(row.device_model),
+      },
+      operatingSystem: {
+        name: text(row.os_name),
+        version: text(row.os_version),
+      },
+    });
+    users.set(issueId, affected);
+  }
+  return users;
+}
+
 export async function loadCrashes(
   range: { start: string; end: string },
 ): Promise<Record<string, unknown>> {
-  const configuredTable = crashlyticsTable.value().trim();
-  let source: string;
-  if (configuredTable.length > 0) {
-    try {
-      source = `\`${parseCrashlyticsTable(configuredTable)}\``;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        return emptyResult(
-          "unconfigured",
-          "CRASHLYTICS_TABLE is not a valid project.dataset.table identifier.",
-        );
-      }
-      throw error;
-    }
-  } else {
-    try {
-      const discovered = await discoverCrashlyticsSource();
-      if (discovered.source === null) {
-        return emptyResult(
-          "unconfigured",
-          discovered.datasetFound
-            ? `Dataset firebase_crashlytics đã tồn tại nhưng chưa có bảng cho ứng dụng ${
-                crashlyticsAppId.value().trim() || "Android đã cấu hình"
-              }. Hãy bật Crashlytics BigQuery export cho app này và gửi ít nhất hai sự kiện mới.`
-            : "Chưa tìm thấy dataset firebase_crashlytics. Hãy bật Crashlytics BigQuery export cho Firebase project này.",
-        );
-      }
-      source = discovered.source;
-    } catch (error) {
-      logger.error("crashlytics_discovery_failed", safeErrorDetails(error));
-      return emptyResult(
-        "error",
-        "Cannot inspect the Crashlytics BigQuery dataset. Check BigQuery IAM access.",
-      );
-    }
+  const sourceResolution = await resolveCrashSource();
+  if (sourceResolution.status === "unavailable") {
+    return sourceResolution.result;
   }
+  const { source } = sourceResolution;
 
   const timeFilter =
     "event_timestamp BETWEEN TIMESTAMP(@rangeStart) AND TIMESTAMP(@rangeEnd)";
@@ -490,42 +563,8 @@ export async function loadCrashes(
     const issueDaily = issueDailyResponse[0] as Array<Record<string, unknown>>;
     const issueUsers = issueUsersResponse[0] as Array<Record<string, unknown>>;
     const crashFree = crashFreeRows[0];
-    const trends = new Map<string, Array<Record<string, unknown>>>();
-    for (const row of issueDaily) {
-      const issueId = text(row.issue_id);
-      if (issueId === null) continue;
-      const points = trends.get(issueId) ?? [];
-      points.push({
-        date: text(row.event_date) ?? "",
-        events: numeric(row.events),
-      });
-      trends.set(issueId, points);
-    }
-    const users = new Map<string, Array<Record<string, unknown>>>();
-    for (const row of issueUsers) {
-      const issueId = text(row.issue_id);
-      const installationId = text(row.installation_uuid);
-      if (issueId === null || installationId === null) continue;
-      const affected = users.get(issueId) ?? [];
-      affected.push({
-        installationId,
-        userId: text(row.user_id),
-        name: text(row.user_name),
-        email: text(row.user_email),
-        events: numeric(row.events),
-        firstSeen: text(row.first_seen),
-        lastSeen: text(row.last_seen),
-        device: {
-          manufacturer: text(row.device_manufacturer),
-          model: text(row.device_model),
-        },
-        operatingSystem: {
-          name: text(row.os_name),
-          version: text(row.os_version),
-        },
-      });
-      users.set(issueId, affected);
-    }
+    const trends = groupIssueTrends(issueDaily);
+    const users = groupIssueUsers(issueUsers);
     const eventCount = numeric(summary?.events);
     const totalSessions = numeric(crashFree?.total_sessions);
     const totalUsers = numeric(crashFree?.total_users);

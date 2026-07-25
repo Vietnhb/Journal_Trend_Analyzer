@@ -49,7 +49,7 @@ export function validatePdfSignature(bytes: Uint8Array): void {
     bytes.byteOffset,
     Math.min(bytes.byteLength, 1024),
   );
-  if (searchable.indexOf(signature) === -1) {
+  if (!searchable.includes(signature)) {
     throw new ApiError(
       409,
       "invalid_report_content",

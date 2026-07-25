@@ -67,6 +67,16 @@ async function allUsers(auth) {
   return users;
 }
 
+async function assertAnotherActiveAdmin(auth, user, claims) {
+  if (user.disabled || claims.admin !== true) return;
+  const activeAdmins = (await allUsers(auth)).filter(
+    (candidate) => !candidate.disabled && candidate.customClaims?.admin === true,
+  );
+  if (activeAdmins.length <= 1) {
+    throw new Error("Refusing to revoke the last active administrator.");
+  }
+}
+
 async function run() {
   const app = initializeApp({
     credential: applicationDefault(),
@@ -76,17 +86,10 @@ async function run() {
   const user = values.uid === undefined
     ? await auth.getUserByEmail(values.email)
     : await auth.getUser(values.uid);
-  const claims = { ...(user.customClaims ?? {}) };
+  const claims = { ...user.customClaims };
 
   if (values.revoke) {
-    if (!user.disabled && claims.admin === true) {
-      const activeAdmins = (await allUsers(auth)).filter(
-        (candidate) => !candidate.disabled && candidate.customClaims?.admin === true,
-      );
-      if (activeAdmins.length <= 1) {
-        throw new Error("Refusing to revoke the last active administrator.");
-      }
-    }
+    await assertAnotherActiveAdmin(auth, user, claims);
     delete claims.admin;
   } else {
     claims.admin = true;
