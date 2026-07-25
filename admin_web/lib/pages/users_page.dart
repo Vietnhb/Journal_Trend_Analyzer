@@ -204,7 +204,7 @@ class _UsersPageState extends State<UsersPage> {
           children: [
             // ── Search bar ─────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final search = SearchField(
@@ -219,15 +219,15 @@ class _UsersPageState extends State<UsersPage> {
                     icon: const Icon(Icons.search_rounded, size: 16),
                     label: const Text('Search'),
                   );
-                  final badge = const StatusPill(
+                  const badge = StatusPill(
                     'Role via custom claims',
                     tone: StatusTone.purple,
                     icon: Icons.key_rounded,
                   );
-                  if (constraints.maxWidth < 620) {
+                  if (constraints.maxWidth < 680) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [search, const SizedBox(height: 8), button],
+                      children: [search, const SizedBox(height: 10), button],
                     );
                   }
                   return Row(
@@ -272,7 +272,7 @@ class _UsersPageState extends State<UsersPage> {
                   children: [
                     LayoutBuilder(
                       builder: (context, constraints) =>
-                          constraints.maxWidth >= 1000
+                          constraints.maxWidth >= 900
                           ? _UsersTable(
                               users: data.users,
                               currentUid: widget.currentUid,
@@ -349,50 +349,57 @@ class _UsersTable extends StatelessWidget {
         ? AppColors.darkSurfaceVariant
         : AppColors.lightSurfaceVariant;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 800),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Custom header row
-            DecoratedBox(
-              decoration: BoxDecoration(color: headerBg),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 11,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = constraints.maxWidth < 1080
+            ? 1080.0
+            : constraints.maxWidth;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Custom header row
+                DecoratedBox(
+                  decoration: BoxDecoration(color: headerBg),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: const [
+                        Expanded(flex: 5, child: _HeaderCell('USER')),
+                        SizedBox(width: 112, child: _HeaderCell('ROLE')),
+                        SizedBox(width: 112, child: _HeaderCell('STATUS')),
+                        SizedBox(width: 148, child: _HeaderCell('PROVIDER')),
+                        SizedBox(width: 144, child: _HeaderCell('CREATED')),
+                        Expanded(flex: 3, child: _HeaderCell('LAST SIGN-IN')),
+                        SizedBox(width: 64),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    SizedBox(width: 280, child: _HeaderCell('USER')),
-                    SizedBox(width: 110, child: _HeaderCell('ROLE')),
-                    SizedBox(width: 110, child: _HeaderCell('STATUS')),
-                    SizedBox(width: 140, child: _HeaderCell('PROVIDER')),
-                    SizedBox(width: 125, child: _HeaderCell('CREATED')),
-                    Expanded(child: _HeaderCell('LAST SIGN-IN')),
-                    const SizedBox(width: 64),
-                  ],
-                ),
-              ),
+                const Divider(height: 0.5),
+                // Data rows
+                for (var i = 0; i < users.length; i++) ...[
+                  _UserRow(
+                    user: users[i],
+                    isSelf: users[i].uid == currentUid,
+                    busy: busyUid == users[i].uid,
+                    onEdit: onEdit,
+                    onAction: onAction,
+                  ),
+                  if (i < users.length - 1)
+                    const Divider(height: 0.5, indent: 20, endIndent: 20),
+                ],
+              ],
             ),
-            const Divider(height: 0.5),
-            // Data rows
-            for (var i = 0; i < users.length; i++) ...[
-              _UserRow(
-                user: users[i],
-                isSelf: users[i].uid == currentUid,
-                busy: busyUid == users[i].uid,
-                onEdit: onEdit,
-                onAction: onAction,
-              ),
-              if (i < users.length - 1)
-                const Divider(height: 0.5, indent: 20, endIndent: 20),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -454,10 +461,10 @@ class _UserRowState extends State<_UserRow> {
           child: Row(
             children: [
               // Identity
-              SizedBox(width: 280, child: _UserIdentity(user: widget.user)),
+              Expanded(flex: 5, child: _UserIdentity(user: widget.user)),
               // Role
               SizedBox(
-                width: 110,
+                width: 112,
                 child: widget.user.isAdmin
                     ? const StatusPill(
                         'Admin',
@@ -468,7 +475,7 @@ class _UserRowState extends State<_UserRow> {
               ),
               // Status
               SizedBox(
-                width: 110,
+                width: 112,
                 child: StatusDot(
                   widget.user.disabled ? 'Blocked' : 'Active',
                   tone: widget.user.disabled
@@ -478,7 +485,7 @@ class _UserRowState extends State<_UserRow> {
               ),
               // Provider
               SizedBox(
-                width: 140,
+                width: 148,
                 child: Text(
                   widget.user.providers.isEmpty
                       ? '—'
@@ -492,7 +499,7 @@ class _UserRowState extends State<_UserRow> {
               ),
               // Created
               SizedBox(
-                width: 125,
+                width: 144,
                 child: Text(
                   formatDateTime(widget.user.createdAt),
                   style: GoogleFonts.inter(
@@ -504,6 +511,7 @@ class _UserRowState extends State<_UserRow> {
               ),
               // Last sign-in
               Expanded(
+                flex: 3,
                 child: Text(
                   formatDateTime(widget.user.lastSignInAt),
                   style: GoogleFonts.inter(

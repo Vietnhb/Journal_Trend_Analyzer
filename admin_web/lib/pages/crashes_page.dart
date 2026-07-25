@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../core/core.dart';
 import '../utils/ui_format.dart';
 import '../widgets/admin_widgets.dart';
 
@@ -15,7 +15,7 @@ class CrashesPage extends StatefulWidget {
 }
 
 class _CrashesPageState extends State<CrashesPage> {
-  AdminDateRange _range = AdminDateRange.last30Days;
+  AdminDateRange _range = AdminDateRange.last30Days();
   late Future<CrashData> _future;
 
   @override
@@ -129,7 +129,7 @@ class _CrashContent extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               const StatusPill(
-                'Đã kết nối',
+                'Connected',
                 tone: StatusTone.success,
                 icon: Icons.check_circle_outline_rounded,
               ),
@@ -146,7 +146,7 @@ class _CrashContent extends StatelessWidget {
         minItemWidth: 225,
         children: [
           MetricCard(
-            label: 'Tổng crash events',
+            label: 'Total crash events',
             value: formatNumber(data.summary.events),
             detail: rangeLabel,
             icon: Icons.bug_report_outlined,
@@ -155,19 +155,19 @@ class _CrashContent extends StatelessWidget {
           MetricCard(
             label: 'Fatal',
             value: formatNumber(data.summary.fatal),
-            detail: 'Làm ứng dụng dừng',
+            detail: 'Terminates the app',
             icon: Icons.gpp_bad_outlined,
             tone: MetricTone.red,
           ),
           MetricCard(
             label: 'Non-fatal',
             value: formatNumber(data.summary.nonFatal),
-            detail: 'Đã ghi nhận, app tiếp tục chạy',
+            detail: 'Recorded while the app continues',
             icon: Icons.warning_amber_rounded,
             tone: MetricTone.amber,
           ),
           MetricCard(
-            label: 'Thiết bị bị ảnh hưởng',
+            label: 'Affected devices',
             value: formatNumber(data.summary.affectedUsers),
             detail: 'Unique installations',
             icon: Icons.devices_other_outlined,
@@ -191,9 +191,7 @@ class _ReleaseBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final release = data.releases.isEmpty
-        ? 'Chưa xác định'
-        : data.releases.first;
+    final release = data.releases.isEmpty ? 'Unknown' : data.releases.first;
     return SectionCard(
       child: Wrap(
         spacing: 18,
@@ -206,18 +204,18 @@ class _ReleaseBar extends StatelessWidget {
             color: Theme.of(context).colorScheme.primary,
           ),
           Text(
-            'Bản phát hành mới nhất $release',
+            'Latest release $release',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           Text(
-            '${formatNumber(data.summary.affectedUsers)} thiết bị bị ảnh hưởng · $rangeLabel',
+            '${formatNumber(data.summary.affectedUsers)} affected devices · $rangeLabel',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           StatusPill(
             data.summary.fatal == 0
-                ? 'Không có fatal'
+                ? 'No fatal crashes'
                 : '${formatNumber(data.summary.fatal)} fatal',
             tone: data.summary.fatal == 0
                 ? StatusTone.success
@@ -245,7 +243,7 @@ class _CrashHealth extends StatelessWidget {
         _CrashFreeCard(crashFree: data.crashFree),
         _TrendSummaryCard(data: data, rangeLabel: rangeLabel),
       ];
-      if (constraints.maxWidth < 900) {
+      if (constraints.maxWidth < 760) {
         return Column(
           children: [cards.first, const SizedBox(height: 14), cards.last],
         );
@@ -273,15 +271,16 @@ class _CrashFreeCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SectionTitle(
-          title: 'Độ ổn định',
-          description: 'Tính từ Firebase Sessions và fatal Crashlytics.',
+          title: 'Stability',
+          description:
+              'Based on Firebase Sessions and fatal Crashlytics events.',
         ),
         const SizedBox(height: 18),
         if (!crashFree.available)
           const EmptyPanel(
-            title: 'Chưa đủ dữ liệu Sessions',
+            title: 'Insufficient Sessions data',
             description:
-                'Crash-free users và sessions sẽ xuất hiện khi session đầu tiên được export.',
+                'Crash-free users and sessions will appear after the first session export.',
             icon: Icons.hourglass_top_rounded,
           )
         else
@@ -374,8 +373,8 @@ class _TrendSummaryCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionTitle(
-          title: 'Trends',
-          description: 'Tổng quan sự cố · $rangeLabel.',
+          title: 'Incident summary',
+          description: 'Crash overview · $rangeLabel.',
           trailing: StatusPill(
             '${formatNumber(data.issues.length)} issues',
             tone: data.issues.isEmpty ? StatusTone.success : StatusTone.warning,
@@ -409,7 +408,7 @@ class _TrendSummaryCard extends StatelessWidget {
         SizedBox(
           height: 92,
           child: data.daily.isEmpty
-              ? const Center(child: Text('Chưa có dữ liệu xu hướng'))
+              ? const Center(child: Text('No trend data'))
               : _MiniDailyChart(data: data.daily),
         ),
       ],
@@ -470,11 +469,11 @@ class _CrashIntegrationState extends StatelessWidget {
         ? Theme.of(context).colorScheme.error
         : Colors.amber.shade800;
     final title = isError
-        ? 'Không thể đọc dữ liệu Crashlytics'
-        : 'Chưa có dữ liệu Crashlytics BigQuery';
+        ? 'Unable to read Crashlytics data'
+        : 'No Crashlytics BigQuery data yet';
     final description = reason?.trim().isNotEmpty == true
         ? reason!.trim()
-        : 'Trang này cần Crashlytics BigQuery export để phân tích dữ liệu lỗi thực tế.';
+        : 'This page requires a Crashlytics BigQuery export to analyze real crash data.';
 
     return SectionCard(
       child: LayoutBuilder(
@@ -510,7 +509,7 @@ class _CrashIntegrationState extends StatelessWidget {
                     ),
                   ),
                   StatusPill(
-                    isError ? 'Lỗi tích hợp' : 'Cần cấu hình',
+                    isError ? 'Integration error' : 'Configuration required',
                     tone: isError ? StatusTone.danger : StatusTone.warning,
                     icon: isError
                         ? Icons.error_outline_rounded
@@ -530,23 +529,23 @@ class _CrashIntegrationState extends StatelessWidget {
               const _SetupStep(
                 number: 1,
                 text:
-                    'Liên kết Firebase project với BigQuery trong Settings > Integrations.',
+                    'Link the Firebase project to BigQuery under Settings > Integrations.',
               ),
               const _SetupStep(
                 number: 2,
                 text:
-                    'Bật Crashlytics export; bật streaming nếu cần dữ liệu gần thời gian thực.',
+                    'Enable Crashlytics export, and enable streaming if near-real-time data is required.',
               ),
               const _SetupStep(
                 number: 3,
                 text:
-                    'Cấp BigQuery Data Viewer và Job User cho service account, sau đó đặt CRASHLYTICS_TABLE.',
+                    'Grant BigQuery Data Viewer and Job User to the service account, then set CRASHLYTICS_TABLE.',
               ),
               const SizedBox(height: 18),
               OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Kiểm tra lại'),
+                label: const Text('Check again'),
               ),
             ],
           );
@@ -627,9 +626,9 @@ class _CrashChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionTitle(
-            title: 'Xu hướng lỗi',
+            title: 'Crash trend',
             description:
-                'So sánh fatal và non-fatal theo ngày trong khoảng đã chọn.',
+                'Compare daily fatal and non-fatal crashes for the selected period.',
             trailing: StatusPill(
               rangeLabel,
               tone: StatusTone.info,
@@ -648,9 +647,9 @@ class _CrashChart extends StatelessWidget {
           const SizedBox(height: 14),
           if (ordered.isEmpty)
             const EmptyPanel(
-              title: 'Chưa có xu hướng lỗi',
+              title: 'No crash trend',
               description:
-                  'Không có Crashlytics event trong khoảng thời gian này.',
+                  'No Crashlytics events were recorded in this period.',
               icon: Icons.monitor_heart_outlined,
             )
           else
@@ -665,8 +664,8 @@ class _CrashChart extends StatelessWidget {
                 return Semantics(
                   image: true,
                   label:
-                      'Biểu đồ đường lỗi theo ngày, ${ordered.length} mốc dữ liệu, '
-                      '${formatNumber(fatal)} fatal và ${formatNumber(nonFatal)} non-fatal.',
+                      'Daily crash line chart with ${ordered.length} data points, '
+                      '${formatNumber(fatal)} fatal and ${formatNumber(nonFatal)} non-fatal crashes.',
                   child: ExcludeSemantics(
                     child: SizedBox(
                       height: constraints.maxWidth < 680 ? 260 : 320,
@@ -921,40 +920,38 @@ class _IssuesSectionState extends State<_IssuesSection> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionTitle(
-            title: 'Issue nổi bật',
+            title: 'Top issues',
             description:
-                'Nhóm lỗi theo issue ID từ Crashlytics BigQuery export.',
+                'Issues grouped by Crashlytics issue ID from the BigQuery export.',
             trailing: StatusPill(
-              '${formatNumber(ordered.length)} issue',
+              '${formatNumber(ordered.length)} issues',
               tone: ordered.isEmpty ? StatusTone.success : StatusTone.warning,
               icon: ordered.isEmpty
                   ? Icons.check_circle_outline_rounded
                   : Icons.bug_report_outlined,
             ),
           ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: 390,
-                child: TextField(
-                  controller: _search,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search_rounded),
-                    hintText: 'Tìm theo tiêu đề, subtitle hoặc issue ID',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
+          const SizedBox(height: 20),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final search = TextField(
+                controller: _search,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search_rounded),
+                  hintText: 'Search by title, subtitle, or issue ID',
+                  isDense: true,
+                  border: OutlineInputBorder(),
                 ),
-              ),
-              DropdownButton<String>(
+              );
+              final typeFilter = DropdownButton<String>(
                 value: _type,
+                isExpanded: true,
                 items: const [
-                  DropdownMenuItem(value: 'ALL', child: Text('Mọi loại lỗi')),
+                  DropdownMenuItem(
+                    value: 'ALL',
+                    child: Text('All issue types'),
+                  ),
                   DropdownMenuItem(value: 'FATAL', child: Text('Fatal')),
                   DropdownMenuItem(
                     value: 'NON_FATAL',
@@ -962,36 +959,62 @@ class _IssuesSectionState extends State<_IssuesSection> {
                   ),
                 ],
                 onChanged: (value) => setState(() => _type = value ?? 'ALL'),
-              ),
-              DropdownButton<String>(
+              );
+              final releaseFilter = DropdownButton<String>(
                 value: releases.contains(_release) ? _release : 'ALL',
+                isExpanded: true,
                 items: [
                   const DropdownMenuItem(
                     value: 'ALL',
-                    child: Text('Mọi phiên bản'),
+                    child: Text('All versions'),
                   ),
                   for (final release in releases)
                     DropdownMenuItem(value: release, child: Text(release)),
                 ],
                 onChanged: (value) => setState(() => _release = value ?? 'ALL'),
-              ),
-            ],
+              );
+              if (constraints.maxWidth < 720) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    search,
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: typeFilter),
+                        const SizedBox(width: 16),
+                        Expanded(child: releaseFilter),
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: search),
+                  const SizedBox(width: 16),
+                  SizedBox(width: 160, child: typeFilter),
+                  const SizedBox(width: 16),
+                  SizedBox(width: 190, child: releaseFilter),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           if (ordered.isEmpty)
             EmptyPanel(
               title: widget.issues.isEmpty
-                  ? 'Không có issue'
-                  : 'Không có issue khớp bộ lọc',
+                  ? 'No issues'
+                  : 'No issues match the filters',
               description: widget.issues.isEmpty
-                  ? 'Đây là tín hiệu tốt: chưa ghi nhận lỗi trong khoảng đã chọn.'
-                  : 'Thử đổi loại lỗi, phiên bản hoặc từ khóa tìm kiếm.',
+                  ? 'Good news—no crashes were recorded in the selected period.'
+                  : 'Try a different issue type, version, or search term.',
               icon: Icons.verified_outlined,
             )
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                if (constraints.maxWidth < 840) {
+                if (constraints.maxWidth < 720) {
                   return Column(
                     children: [
                       for (var index = 0; index < ordered.length; index++) ...[
@@ -1013,9 +1036,9 @@ class _IssuesSectionState extends State<_IssuesSection> {
                       dataRowMaxHeight: 78,
                       columns: const [
                         DataColumn(label: Text('Issue')),
-                        DataColumn(label: Text('Loại')),
-                        DataColumn(label: Text('Phiên bản')),
-                        DataColumn(label: Text('Trends')),
+                        DataColumn(label: Text('Type')),
+                        DataColumn(label: Text('Version')),
+                        DataColumn(label: Text('Trend')),
                         DataColumn(label: Text('Events'), numeric: true),
                         DataColumn(label: Text('Users'), numeric: true),
                       ],
@@ -1108,15 +1131,15 @@ class _IssueCard extends StatelessWidget {
                     value: formatNumber(issue.events),
                   ),
                   _IssueMetric(
-                    label: 'Thiết bị',
+                    label: 'Affected users',
                     value: formatNumber(issue.affectedUsers),
                   ),
                   _IssueMetric(
-                    label: 'Phiên bản',
+                    label: 'Version',
                     value: issue.versions.isEmpty ? '—' : issue.versions.first,
                   ),
                   _IssueMetric(
-                    label: 'Lần cuối',
+                    label: 'Last seen',
                     value: formatDateTime(issue.lastSeen),
                   ),
                 ],
@@ -1198,7 +1221,7 @@ class _IssueDetailsDialog extends StatelessWidget {
                             _IssueTypePill(type: issue.errorType),
                             Text(
                               issue.versions.isEmpty
-                                  ? 'Không rõ phiên bản'
+                                  ? 'Unknown version'
                                   : issue.versions.join(', '),
                               style: TextStyle(
                                 color: scheme.onSurfaceVariant,
@@ -1227,7 +1250,7 @@ class _IssueDetailsDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Đóng',
+                    tooltip: 'Close',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_rounded),
                   ),
@@ -1257,7 +1280,7 @@ class _IssueDetailsDialog extends StatelessWidget {
                           value: formatNumber(issue.variants),
                         ),
                         _DetailTile(
-                          label: 'Lần gần nhất',
+                          label: 'Last seen',
                           value: formatDateTime(issue.lastSeen),
                         ),
                       ],
@@ -1265,14 +1288,14 @@ class _IssueDetailsDialog extends StatelessWidget {
                     const SizedBox(height: 22),
                     _DialogSection(
                       title:
-                          'Người dùng bị ảnh hưởng (${formatNumber(issue.users.length)})',
+                          'Affected users (${formatNumber(issue.users.length)})',
                       subtitle:
-                          'Tất cả người dùng và installation đã gặp issue trong khoảng thời gian đang chọn.',
+                          'Every user and installation associated with this issue in the selected period.',
                       child: _AffectedUsersList(users: issue.users),
                     ),
                     const SizedBox(height: 18),
                     _DialogSection(
-                      title: 'Sự kiện gần nhất',
+                      title: 'Latest event',
                       child: Wrap(
                         spacing: 28,
                         runSpacing: 14,
@@ -1282,36 +1305,36 @@ class _IssueDetailsDialog extends StatelessWidget {
                             value: latest.eventId ?? '—',
                           ),
                           _DetailPair(
-                            label: 'Thời gian',
+                            label: 'Time',
                             value: formatDateTime(latest.occurredAt),
                           ),
                           _DetailPair(
-                            label: 'Thiết bị',
+                            label: 'Device',
                             value: _joinDistinctParts([
                               latest.device.manufacturer,
                               latest.device.model,
                             ]),
                           ),
                           _DetailPair(
-                            label: 'Hệ điều hành',
+                            label: 'Operating system',
                             value: _joinDistinctParts([
                               latest.operatingSystem.name,
                               latest.operatingSystem.version,
                             ]),
                           ),
                           _DetailPair(
-                            label: 'Kiến trúc',
+                            label: 'Architecture',
                             value: latest.device.architecture ?? '—',
                           ),
                           _DetailPair(
                             label: 'RAM',
                             value:
-                                '${_formatBytes(latest.memoryUsed)} dùng / ${_formatBytes(latest.memoryFree)} trống',
+                                '${_formatBytes(latest.memoryUsed)} used / ${_formatBytes(latest.memoryFree)} available',
                           ),
                           _DetailPair(
                             label: 'Storage',
                             value:
-                                '${_formatBytes(latest.storageUsed)} dùng / ${_formatBytes(latest.storageFree)} trống',
+                                '${_formatBytes(latest.storageUsed)} used / ${_formatBytes(latest.storageFree)} available',
                           ),
                         ],
                       ),
@@ -1321,7 +1344,9 @@ class _IssueDetailsDialog extends StatelessWidget {
                       title: latest.exceptionType ?? 'Stack trace',
                       subtitle: latest.exceptionMessage,
                       child: latest.frames.isEmpty
-                          ? const Text('Không có stack frame trong event này.')
+                          ? const Text(
+                              'No stack frames are available for this event.',
+                            )
                           : DecoratedBox(
                               decoration: BoxDecoration(
                                 color: scheme.surfaceContainerHighest,
@@ -1396,7 +1421,9 @@ class _AffectedUsersList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (users.isEmpty) {
-      return const Text('Không có installation ID trong dữ liệu Crashlytics.');
+      return const Text(
+        'No installation IDs are available in the Crashlytics data.',
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1418,8 +1445,7 @@ class _AffectedUserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final title =
-        user.name ?? user.email ?? user.userId ?? 'Người dùng ẩn danh';
+    final title = user.name ?? user.email ?? user.userId ?? 'Anonymous user';
     return DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
@@ -1478,22 +1504,22 @@ class _AffectedUserCard extends StatelessWidget {
                   value: user.installationId,
                 ),
                 _DetailPair(
-                  label: 'Lần đầu',
+                  label: 'First seen',
                   value: formatDateTime(user.firstSeen),
                 ),
                 _DetailPair(
-                  label: 'Lần cuối',
+                  label: 'Last seen',
                   value: formatDateTime(user.lastSeen),
                 ),
                 _DetailPair(
-                  label: 'Thiết bị',
+                  label: 'Device',
                   value: _joinDistinctParts([
                     user.device.manufacturer,
                     user.device.model,
                   ]),
                 ),
                 _DetailPair(
-                  label: 'Hệ điều hành',
+                  label: 'Operating system',
                   value: _joinDistinctParts([
                     user.operatingSystem.name,
                     user.operatingSystem.version,
@@ -1747,7 +1773,7 @@ class _IssueMetric extends StatelessWidget {
 
 String _issueTitle(CrashIssue issue) {
   final title = issue.title?.trim();
-  return title == null || title.isEmpty ? 'Không có tiêu đề' : title;
+  return title == null || title.isEmpty ? 'Untitled issue' : title;
 }
 
 String _errorType(String? raw) {

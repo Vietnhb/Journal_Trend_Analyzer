@@ -43,7 +43,7 @@ final class BrowserStorageFileService {
     );
     if (blob.size != exactBytes.length) {
       throw const StorageFileException(
-        'Trình duyệt không thể tạo tệp nhị phân đầy đủ.',
+        'The browser could not create the complete binary file.',
       );
     }
     final objectUrl = web.URL.createObjectURL(blob);

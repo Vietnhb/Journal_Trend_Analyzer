@@ -1,33 +1,33 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Trang quản trị Journal Trend Analyzer">
-  <meta name="theme-color" content="#0B1220">
+  <meta name="description" content="Administration console for Journal Trend Analyzer">
+  <meta name="theme-color" content="#10121B">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="JTA Admin">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-  <link rel="icon" type="image/png" href="favicon.png">
-  <title>Journal Trend Admin</title>
+  <meta name="apple-mobile-web-app-title" content="JTA Observatory">
+  <link rel="apple-touch-icon" href="icons/jta-icon-192.png">
+  <link rel="icon" type="image/png" href="jta-favicon.png">
+  <title>Journal Trend Observatory</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    html, body { background: #f5f7fb; margin: 0; min-height: 100%; }
+    html, body { background: #f3f5fa; margin: 0; min-height: 100%; }
     .boot {
-      align-items: center; color: #475569; display: flex; font: 500 14px Arial, sans-serif;
+      align-items: center; color: #4b5565; display: flex; font: 600 14px Arial, sans-serif;
       gap: 12px; inset: 0; justify-content: center; position: fixed;
     }
     .boot::before {
-      animation: spin .8s linear infinite; border: 3px solid #dbeafe; border-top-color: #2563eb;
+      animation: spin .8s linear infinite; border: 3px solid #e2e4ff; border-top-color: #5b5ceb;
       border-radius: 50%; content: ""; height: 24px; width: 24px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="boot" id="boot">Đang khởi động trang quản trị…</div>
+  <div class="boot" id="boot">Starting the admin console…</div>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

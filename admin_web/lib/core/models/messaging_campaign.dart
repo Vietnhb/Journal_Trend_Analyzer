@@ -1,11 +1,11 @@
 import 'json_readers.dart';
 
 enum CampaignAudience {
-  allUsers('all_users', 'Tất cả người dùng'),
-  android('platform_android', 'Thiết bị Android'),
-  ios('platform_ios', 'Thiết bị iOS'),
-  vietnamese('language_vi', 'Ngôn ngữ Việt'),
-  english('language_en', 'Ngôn ngữ Anh');
+  allUsers('all_users', 'All users'),
+  android('platform_android', 'Android devices'),
+  ios('platform_ios', 'iOS devices'),
+  vietnamese('language_vi', 'Vietnamese language'),
+  english('language_en', 'English language');
 
   const CampaignAudience(this.apiValue, this.label);
 

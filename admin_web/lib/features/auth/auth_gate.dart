@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../../core/core.dart';
 import '../../shell/admin_shell.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/ui_format.dart';
@@ -147,7 +147,7 @@ class _LoginPage extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: IconButton.filledTonal(
-                tooltip: 'Đổi giao diện sáng/tối',
+                tooltip: 'Toggle light or dark mode',
                 onPressed: onToggleTheme,
                 icon: Icon(
                   Theme.of(context).brightness == Brightness.dark
@@ -162,7 +162,7 @@ class _LoginPage extends StatelessWidget {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1050),
+              constraints: const BoxConstraints(maxWidth: 1180),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final introduction = _LoginIntroduction();
@@ -171,7 +171,7 @@ class _LoginPage extends StatelessWidget {
                     error: error,
                     onSignIn: onSignIn,
                   );
-                  if (constraints.maxWidth < 760) {
+                  if (constraints.maxWidth < 820) {
                     return Column(
                       children: [
                         introduction,
@@ -183,7 +183,7 @@ class _LoginPage extends StatelessWidget {
                   return Row(
                     children: [
                       Expanded(flex: 6, child: introduction),
-                      const SizedBox(width: 60),
+                      const SizedBox(width: 80),
                       Expanded(flex: 4, child: card),
                     ],
                   );
@@ -203,20 +203,20 @@ class _LoginIntroduction extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const _BrandMark(),
-      const SizedBox(height: 30),
+      const SizedBox(height: 34),
       Text(
-        'Trang quản trị\nJournal Trend',
+        'Operational clarity\nfor scholarly data.',
         style: Theme.of(context).textTheme.displaySmall?.copyWith(
-          fontWeight: FontWeight.w900,
-          letterSpacing: -1.4,
-          height: 1.12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -1.6,
+          height: 1.08,
         ),
       ),
       const SizedBox(height: 18),
       ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 570),
         child: Text(
-          'Theo dõi người dùng, cấu hình và hoạt động của ứng dụng tại một nơi.',
+          'Monitor users, configuration, reports, analytics, and platform health from one focused workspace.',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w400,
@@ -255,9 +255,17 @@ class _SignInCard extends StatelessWidget {
   final VoidCallback onSignIn;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(AppRadius.xl),
+      border: Border.all(color: Theme.of(context).dividerColor),
+      boxShadow: Theme.of(context).brightness == Brightness.dark
+          ? AppShadows.mdDark
+          : AppShadows.dialog,
+    ),
     child: Padding(
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.all(34),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -271,7 +279,7 @@ class _SignInCard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'Đăng nhập quản trị',
+            'Welcome back',
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
@@ -279,7 +287,7 @@ class _SignInCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Sử dụng tài khoản Google đã được cấp quyền quản trị.',
+            'Sign in with a Google account that has administrator access.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -330,7 +338,7 @@ class _SignInCard extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.login_rounded),
-            label: Text(loading ? 'Đang đăng nhập…' : 'Đăng nhập với Google'),
+            label: Text(loading ? 'Signing in…' : 'Continue with Google'),
           ),
         ],
       ),
@@ -344,7 +352,7 @@ class _SignInCard extends StatelessWidget {
     if (_isLocalDevelopment &&
         error is ApiException &&
         (error.code == 'network_error' || error.code == 'request_timeout')) {
-      return 'Không kết nối được máy chủ local. Kiểm tra Functions Emulator rồi thử lại.';
+      return 'The local server is unavailable. Check the Functions Emulator and try again.';
     }
     return errorText(error);
   }
@@ -385,16 +393,14 @@ class _BrandMark extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.brand, AppTheme.accent],
-          ),
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: const Padding(
-          padding: EdgeInsets.all(10),
-          child: Icon(Icons.auto_graph_rounded, color: Colors.white, size: 23),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Image.asset(
+          'web/icons/jta-icon-192.png',
+          width: 44,
+          height: 44,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
         ),
       ),
       const SizedBox(width: 12),
@@ -409,7 +415,7 @@ class _BrandMark extends StatelessWidget {
             ),
           ),
           Text(
-            'ADMIN CONSOLE',
+            'OBSERVATORY',
             style: TextStyle(
               color: Theme.of(context).colorScheme.primary,
               fontSize: 10,

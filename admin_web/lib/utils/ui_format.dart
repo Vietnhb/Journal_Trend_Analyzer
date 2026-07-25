@@ -1,8 +1,11 @@
 import 'package:intl/intl.dart';
 
-final _number = NumberFormat.decimalPattern('vi_VN');
-final _dateTime = DateFormat('dd/MM/yyyy, HH:mm', 'vi_VN');
-final _date = DateFormat('dd/MM', 'vi_VN');
+import '../core/api/api_exception.dart';
+import '../core/auth/admin_auth_service.dart';
+
+final _number = NumberFormat.decimalPattern('en_US');
+final _dateTime = DateFormat('MMM d, yyyy, h:mm a', 'en_US');
+final _date = DateFormat('MMM d', 'en_US');
 final _currency = NumberFormat.currency(
   locale: 'en_US',
   symbol: r'$',
@@ -58,33 +61,32 @@ String initials(String? name, String? email) {
 }
 
 String friendlyAction(String action) => switch (action) {
-  'user.update' => 'Cập nhật người dùng',
-  'user.role.grant_admin' => 'Cấp quyền Admin',
-  'user.role.revoke_admin' => 'Thu hồi quyền Admin',
-  'user.sessions.revoke' => 'Thu hồi phiên đăng nhập',
-  'user.delete' => 'Xóa người dùng',
-  'remote_config.update' => 'Xuất bản Remote Config',
-  'remote_config.rollback' => 'Khôi phục Remote Config',
-  'report.bulk_delete' => 'Xóa nhiều báo cáo',
-  'report.delete_all' => 'Xóa toàn bộ báo cáo',
-  'report.delete' => 'Xóa báo cáo',
-  'message.test.send' => 'Gửi thông báo thử',
-  'message.broadcast.send' => 'Gửi thông báo hàng loạt',
-  'message.campaign.send' => 'Gửi chiến dịch thông báo',
-  'message.campaign.schedule' => 'Lên lịch chiến dịch',
-  'message.campaign.cancel' => 'Hủy lịch chiến dịch',
-  'bootstrap.role.grant_admin' => 'Khởi tạo quyền Admin',
-  'bootstrap.role.revoke_admin' => 'Thu hồi quyền khởi tạo',
+  'user.update' => 'Update user',
+  'user.role.grant_admin' => 'Grant admin access',
+  'user.role.revoke_admin' => 'Revoke admin access',
+  'user.sessions.revoke' => 'Revoke sessions',
+  'user.delete' => 'Delete user',
+  'remote_config.update' => 'Publish Remote Config',
+  'remote_config.rollback' => 'Roll back Remote Config',
+  'report.bulk_delete' => 'Delete reports',
+  'report.delete_all' => 'Delete all reports',
+  'report.delete' => 'Delete report',
+  'message.test.send' => 'Send test notification',
+  'message.broadcast.send' => 'Send broadcast notification',
+  'message.campaign.send' => 'Send notification campaign',
+  'message.campaign.schedule' => 'Schedule notification campaign',
+  'message.campaign.cancel' => 'Cancel scheduled campaign',
+  'bootstrap.role.grant_admin' => 'Grant initial admin access',
+  'bootstrap.role.revoke_admin' => 'Revoke bootstrap access',
   _ => action,
 };
 
 String errorText(Object error) {
-  try {
-    final dynamic value = error;
-    final String? message = value.userMessage as String?;
-    if (message != null && message.trim().isNotEmpty) return message;
-  } catch (_) {
-    // The exception is not an API exception.
-  }
+  final message = switch (error) {
+    ApiException(:final userMessage) => userMessage,
+    AdminAuthException(:final userMessage) => userMessage,
+    _ => null,
+  };
+  if (message != null && message.trim().isNotEmpty) return message;
   return error.toString().replaceFirst('Exception: ', '');
 }

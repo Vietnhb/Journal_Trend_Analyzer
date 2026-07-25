@@ -26,3 +26,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - web/icons/jta-icon-192.png

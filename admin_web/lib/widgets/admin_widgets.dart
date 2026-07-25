@@ -25,63 +25,113 @@ class PageHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          eyebrow.toUpperCase(),
-          style: GoogleFonts.inter(
-            color: cs.primary,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.4,
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: cs.primary.withValues(alpha: isDark ? .14 : .08),
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            border: Border.all(
+              color: cs.primary.withValues(alpha: isDark ? .24 : .14),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: cs.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: cs.primary.withValues(alpha: .45),
+                        blurRadius: 7,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  eyebrow.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    color: cs.primary,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.25,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 13),
         Text(
           title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.9,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: 760),
           child: Text(
             description,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: cs.onSurfaceVariant,
-              height: 1.55,
+              height: 1.5,
             ),
           ),
         ),
       ],
     );
 
-    if (actions == null || actions!.isEmpty) return text;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 680) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              text,
-              const SizedBox(height: 16),
-              Wrap(spacing: 8, runSpacing: 8, children: actions!),
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(child: text),
-            const SizedBox(width: 16),
-            Wrap(spacing: 8, runSpacing: 8, children: actions!),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            cs.primary.withValues(alpha: isDark ? .115 : .075),
+            cs.surface.withValues(alpha: .96),
           ],
-        );
-      },
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: Theme.of(context).dividerColor),
+        boxShadow: isDark ? AppShadows.smDark : AppShadows.sm,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 25),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (actions == null || actions!.isEmpty) return text;
+            if (constraints.maxWidth < 720) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  text,
+                  const SizedBox(height: 20),
+                  Wrap(spacing: 10, runSpacing: 10, children: actions!),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: text),
+                const SizedBox(width: 24),
+                Wrap(spacing: 10, runSpacing: 10, children: actions!),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -107,12 +157,12 @@ class SectionCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: border, width: .7),
         boxShadow: isDark ? AppShadows.smDark : AppShadows.sm,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         child: Padding(padding: padding, child: child),
       ),
     );
@@ -224,12 +274,12 @@ class _MetricCardState extends State<MetricCard> {
         curve: Curves.easeOut,
         decoration: BoxDecoration(
           color: cs.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           border: Border.all(
             color: _hovered
                 ? color.withValues(alpha: .35)
                 : Theme.of(context).dividerColor,
-            width: 0.5,
+            width: .7,
           ),
           boxShadow: _hovered
               ? (isDark ? AppShadows.mdDark : AppShadows.md)
@@ -237,12 +287,12 @@ class _MetricCardState extends State<MetricCard> {
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           child: InkWell(
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -251,12 +301,15 @@ class _MetricCardState extends State<MetricCard> {
                       // Icon badge
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(11),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: _hovered ? .15 : .1),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(
+                            color: color.withValues(alpha: .14),
+                          ),
                         ),
-                        child: Icon(widget.icon, color: color, size: 18),
+                        child: Icon(widget.icon, color: color, size: 19),
                       ),
                       const Spacer(),
                       // Delta badge
@@ -267,31 +320,31 @@ class _MetricCardState extends State<MetricCard> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 19),
                   Text(
-                    widget.label,
+                    widget.label.toUpperCase(),
                     style: GoogleFonts.inter(
                       color: cs.onSurfaceVariant,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.1,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .75,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 7),
                   Text(
                     widget.value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
+                    style: GoogleFonts.manrope(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -1.1,
                       color: cs.onSurface,
                       height: 1.1,
                     ),
                   ),
                   if (widget.detail != null) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       widget.detail!,
                       maxLines: 1,
@@ -475,10 +528,11 @@ class AdaptiveGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
+      final maxColumns = children.length.clamp(1, 4);
       final count =
           ((constraints.maxWidth + spacing) / (minItemWidth + spacing))
               .floor()
-              .clamp(1, 4);
+              .clamp(1, maxColumns);
       final width = (constraints.maxWidth - spacing * (count - 1)) / count;
       return Wrap(
         spacing: spacing,
@@ -622,19 +676,19 @@ class _SkeletonMetricCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: const [
             Row(
               children: [
                 ShimmerBox(width: 38, height: 38, borderRadius: AppRadius.md),
-                const Spacer(),
+                Spacer(),
                 ShimmerBox(width: 52, height: 20, borderRadius: AppRadius.full),
               ],
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             ShimmerBox(width: 80, height: 11, borderRadius: AppRadius.sm),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             ShimmerBox(width: 120, height: 26, borderRadius: AppRadius.sm),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             ShimmerBox(width: 100, height: 10, borderRadius: AppRadius.sm),
           ],
         ),
@@ -914,25 +968,38 @@ class PageBody extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final narrow = constraints.maxWidth < 600;
-      return ListView(
-        padding: EdgeInsets.fromLTRB(
-          narrow ? 16 : 28,
-          narrow ? 20 : 28,
-          narrow ? 16 : 28,
-          56,
+      final spacious = constraints.maxWidth >= 1500;
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? const [Color(0xFF0D1018), AppColors.darkScaffold]
+                : const [Color(0xFFF8F9FD), AppColors.lightScaffold],
+          ),
         ),
-        children: [
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1440),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: _withSpacing(children),
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            narrow ? 14 : (spacious ? 40 : 28),
+            narrow ? 14 : 28,
+            narrow ? 14 : (spacious ? 40 : 28),
+            64,
+          ),
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1920),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _withSpacing(children),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     },
   );
@@ -996,7 +1063,7 @@ Future<bool> showTypedConfirmation({
   required String title,
   required String description,
   required String confirmationText,
-  String actionLabel = 'Xác nhận',
+  String actionLabel = 'Confirm',
   bool danger = false,
 }) async {
   final result = await showDialog<bool>(
@@ -1017,7 +1084,7 @@ Future<bool> showConfirmation({
   required BuildContext context,
   required String title,
   required String description,
-  String actionLabel = 'Xác nhận',
+  String actionLabel = 'Confirm',
   bool danger = false,
 }) async {
   final result = await showDialog<bool>(
@@ -1040,7 +1107,7 @@ Future<bool> showConfirmation({
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Hủy'),
+          child: const Text('Cancel'),
         ),
         FilledButton(
           key: const Key('confirm_action'),
@@ -1343,7 +1410,7 @@ class _PulsingDotState extends State<PulsingDot>
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     _opacity = Tween<double>(
       begin: 0.5,
-      end: 1.0,
+      end: 1,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 

@@ -12,18 +12,18 @@ void main() {
         theme: AppTheme.light(),
         home: const Scaffold(
           body: MetricCard(
-            label: 'Tổng người dùng',
+            label: 'Total users',
             value: '42',
-            detail: '5 tài khoản mới',
+            detail: '5 new accounts',
             icon: Icons.people_outline,
           ),
         ),
       ),
     );
 
-    expect(find.text('Tổng người dùng'), findsOneWidget);
+    expect(find.text('TOTAL USERS'), findsOneWidget);
     expect(find.text('42'), findsOneWidget);
-    expect(find.text('5 tài khoản mới'), findsOneWidget);
+    expect(find.text('5 new accounts'), findsOneWidget);
   });
 
   testWidgets('typed confirmation stays disabled until exact text is entered', (
@@ -44,24 +44,25 @@ void main() {
 
     final future = showTypedConfirmation(
       context: hostContext,
-      title: 'Xuất bản?',
-      description: 'Thay đổi sẽ áp dụng cho mobile app.',
-      confirmationText: 'XUAT BAN',
+      title: 'Publish changes?',
+      description: 'These changes will apply to the mobile app.',
+      confirmationText: 'PUBLISH',
+      actionLabel: 'Confirm',
     );
     await tester.pumpAndSettle();
 
     var confirmButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Xác nhận'),
+      find.widgetWithText(FilledButton, 'Confirm'),
     );
     expect(confirmButton.onPressed, isNull);
 
-    await tester.enterText(find.byType(TextField), 'XUAT BAN');
+    await tester.enterText(find.byType(TextField), 'PUBLISH');
     await tester.pump();
     confirmButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Xác nhận'),
+      find.widgetWithText(FilledButton, 'Confirm'),
     );
     expect(confirmButton.onPressed, isNotNull);
-    await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
     await tester.pumpAndSettle();
 
     expect(await future, isTrue);
@@ -85,15 +86,15 @@ void main() {
 
     final future = showConfirmation(
       context: hostContext,
-      title: 'Xóa báo cáo?',
-      description: 'Thao tác này không thể hoàn tác.',
-      actionLabel: 'Xác nhận xóa',
+      title: 'Delete report?',
+      description: 'This action cannot be undone.',
+      actionLabel: 'Delete report',
       danger: true,
     );
     await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsNothing);
-    final confirm = find.widgetWithText(FilledButton, 'Xác nhận xóa');
+    final confirm = find.widgetWithText(FilledButton, 'Delete report');
     expect(confirm, findsOneWidget);
     await tester.tap(confirm);
     await tester.pumpAndSettle();

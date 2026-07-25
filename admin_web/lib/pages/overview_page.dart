@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../core/core.dart';
 import '../theme/app_theme.dart';
 import '../utils/ui_format.dart';
 import '../widgets/admin_widgets.dart';
@@ -70,11 +70,11 @@ class _OverviewPageState extends State<OverviewPage> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return Column(
+            return const Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 MetricCardSkeletonGrid(),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 SectionCard(child: LoadingPanel(rowCount: 5)),
               ],
             );
@@ -302,7 +302,7 @@ class _ServiceRow extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    Widget statusWidget = switch (status) {
+    final statusWidget = switch (status) {
       IntegrationStatus.ready => const StatusDot(
         'Ready',
         tone: StatusTone.success,

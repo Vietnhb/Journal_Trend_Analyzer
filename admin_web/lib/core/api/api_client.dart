@@ -11,6 +11,8 @@ typedef IdTokenProvider = Future<String?> Function({bool forceRefresh});
 typedef AppCheckTokenProvider = Future<String?> Function({bool forceRefresh});
 typedef ApiDecoder<T> = T Function(Object? data);
 
+// This value must be selected at compile time for Flutter web deployments.
+// ignore: do_not_use_environment
 const configuredApiBaseUrl = String.fromEnvironment('API_BASE_URL');
 const localEmulatorApiBaseUrl =
     'http://127.0.0.1:5001/'
@@ -159,7 +161,7 @@ final class ApiClient {
       throw ApiException(
         status: response.statusCode,
         code: 'invalid_response',
-        message: 'Máy chủ trả về dữ liệu không hợp lệ.',
+        message: 'The server returned invalid data.',
         cause: error,
       );
     }
@@ -169,7 +171,7 @@ final class ApiClient {
       throw const ApiException(
         status: 502,
         code: 'invalid_response_envelope',
-        message: 'Máy chủ trả về dữ liệu không đúng định dạng.',
+        message: 'The server returned an unexpected response format.',
       );
     }
     try {
@@ -178,7 +180,7 @@ final class ApiClient {
       throw ApiException(
         status: 502,
         code: 'invalid_response_data',
-        message: 'Dữ liệu trả về từ máy chủ không đầy đủ.',
+        message: 'The server response is incomplete.',
         requestId: _nullableText(envelope['requestId']),
         cause: error,
       );
@@ -260,14 +262,15 @@ final class ApiClient {
       throw ApiException(
         status: 0,
         code: 'request_timeout',
-        message: 'Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại.',
+        message: 'The request timed out. Please try again.',
         cause: error,
       );
     } on http.ClientException catch (error) {
       throw ApiException(
         status: 0,
         code: 'network_error',
-        message: 'Không thể kết nối tới máy chủ. Hãy kiểm tra mạng và thử lại.',
+        message:
+            'Unable to connect to the server. Check your network and try again.',
         cause: error,
       );
     }
@@ -283,14 +286,14 @@ final class ApiClient {
       throw ApiException(
         status: 401,
         code: 'id_token_failed',
-        message: 'Không thể xác thực phiên đăng nhập Firebase.',
+        message: 'Unable to authenticate the Firebase session.',
         cause: error,
       );
     }
     throw const ApiException(
       status: 401,
       code: 'auth_required',
-      message: 'Bạn cần đăng nhập để tiếp tục.',
+      message: 'Sign in to continue.',
     );
   }
 
@@ -305,7 +308,7 @@ final class ApiClient {
       throw ApiException(
         status: 401,
         code: 'app_check_token_failed',
-        message: 'Không thể xác minh ứng dụng với Firebase App Check.',
+        message: 'Unable to verify the app with Firebase App Check.',
         cause: error,
       );
     }
@@ -362,12 +365,12 @@ final class ApiClient {
   static bool _isSuccess(int status) => status >= 200 && status < 300;
 
   static String _fallbackErrorMessage(int status) => switch (status) {
-    401 => 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
-    403 => 'Tài khoản không có quyền quản trị.',
-    404 => 'Không tìm thấy dữ liệu được yêu cầu.',
-    409 => 'Dữ liệu đã thay đổi. Hãy tải lại và thử lại.',
-    429 => 'Hệ thống đang quá tải. Vui lòng thử lại sau.',
-    _ => 'Không thể hoàn tất yêu cầu. Vui lòng thử lại.',
+    401 => 'Your session has expired. Please sign in again.',
+    403 => 'This account does not have administrator access.',
+    404 => 'The requested data could not be found.',
+    409 => 'The data has changed. Refresh and try again.',
+    429 => 'The system is busy. Please try again later.',
+    _ => 'Unable to complete the request. Please try again.',
   };
 
   void close() {

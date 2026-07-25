@@ -28,22 +28,22 @@ final class ValidatedStorageFile {
     if (normalizedName.isEmpty ||
         normalizedName.contains('/') ||
         normalizedName.contains(r'\')) {
-      throw const StorageFileException('Tên tệp Storage không hợp lệ.');
+      throw const StorageFileException('The Storage file name is invalid.');
     }
     if (bytes.length != expectedSize) {
       throw StorageFileException(
-        'Tệp tải về không đầy đủ (${bytes.length}/$expectedSize byte).',
+        'The download is incomplete (${bytes.length}/$expectedSize bytes).',
       );
     }
     final contentType = _normalizedContentType(responseContentType);
     if (contentType != null && contentType != pdfContentType) {
       throw StorageFileException(
-        'Máy chủ trả về định dạng “$contentType”, không phải PDF.',
+        'The server returned “$contentType” instead of a PDF.',
       );
     }
     if (!_containsPdfSignature(bytes)) {
       throw const StorageFileException(
-        'Nội dung tệp không có chữ ký PDF hợp lệ.',
+        'The file does not contain a valid PDF signature.',
       );
     }
     return ValidatedStorageFile._(

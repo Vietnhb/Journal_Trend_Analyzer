@@ -1,42 +1,42 @@
 # Journal Trend Admin Web
 
-Trang quản trị độc lập viết bằng Flutter Web cho Firebase project
-`journal-trend-analyzer`. Đây không phải phần web của ứng dụng mobile và không
-yêu cầu sửa source Android/iOS hiện có.
+An independent administration console built with Flutter Web for the
+`journal-trend-analyzer` Firebase project. It is separate from the mobile app
+and does not require changes to the existing Android or iOS source.
 
 ## Firebase
 
-Firebase Web App đã được đăng ký trong chính project đang dùng cho mobile:
+The Firebase Web App is registered in the same project as the mobile app:
 
 - Project ID: `journal-trend-analyzer`
 - Auth domain: `journal-trend-analyzer.firebaseapp.com`
 - Hosting target: `admin`
-- API production: cùng origin tại `/api/v1`
+- Production API: same-origin at `/api/v1`
 
-Không tạo Firebase project thứ hai. Firebase Web config là định danh public của
-app; quyền quản trị thực tế được bảo vệ bằng Firebase Authentication, custom
-claim `admin: true` và `adminApi`.
+Do not create a second Firebase project. The Firebase Web configuration is the
+app's public identifier; administrative access is protected by Firebase
+Authentication, the `admin: true` custom claim, and `adminApi`.
 
-## Yêu cầu
+## Requirements
 
-- Flutter/Dart tương thích SDK ghi trong `pubspec.yaml`
-- Chrome để chạy local
-- Node.js 22 cho `../functions`
-- Firebase CLI cho emulator và deploy
+- A Flutter/Dart version compatible with the SDK constraint in `pubspec.yaml`
+- Chrome for local development
+- Node.js 22 for `../functions`
+- Firebase CLI for emulation and deployment
 
-## Chạy local
+## Run locally
 
-Chạy Functions và Hosting Emulator từ repository root:
+Start the Functions and Hosting emulators from the repository root:
 
 ```powershell
 npx firebase-tools emulators:start --only functions,hosting
 ```
 
-Sau đó mở `http://localhost:5000`. Khi chạy trên localhost, UI gọi trực tiếp
-Functions Emulator tại cổng `5001`. Bản production vẫn gọi `/api/v1` cùng
-origin qua Hosting rewrite.
+Then open `http://localhost:5000`. On localhost, the UI calls the Functions
+Emulator directly on port `5001`. The production build continues to call
+same-origin `/api/v1` through the Hosting rewrite.
 
-Kiểm tra mã Flutter từ thư mục `admin_web`:
+Validate the Flutter project from the `admin_web` directory:
 
 ```powershell
 flutter pub get
@@ -44,38 +44,40 @@ flutter analyze
 flutter test
 ```
 
-Chỉ truyền `API_BASE_URL` khi tích hợp với một gateway/staging origin khác.
+Only pass `API_BASE_URL` when integrating with a different gateway or staging
+origin.
 
-Chrome có thể ghi cảnh báo `Cross-Origin-Opener-Policy ... window.closed` khi
-dùng `flutter run`; đây là cảnh báo của dev server khi Firebase Auth kiểm tra
-popup. Bản chạy qua Firebase Hosting/Hosting Emulator dùng header
-`same-origin-allow-popups` trong `firebase.json`.
+Chrome may log a `Cross-Origin-Opener-Policy ... window.closed` warning when
+using `flutter run`. This is emitted by the development server when Firebase
+Auth checks its pop-up. Firebase Hosting and the Hosting Emulator use the
+`same-origin-allow-popups` header configured in `firebase.json`.
 
-Nếu đã đăng ký App Check reCAPTCHA Enterprise:
+If App Check reCAPTCHA Enterprise is registered:
 
 ```powershell
 flutter run -d chrome `
   --dart-define=APP_CHECK_SITE_KEY=PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY
 ```
 
-Site key được đóng gói vào trình duyệt và không phải secret. Không đưa service
-account JSON, access token hoặc private key vào Dart source hay `--dart-define`.
+The site key is bundled for the browser and is not a secret. Never put service
+account JSON, access tokens, or private keys in Dart source or `--dart-define`.
 
 ## Build production
 
-Từ repository root:
+From the repository root:
 
 ```powershell
 dart run tool/build_admin_web.dart
 ```
 
-Script chạy trong đúng thư mục `admin_web` và thực thi:
+The script runs in the `admin_web` directory and executes:
 
 ```powershell
 flutter build web --release --csp --no-web-resources-cdn
 ```
 
-Artifact nằm ở `admin_web/build/web`. Nếu cần App Check trong predeploy:
+The artifact is written to `admin_web/build/web`. To enable App Check during
+predeploy:
 
 ```powershell
 $env:APP_CHECK_SITE_KEY='PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY'
@@ -83,12 +85,13 @@ $env:API_BASE_URL='/api/v1'
 dart run tool/build_admin_web.dart
 ```
 
-Hai biến trên chỉ được script chuyển thành Dart defines; chúng không phải cấu
-hình backend.
+The script only forwards these variables as Dart defines; they are not backend
+configuration.
 
-## Cấp quyền Admin
+## Grant administrator access
 
-User phải tồn tại trong Firebase Authentication trước. Từ repository root:
+The user must already exist in Firebase Authentication. From the repository
+root:
 
 ```powershell
 npm --prefix functions ci
@@ -97,17 +100,18 @@ npm --prefix functions run set-admin -- `
   --project journal-trend-analyzer
 ```
 
-Đăng xuất rồi đăng nhập lại để Firebase phát ID token mới chứa claim.
+Sign out and sign in again so Firebase issues a new ID token containing the
+claim.
 
 ## Deploy
 
-`firebase.json` build Flutter Web tự động trước khi deploy Hosting:
+`firebase.json` automatically builds Flutter Web before deploying Hosting:
 
 ```powershell
 npx firebase-tools deploy --only functions:adminApi,hosting:admin `
   --project journal-trend-analyzer
 ```
 
-Hướng dẫn đầy đủ về Firebase services, backend parameters, emulator, Rules,
-Remote Config và rollback nằm tại
+The complete guide to Firebase services, backend parameters, emulators, Rules,
+Remote Config, and rollback is available in
 [`../ADMIN_WEB_SETUP.md`](../ADMIN_WEB_SETUP.md).

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 final class AdminDateRange {
   const AdminDateRange({
     required this.start,
@@ -33,8 +35,8 @@ final class AdminDateRange {
     isCustom: true,
   );
 
-  static AdminDateRange get last30Days =>
-      AdminDateRange.lastDays(30, '30 ngày qua');
+  factory AdminDateRange.last30Days() =>
+      AdminDateRange.lastDays(30, 'Last 30 days');
 
   final DateTime start;
   final DateTime end;
@@ -63,9 +65,9 @@ class AdminDateRangeFilter extends StatelessWidget {
   final ValueChanged<AdminDateRange> onChanged;
 
   static final _presets = [
-    (label: '7d', range: AdminDateRange.lastDays(7, '7 ngày qua')),
-    (label: '30d', range: AdminDateRange.lastDays(30, '30 ngày qua')),
-    (label: '90d', range: AdminDateRange.lastDays(90, '90 ngày qua')),
+    (label: '7D', range: AdminDateRange.lastDays(7, 'Last 7 days')),
+    (label: '30D', range: AdminDateRange.lastDays(30, 'Last 30 days')),
+    (label: '90D', range: AdminDateRange.lastDays(90, 'Last 90 days')),
   ];
 
   bool _isActive(AdminDateRange preset) {
@@ -88,9 +90,10 @@ class AdminDateRangeFilter extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: border, width: 0.5),
-        borderRadius: BorderRadius.circular(10),
-        color: isDark ? const Color(0xFF151D2E) : Colors.white,
+        border: Border.all(color: border, width: .7),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: isDark ? AppColors.darkSurfaceVariant : Colors.white,
+        boxShadow: isDark ? AppShadows.smDark : AppShadows.sm,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -159,8 +162,12 @@ class _PresetChipState extends State<_PresetChip> {
         : Colors.black.withValues(alpha: .03);
 
     final radius = BorderRadius.horizontal(
-      left: widget.leftRounded ? const Radius.circular(9) : Radius.zero,
-      right: widget.rightRounded ? const Radius.circular(9) : Radius.zero,
+      left: widget.leftRounded
+          ? const Radius.circular(AppRadius.md)
+          : Radius.zero,
+      right: widget.rightRounded
+          ? const Radius.circular(AppRadius.md)
+          : Radius.zero,
     );
 
     return MouseRegion(
@@ -242,13 +249,13 @@ class _DateRangeDialogState extends State<_DateRangeDialog> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final presets = <AdminDateRange>[
-      AdminDateRange.lastMinutes(60, '60 phút qua'),
-      AdminDateRange.lastMinutes(12 * 60, '12 giờ qua'),
-      AdminDateRange.lastMinutes(24 * 60, '24 giờ qua'),
-      AdminDateRange.lastDays(7, '7 ngày qua'),
-      AdminDateRange.lastDays(28, '28 ngày qua'),
-      AdminDateRange.lastDays(30, '30 ngày qua'),
-      AdminDateRange.lastDays(90, '90 ngày qua'),
+      AdminDateRange.lastMinutes(60, 'Last 60 minutes'),
+      AdminDateRange.lastMinutes(12 * 60, 'Last 12 hours'),
+      AdminDateRange.lastMinutes(24 * 60, 'Last 24 hours'),
+      AdminDateRange.lastDays(7, 'Last 7 days'),
+      AdminDateRange.lastDays(28, 'Last 28 days'),
+      AdminDateRange.lastDays(30, 'Last 30 days'),
+      AdminDateRange.lastDays(90, 'Last 90 days'),
     ];
     return Dialog(
       insetPadding: const EdgeInsets.all(20),
@@ -322,7 +329,7 @@ class _CustomRangePanel extends StatelessWidget {
         Row(
           children: [
             Text(
-              'Tùy chỉnh',
+              'Custom range',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w800,
@@ -330,7 +337,7 @@ class _CustomRangePanel extends StatelessWidget {
             ),
             const Spacer(),
             IconButton(
-              tooltip: 'Đóng',
+              tooltip: 'Close',
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.close_rounded),
             ),
@@ -340,22 +347,22 @@ class _CustomRangePanel extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _DateBox(value: start, placeholder: 'Ngày bắt đầu'),
+              child: _DateBox(value: start, placeholder: 'Start date'),
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 8),
               child: Icon(Icons.arrow_forward_rounded, size: 16),
             ),
             Expanded(
-              child: _DateBox(value: end, placeholder: 'Ngày kết thúc'),
+              child: _DateBox(value: end, placeholder: 'End date'),
             ),
           ],
         ),
         const SizedBox(height: 6),
         Text(
           end == null
-              ? 'Chọn ngày bắt đầu, sau đó chọn ngày kết thúc.'
-              : 'Khoảng đã chọn: ${_shortDate(start!)} – ${_shortDate(end!)}',
+              ? 'Choose a start date, then choose an end date.'
+              : 'Selected range: ${_shortDate(start!)} – ${_shortDate(end!)}',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 11,
@@ -378,7 +385,7 @@ class _CustomRangePanel extends StatelessWidget {
           child: FilledButton.icon(
             onPressed: onApply,
             icon: const Icon(Icons.check_rounded),
-            label: const Text('Áp dụng'),
+            label: const Text('Apply range'),
           ),
         ),
       ],
@@ -438,23 +445,23 @@ class _RangeCalendarState extends State<_RangeCalendar> {
     final daysInMonth = DateUtils.getDaysInMonth(_month.year, _month.month);
     final leading = firstOfMonth.weekday - DateTime.monday;
     final cellCount = ((leading + daysInMonth + 6) ~/ 7) * 7;
-    const weekdays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     return Column(
       children: [
         Row(
           children: [
             Text(
-              'THÁNG ${_month.month.toString().padLeft(2, '0')} ${_month.year}',
+              '${_monthNames[_month.month - 1].toUpperCase()} ${_month.year}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
             ),
             const Spacer(),
             IconButton(
-              tooltip: 'Tháng trước',
+              tooltip: 'Previous month',
               onPressed: _canGoBack ? () => _moveMonth(-1) : null,
               icon: const Icon(Icons.chevron_left_rounded),
             ),
             IconButton(
-              tooltip: 'Tháng sau',
+              tooltip: 'Next month',
               onPressed: _canGoForward ? () => _moveMonth(1) : null,
               icon: const Icon(Icons.chevron_right_rounded),
             ),
@@ -618,7 +625,7 @@ class _QuickRanges extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
-            'Khoảng nhanh',
+            'QUICK RANGES',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 11,
@@ -637,5 +644,20 @@ class _QuickRanges extends StatelessWidget {
   );
 }
 
+const _monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 String _shortDate(DateTime value) =>
-    '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+    '${_monthNames[value.month - 1].substring(0, 3)} ${value.day}, ${value.year}';

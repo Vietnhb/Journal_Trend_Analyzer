@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../core/core.dart';
 import '../core/files/browser_storage_file_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/ui_format.dart';
@@ -27,7 +27,7 @@ class _ReportsPageState extends State<ReportsPage> {
   bool _bulkBusy = false;
   final Map<String, StoredReport> _selectedReports = {};
   int _pageIndex = 0;
-  AdminDateRange _range = AdminDateRange.last30Days;
+  AdminDateRange _range = AdminDateRange.last30Days();
 
   @override
   void initState() {
@@ -114,8 +114,8 @@ class _ReportsPageState extends State<ReportsPage> {
         showAppMessage(
           context,
           download
-              ? 'Đã bắt đầu tải xuống ${report.name}.'
-              : 'Đã mở bản xem trước ${report.name}.',
+              ? 'Download started for ${report.name}.'
+              : 'Preview opened for ${report.name}.',
         );
       }
     } catch (error) {
@@ -134,11 +134,12 @@ class _ReportsPageState extends State<ReportsPage> {
     if (_busyPath != null) return;
     final confirmed = await showConfirmation(
       context: context,
-      title: 'Xóa báo cáo khỏi Storage?',
+      title: 'Delete report from Storage?',
       description:
-          'Bạn có chắc muốn xóa “${report.name}”? Tệp sẽ bị xóa vĩnh viễn khỏi Firebase Storage. '
-          'Bản PDF đã lưu cục bộ trên thiết bị người dùng không bị ảnh hưởng.',
-      actionLabel: 'Xác nhận xóa',
+          'Are you sure you want to delete “${report.name}”? The file will be '
+          'permanently deleted from Firebase Storage. PDFs saved locally on '
+          'user devices will not be affected.',
+      actionLabel: 'Delete report',
       danger: true,
     );
     if (!confirmed || !mounted) return;
@@ -155,7 +156,7 @@ class _ReportsPageState extends State<ReportsPage> {
         _pageIndex--;
         _pageTokens.removeRange(_pageIndex + 1, _pageTokens.length);
       }
-      showAppMessage(context, 'Đã xóa báo cáo khỏi Firebase Storage.');
+      showAppMessage(context, 'Report deleted from Firebase Storage.');
       setState(_load);
     } catch (error) {
       if (mounted) {
@@ -194,18 +195,18 @@ class _ReportsPageState extends State<ReportsPage> {
     if (reports.length > 100) {
       showAppMessage(
         context,
-        'Mỗi lần chỉ được xóa tối đa 100 báo cáo.',
+        'You can delete up to 100 reports at a time.',
         error: true,
       );
       return;
     }
     final confirmed = await showConfirmation(
       context: context,
-      title: 'Xóa ${reports.length} báo cáo đã chọn?',
+      title: 'Delete ${reports.length} selected reports?',
       description:
-          'Các tệp đã chọn sẽ bị xóa vĩnh viễn khỏi Firebase Storage. '
-          'Tệp cục bộ trên thiết bị người dùng không bị ảnh hưởng.',
-      actionLabel: 'Xác nhận xóa',
+          'The selected files will be permanently deleted from Firebase '
+          'Storage. Files saved locally on user devices will not be affected.',
+      actionLabel: 'Delete selected',
       danger: true,
     );
     if (!confirmed || !mounted) return;
@@ -214,14 +215,14 @@ class _ReportsPageState extends State<ReportsPage> {
     try {
       final result = await widget.api.deleteReports(reports);
       if (!mounted) return;
-      for (final path in result.deleted) {
-        _selectedReports.remove(path);
-      }
+      result.deleted.forEach(_selectedReports.remove);
       showAppMessage(
         context,
         result.failed.isEmpty
-            ? 'Đã xóa ${result.deleted.length} báo cáo.'
-            : 'Đã xóa ${result.deleted.length} báo cáo; ${result.failed.length} tệp không thể xóa. Hãy làm mới và thử lại.',
+            ? 'Deleted ${result.deleted.length} reports.'
+            : 'Deleted ${result.deleted.length} reports; '
+                  '${result.failed.length} files could not be deleted. '
+                  'Refresh and try again.',
         error: result.failed.isNotEmpty,
       );
       setState(_load);
@@ -236,11 +237,11 @@ class _ReportsPageState extends State<ReportsPage> {
     if (_bulkBusy || _busyPath != null) return;
     final confirmed = await showConfirmation(
       context: context,
-      title: 'Xóa toàn bộ báo cáo?',
+      title: 'Delete all reports?',
       description:
-          'Tất cả PDF trong report/{uid}/analysis của mọi người dùng sẽ bị xóa vĩnh viễn. '
-          'Thao tác này không thể hoàn tác.',
-      actionLabel: 'Xác nhận xóa toàn bộ',
+          'All PDFs under report/{uid}/analysis for every user will be '
+          'permanently deleted. This action cannot be undone.',
+      actionLabel: 'Delete all reports',
       danger: true,
     );
     if (!confirmed || !mounted) return;
@@ -257,8 +258,9 @@ class _ReportsPageState extends State<ReportsPage> {
       showAppMessage(
         context,
         result.failed.isEmpty
-            ? 'Đã xóa toàn bộ ${result.deleted.length} báo cáo.'
-            : 'Đã xóa ${result.deleted.length} báo cáo; ${result.failed.length} tệp không thể xóa.',
+            ? 'Deleted all ${result.deleted.length} reports.'
+            : 'Deleted ${result.deleted.length} reports; '
+                  '${result.failed.length} files could not be deleted.',
         error: result.failed.isNotEmpty,
       );
       setState(_load);
@@ -378,16 +380,16 @@ class _ReportsPageState extends State<ReportsPage> {
                     const Divider(height: 1),
                     if (filtered.isEmpty)
                       EmptyPanel(
-                        title: 'Không có báo cáo',
+                        title: 'No reports',
                         description: _query.isEmpty
-                            ? 'Báo cáo PDF được mobile app tải lên sẽ xuất hiện tại đây.'
-                            : 'Không tìm thấy báo cáo phù hợp trong trang hiện tại.',
+                            ? 'PDF reports uploaded by the mobile app will appear here.'
+                            : 'No matching reports were found on the current page.',
                         icon: Icons.picture_as_pdf_outlined,
                       )
                     else
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          if (constraints.maxWidth < 1100) {
+                          if (constraints.maxWidth < 900) {
                             return _ReportCards(
                               reports: filtered,
                               busyPath: _busyPath,
@@ -464,11 +466,11 @@ class _ReportToolbar extends StatelessWidget {
         onChanged: onChanged,
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.search_rounded),
-          hintText: 'Tìm theo owner, topic hoặc tên tệp…',
+          hintText: 'Search by owner, topic, or filename…',
           suffixIcon: controller.text.isEmpty
               ? null
               : IconButton(
-                  tooltip: 'Xóa từ khóa',
+                  tooltip: 'Clear search',
                   onPressed: onClear,
                   icon: const Icon(Icons.close_rounded),
                 ),
@@ -485,15 +487,15 @@ class _ReportToolbar extends StatelessWidget {
           const SizedBox(width: 7),
           Text(
             query.isEmpty
-                ? 'Tìm kiếm chỉ lọc trang hiện tại'
-                : 'Đang lọc trang hiện tại',
+                ? 'Search filters the current page only'
+                : 'Filtering the current page',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
       );
-      if (constraints.maxWidth < 650) {
+      if (constraints.maxWidth < 680) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [search, const SizedBox(height: 12), note],
@@ -539,7 +541,7 @@ class _ReportBulkActions extends StatelessWidget {
         selected: allVisibleSelected,
         onSelected: busy || visibleCount == 0 ? null : onToggleVisible,
         avatar: const Icon(Icons.select_all_rounded, size: 18),
-        label: Text('Chọn trang hiện tại ($visibleCount)'),
+        label: Text('Select current page ($visibleCount)'),
       ),
       OutlinedButton.icon(
         onPressed: busy || selectedCount == 0 ? null : onDeleteSelected,
@@ -549,13 +551,13 @@ class _ReportBulkActions extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.delete_sweep_outlined),
-        label: Text('Xóa đã chọn ($selectedCount)'),
+        label: Text('Delete selected ($selectedCount)'),
         style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger),
       ),
       TextButton.icon(
         onPressed: busy ? null : onDeleteAll,
         icon: const Icon(Icons.delete_forever_outlined),
-        label: const Text('Xóa toàn bộ báo cáo'),
+        label: const Text('Delete all reports'),
         style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
       ),
     ],
@@ -586,70 +588,84 @@ class _ReportTable extends StatelessWidget {
   final _ReportCallback onDelete;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: DataTable(
-      onSelectAll: (selected) => onSelectAll(selected ?? false),
-      columns: const [
-        DataColumn(label: Text('TỆP BÁO CÁO')),
-        DataColumn(label: Text('CHỦ SỞ HỮU')),
-        DataColumn(label: Text('CHỦ ĐỀ')),
-        DataColumn(label: Text('DUNG LƯỢNG')),
-        DataColumn(label: Text('NGÀY TẢI LÊN')),
-        DataColumn(label: Text('THAO TÁC')),
-      ],
-      rows: [
-        for (final report in reports)
-          DataRow(
-            selected: selectedPaths.contains(report.path),
-            onSelectChanged: busyPath != null
-                ? null
-                : (selected) => onSelected(report, selected ?? false),
-            cells: [
-              DataCell(_FileIdentity(report: report)),
-              DataCell(_OwnerIdentity(report: report)),
-              DataCell(
-                report.topic == null || report.topic!.isEmpty
-                    ? Text(
-                        'Không có metadata',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+        child: DataTable(
+          onSelectAll: (selected) => onSelectAll(selected ?? false),
+          columnSpacing: 32,
+          headingRowHeight: 48,
+          dataRowMinHeight: 68,
+          dataRowMaxHeight: 78,
+          columns: const [
+            DataColumn(label: Text('REPORT FILE')),
+            DataColumn(label: Text('OWNER')),
+            DataColumn(label: Text('TOPIC')),
+            DataColumn(label: Text('SIZE')),
+            DataColumn(label: Text('UPLOADED')),
+            DataColumn(label: Text('ACTIONS')),
+          ],
+          rows: [
+            for (final report in reports)
+              DataRow(
+                selected: selectedPaths.contains(report.path),
+                onSelectChanged: busyPath != null
+                    ? null
+                    : (selected) => onSelected(report, selected ?? false),
+                cells: [
+                  DataCell(_FileIdentity(report: report)),
+                  DataCell(_OwnerIdentity(report: report)),
+                  DataCell(
+                    report.topic == null || report.topic!.isEmpty
+                        ? Text(
+                            'No metadata',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          )
+                        : StatusPill(report.topic!, tone: StatusTone.info),
+                  ),
+                  DataCell(
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          formatBytes(report.sizeBytes),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
-                      )
-                    : StatusPill(report.topic!, tone: StatusTone.info),
-              ),
-              DataCell(
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      formatBytes(report.sizeBytes),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                        Text(
+                          report.contentType ?? 'application/pdf',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      report.contentType ?? 'application/pdf',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                  ),
+                  DataCell(Text(formatDateTime(report.createdAt))),
+                  DataCell(
+                    _ReportActions(
+                      report: report,
+                      busy: busyPath == report.path,
+                      disabled: busyPath != null,
+                      onPreview: onPreview,
+                      onDownload: onDownload,
+                      onDelete: onDelete,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              DataCell(Text(formatDateTime(report.createdAt))),
-              DataCell(
-                _ReportActions(
-                  report: report,
-                  busy: busyPath == report.path,
-                  disabled: busyPath != null,
-                  onPreview: onPreview,
-                  onDownload: onDownload,
-                  onDelete: onDelete,
-                ),
-              ),
-            ],
-          ),
-      ],
+          ],
+        ),
+      ),
     ),
   );
 }
@@ -750,9 +766,7 @@ class _ReportMobileCard extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               StatusPill(
-                report.topic?.isNotEmpty == true
-                    ? report.topic!
-                    : 'Không có chủ đề',
+                report.topic?.isNotEmpty == true ? report.topic! : 'No topic',
                 tone: report.topic?.isNotEmpty == true
                     ? StatusTone.info
                     : StatusTone.neutral,
@@ -859,7 +873,7 @@ class _OwnerIdentity extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                report.ownerEmail ?? 'Không rõ email',
+                report.ownerEmail ?? 'Unknown email',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w700),
@@ -913,17 +927,17 @@ class _ReportActions extends StatelessWidget {
     }
     final actions = [
       IconButton(
-        tooltip: 'Xem trước',
+        tooltip: 'Preview',
         onPressed: disabled ? null : () => onPreview(report),
         icon: const Icon(Icons.visibility_outlined),
       ),
       IconButton(
-        tooltip: 'Tải xuống',
+        tooltip: 'Download',
         onPressed: disabled ? null : () => onDownload(report),
         icon: const Icon(Icons.download_rounded),
       ),
       IconButton(
-        tooltip: 'Xóa báo cáo',
+        tooltip: 'Delete report',
         color: AppTheme.danger,
         onPressed: disabled ? null : () => onDelete(report),
         icon: const Icon(Icons.delete_outline_rounded),
@@ -961,20 +975,20 @@ class _PaginationBar extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
-          'Trang $page',
+          'Page $page',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(width: 12),
         IconButton.outlined(
-          tooltip: 'Trang trước',
+          tooltip: 'Previous page',
           onPressed: canPrevious ? onPrevious : null,
           icon: const Icon(Icons.chevron_left_rounded),
         ),
         const SizedBox(width: 7),
         IconButton.outlined(
-          tooltip: 'Trang sau',
+          tooltip: 'Next page',
           onPressed: canNext ? onNext : null,
           icon: const Icon(Icons.chevron_right_rounded),
         ),

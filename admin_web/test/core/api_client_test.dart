@@ -63,11 +63,11 @@ void main() {
         final client = ApiClient(
           baseUri: Uri.parse('https://admin.example.test/api/v1'),
           httpClient: transport,
-          idTokenProvider: ({bool forceRefresh = false}) async {
+          idTokenProvider: ({forceRefresh = false}) async {
             idRefreshes.add(forceRefresh);
             return 'firebase-id-token';
           },
-          appCheckTokenProvider: ({bool forceRefresh = false}) async {
+          appCheckTokenProvider: ({forceRefresh = false}) async {
             appCheckRefreshes.add(forceRefresh);
             return 'app-check-token';
           },
@@ -117,11 +117,11 @@ void main() {
       final client = ApiClient(
         baseUri: Uri.parse('https://admin.example.test/api/v1'),
         httpClient: transport,
-        idTokenProvider: ({bool forceRefresh = false}) async {
+        idTokenProvider: ({forceRefresh = false}) async {
           idRefreshes.add(forceRefresh);
           return forceRefresh ? 'fresh-id' : 'old-id';
         },
-        appCheckTokenProvider: ({bool forceRefresh = false}) async {
+        appCheckTokenProvider: ({forceRefresh = false}) async {
           appCheckRefreshes.add(forceRefresh);
           return forceRefresh ? 'fresh-app-check' : 'old-app-check';
         },
@@ -228,7 +228,7 @@ void main() {
         final client = ApiClient(
           baseUri: Uri.parse('https://admin.example.test/api/v1'),
           httpClient: transport,
-          idTokenProvider: ({bool forceRefresh = false}) async => null,
+          idTokenProvider: ({forceRefresh = false}) async => null,
         );
 
         await expectLater(
@@ -250,5 +250,5 @@ void main() {
 ApiClient _client(http.Client transport) => ApiClient(
   baseUri: Uri.parse('https://admin.example.test/api/v1'),
   httpClient: transport,
-  idTokenProvider: ({bool forceRefresh = false}) async => 'id-token',
+  idTokenProvider: ({forceRefresh = false}) async => 'id-token',
 );

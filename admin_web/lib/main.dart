@@ -9,7 +9,10 @@ import 'app.dart';
 import 'core/core.dart';
 import 'firebase_options.dart';
 
+// These flags intentionally select compile-time-only web build behavior.
+// ignore: do_not_use_environment
 const _useAuthEmulator = bool.fromEnvironment('USE_AUTH_EMULATOR');
+// ignore: do_not_use_environment
 const _appCheckDebug = bool.fromEnvironment('APP_CHECK_DEBUG');
 
 Future<void> main() async {
@@ -26,7 +29,7 @@ Future<void> main() async {
         providerWeb: ReCaptchaEnterpriseProvider(appCheckSiteKey),
       );
     }
-    await initializeDateFormatting('vi_VN');
+    await initializeDateFormatting('en_US');
     _removeBootIndicator();
     runApp(
       JournalAdminApp(

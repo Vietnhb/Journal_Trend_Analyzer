@@ -3,9 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'analytics_token_store.dart';
 
+// App Check keys are injected by the deployment build, never read at runtime.
+// ignore: do_not_use_environment
+const _legacyAppCheckSiteKey = String.fromEnvironment(
+  'FIREBASE_APP_CHECK_SITE_KEY',
+);
+// ignore: do_not_use_environment
 const appCheckSiteKey = String.fromEnvironment(
   'APP_CHECK_SITE_KEY',
-  defaultValue: String.fromEnvironment('FIREBASE_APP_CHECK_SITE_KEY'),
+  defaultValue: _legacyAppCheckSiteKey,
 );
 const firebaseAppCheckSiteKey = appCheckSiteKey;
 const firebaseAppCheckConfigured = appCheckSiteKey != '';
@@ -64,7 +70,7 @@ final class AdminAuthService {
     if (user == null) {
       throw const AdminAuthException(
         code: 'auth_required',
-        message: 'Bạn cần đăng nhập để kết nối Google Analytics.',
+        message: 'Sign in to connect Google Analytics.',
       );
     }
     final provider = GoogleAuthProvider()
@@ -156,19 +162,19 @@ final class AdminAuthException implements Exception {
 
 String friendlyFirebaseAuthMessage(String code) {
   if (code.contains('popup-closed-by-user')) {
-    return 'Cửa sổ đăng nhập đã đóng trước khi hoàn tất.';
+    return 'The sign-in window was closed before authentication completed.';
   }
   if (code.contains('popup-blocked')) {
-    return 'Trình duyệt đang chặn cửa sổ đăng nhập. Hãy cho phép popup rồi thử lại.';
+    return 'Your browser blocked the sign-in window. Allow pop-ups and try again.';
   }
   if (code.contains('unauthorized-domain')) {
-    return 'Tên miền này chưa được thêm vào Authorized domains của Firebase Auth.';
+    return 'This domain is not listed in Firebase Auth Authorized domains.';
   }
   if (code.contains('network-request-failed')) {
-    return 'Không thể kết nối Firebase Auth. Hãy kiểm tra mạng và thử lại.';
+    return 'Unable to reach Firebase Auth. Check your network and try again.';
   }
   if (code.contains('user-disabled')) {
-    return 'Tài khoản này đã bị vô hiệu hóa.';
+    return 'This account has been disabled.';
   }
-  return 'Không thể đăng nhập bằng Google. Vui lòng kiểm tra cấu hình Firebase.';
+  return 'Unable to sign in with Google. Check the Firebase configuration.';
 }

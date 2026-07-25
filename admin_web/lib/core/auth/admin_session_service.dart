@@ -41,7 +41,7 @@ final class AdminSessionService {
     if (user == null) {
       throw const AdminAuthException(
         code: 'missing_user',
-        message: 'Firebase không trả về tài khoản sau khi đăng nhập.',
+        message: 'Firebase did not return an account after sign-in.',
       );
     }
     final analyticsToken = await _auth.analyticsAccessToken();
@@ -50,7 +50,7 @@ final class AdminSessionService {
       throw const AdminAuthException(
         code: 'analytics_oauth_required',
         message:
-            'Đăng nhập chưa cấp quyền đọc Google Analytics. Hãy thử lại và chọn Cho phép.',
+            'Google Analytics read access was not granted. Try again and select Allow.',
       );
     }
     return _verify(user);
@@ -62,7 +62,7 @@ final class AdminSessionService {
       throw const ApiException(
         status: 401,
         code: 'auth_required',
-        message: 'Bạn cần đăng nhập để tiếp tục.',
+        message: 'Sign in to continue.',
       );
     }
     await user.getIdToken(true);
@@ -79,7 +79,7 @@ final class AdminSessionService {
         throw const ApiException(
           status: 403,
           code: 'admin_required',
-          message: 'Tài khoản không có quyền quản trị.',
+          message: 'This account does not have administrator access.',
         );
       }
       return AdminSession(firebaseUser: user, identity: identity);

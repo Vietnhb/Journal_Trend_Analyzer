@@ -4,29 +4,33 @@ import 'package:google_fonts/google_fonts.dart';
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 abstract final class AppColors {
-  // Brand
-  static const Color brand = Color(0xFF2563EB);
-  static const Color accent = Color(0xFF7C3AED);
+  // Brand — an electric indigo / cyan pairing built for dense data products.
+  static const Color brand = Color(0xFF5B5CEB);
+  static const Color brandDeep = Color(0xFF4144C6);
+  static const Color accent = Color(0xFF13B8A6);
+  static const Color ink = Color(0xFF171923);
+  static const Color navigation = Color(0xFF10121B);
+  static const Color navigationRaised = Color(0xFF181B27);
 
   // Semantic
-  static const Color success = Color(0xFF059669);
-  static const Color warning = Color(0xFFD97706);
-  static const Color danger = Color(0xFFDC2626);
-  static const Color info = Color(0xFF0EA5E9);
+  static const Color success = Color(0xFF10A779);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color danger = Color(0xFFE34D59);
+  static const Color info = Color(0xFF2F8BFF);
 
   // Light surfaces
-  static const Color lightScaffold = Color(0xFFEEF1F8);
+  static const Color lightScaffold = Color(0xFFF3F5FA);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceVariant = Color(0xFFF7F9FC);
-  static const Color lightBorder = Color(0xFFE2E8F0);
-  static const Color lightBorderFaint = Color(0xFFF1F5F9);
+  static const Color lightSurfaceVariant = Color(0xFFF7F8FC);
+  static const Color lightBorder = Color(0xFFE4E7EF);
+  static const Color lightBorderFaint = Color(0xFFF0F2F7);
 
   // Dark surfaces
-  static const Color darkScaffold = Color(0xFF07090F);
-  static const Color darkSurface = Color(0xFF0F1523);
-  static const Color darkSurfaceVariant = Color(0xFF151D2E);
-  static const Color darkBorder = Color(0xFF1E2D45);
-  static const Color darkBorderFaint = Color(0xFF162035);
+  static const Color darkScaffold = Color(0xFF090B11);
+  static const Color darkSurface = Color(0xFF12151E);
+  static const Color darkSurfaceVariant = Color(0xFF181C28);
+  static const Color darkBorder = Color(0xFF292E3D);
+  static const Color darkBorderFaint = Color(0xFF202431);
 }
 
 abstract final class AppSpacing {
@@ -35,41 +39,42 @@ abstract final class AppSpacing {
   static const double md = 16;
   static const double lg = 24;
   static const double xl = 32;
+  static const double page = 36;
   static const double xxl = 48;
 }
 
 abstract final class AppRadius {
-  static const double sm = 8.0;
-  static const double md = 12.0;
-  static const double lg = 16.0;
-  static const double xl = 20.0;
-  static const double full = 999.0;
+  static const double sm = 8;
+  static const double md = 11;
+  static const double lg = 18;
+  static const double xl = 24;
+  static const double full = 999;
 }
 
 abstract final class AppShadows {
   static List<BoxShadow> get sm => [
     BoxShadow(
-      color: const Color(0xFF0A1628).withValues(alpha: .06),
-      blurRadius: 6,
-      offset: const Offset(0, 1),
+      color: const Color(0xFF161A2B).withValues(alpha: .045),
+      blurRadius: 12,
+      offset: const Offset(0, 3),
     ),
     BoxShadow(
-      color: const Color(0xFF0A1628).withValues(alpha: .04),
-      blurRadius: 2,
+      color: const Color(0xFF161A2B).withValues(alpha: .025),
+      blurRadius: 3,
       offset: const Offset(0, 1),
     ),
   ];
 
   static List<BoxShadow> get md => [
     BoxShadow(
-      color: const Color(0xFF0A1628).withValues(alpha: .08),
-      blurRadius: 12,
-      offset: const Offset(0, 4),
+      color: const Color(0xFF161A2B).withValues(alpha: .085),
+      blurRadius: 28,
+      offset: const Offset(0, 10),
     ),
     BoxShadow(
-      color: const Color(0xFF0A1628).withValues(alpha: .04),
-      blurRadius: 4,
-      offset: const Offset(0, 1),
+      color: const Color(0xFF161A2B).withValues(alpha: .035),
+      blurRadius: 5,
+      offset: const Offset(0, 2),
     ),
   ];
 
@@ -125,7 +130,7 @@ abstract final class AppTheme {
 
   static ThemeData dark() => _build(
     brightness: Brightness.dark,
-    seed: const Color(0xFF60A5FA),
+    seed: const Color(0xFF8B8DFF),
     scaffold: AppColors.darkScaffold,
     surface: AppColors.darkSurface,
     surfaceVariant: AppColors.darkSurfaceVariant,
@@ -155,24 +160,61 @@ abstract final class AppTheme {
           : ThemeData.light().textTheme,
     );
 
-    // Tighten letter-spacing on display sizes — Inter looks better slightly tighter
+    // Manrope gives headings a distinctive editorial voice while Inter keeps
+    // dense controls and data highly legible.
+    final headingColor = isDark ? const Color(0xFFF5F6FA) : AppColors.ink;
     final textTheme = baseText.copyWith(
-      displayLarge: baseText.displayLarge?.copyWith(letterSpacing: -1.5),
-      displayMedium: baseText.displayMedium?.copyWith(letterSpacing: -1.0),
-      displaySmall: baseText.displaySmall?.copyWith(letterSpacing: -0.8),
-      headlineLarge: baseText.headlineLarge?.copyWith(letterSpacing: -0.6),
-      headlineMedium: baseText.headlineMedium?.copyWith(letterSpacing: -0.5),
-      headlineSmall: baseText.headlineSmall?.copyWith(letterSpacing: -0.4),
-      titleLarge: baseText.titleLarge?.copyWith(
-        letterSpacing: -0.2,
-        fontWeight: FontWeight.w600,
+      displayLarge: GoogleFonts.manrope(
+        textStyle: baseText.displayLarge,
+        color: headingColor,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -2,
       ),
-      titleMedium: baseText.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+      displayMedium: GoogleFonts.manrope(
+        textStyle: baseText.displayMedium,
+        color: headingColor,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1.6,
+      ),
+      displaySmall: GoogleFonts.manrope(
+        textStyle: baseText.displaySmall,
+        color: headingColor,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1.2,
+      ),
+      headlineLarge: GoogleFonts.manrope(
+        textStyle: baseText.headlineLarge,
+        color: headingColor,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1,
+      ),
+      headlineMedium: GoogleFonts.manrope(
+        textStyle: baseText.headlineMedium,
+        color: headingColor,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -.8,
+      ),
+      headlineSmall: GoogleFonts.manrope(
+        textStyle: baseText.headlineSmall,
+        color: headingColor,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -.6,
+      ),
+      titleLarge: GoogleFonts.manrope(
+        textStyle: baseText.titleLarge,
+        color: headingColor,
+        letterSpacing: -.35,
+        fontWeight: FontWeight.w700,
+      ),
+      titleMedium: baseText.titleMedium?.copyWith(
+        fontWeight: FontWeight.w600,
+        letterSpacing: -.2,
+      ),
       titleSmall: baseText.titleSmall?.copyWith(fontWeight: FontWeight.w600),
       labelLarge: baseText.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       labelMedium: baseText.labelMedium?.copyWith(fontWeight: FontWeight.w600),
-      bodyMedium: baseText.bodyMedium?.copyWith(height: 1.55),
-      bodySmall: baseText.bodySmall?.copyWith(height: 1.5),
+      bodyMedium: baseText.bodyMedium?.copyWith(height: 1.48),
+      bodySmall: baseText.bodySmall?.copyWith(height: 1.45),
     );
 
     return ThemeData(
@@ -181,8 +223,10 @@ abstract final class AppTheme {
       colorScheme: scheme,
       textTheme: textTheme,
       scaffoldBackgroundColor: scaffold,
-      visualDensity: VisualDensity.standard,
+      visualDensity: const VisualDensity(horizontal: -.2, vertical: -.2),
       dividerColor: border,
+      focusColor: seed.withValues(alpha: .12),
+      hoverColor: seed.withValues(alpha: .055),
 
       // ── AppBar ──────────────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
@@ -197,7 +241,7 @@ abstract final class AppTheme {
           fontWeight: FontWeight.w600,
           letterSpacing: -0.1,
         ),
-        toolbarHeight: 52,
+        toolbarHeight: 64,
       ),
 
       // ── Card ────────────────────────────────────────────────────────────────
@@ -206,7 +250,7 @@ abstract final class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           side: BorderSide(color: border),
         ),
         // Note: actual shadows applied in SectionCard widget via BoxDecoration
@@ -221,8 +265,8 @@ abstract final class AppTheme {
             ? AppColors.darkSurfaceVariant
             : AppColors.lightSurfaceVariant,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 13,
+          horizontal: 15,
+          vertical: 14,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -258,8 +302,9 @@ abstract final class AppTheme {
       // ── Buttons ─────────────────────────────────────────────────────────────
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 40),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
@@ -273,8 +318,8 @@ abstract final class AppTheme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 40),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
           side: BorderSide(color: border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -303,7 +348,7 @@ abstract final class AppTheme {
       chipTheme: ChipThemeData(
         side: BorderSide(color: border),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.full),
         ),
         labelStyle: GoogleFonts.inter(
           fontSize: 12,
@@ -348,31 +393,31 @@ abstract final class AppTheme {
 
       // ── DataTable ────────────────────────────────────────────────────────────
       dataTableTheme: DataTableThemeData(
-        headingRowHeight: 44,
-        dataRowMinHeight: 52,
-        dataRowMaxHeight: 64,
+        headingRowHeight: 48,
+        dataRowMinHeight: 60,
+        dataRowMaxHeight: 76,
         headingRowColor: WidgetStatePropertyAll(
           isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
         ),
         headingTextStyle: GoogleFonts.inter(
           color: scheme.onSurfaceVariant,
-          fontSize: 11,
+          fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
+          letterSpacing: 0.8,
         ),
         dataTextStyle: GoogleFonts.inter(
           color: scheme.onSurface,
-          fontSize: 13,
+          fontSize: 13.25,
           fontWeight: FontWeight.w400,
         ),
-        dividerThickness: 0.5,
-        columnSpacing: 24,
-        horizontalMargin: 20,
+        dividerThickness: .55,
+        columnSpacing: 32,
+        horizontalMargin: 24,
         dataRowColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.hovered)) {
             return isDark
                 ? Colors.white.withValues(alpha: .03)
-                : Colors.black.withValues(alpha: .02);
+                : AppColors.brand.withValues(alpha: .035);
           }
           return null;
         }),

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../core/core.dart';
 import '../theme/app_theme.dart';
 import '../utils/ui_format.dart';
 import '../widgets/admin_widgets.dart';
@@ -54,19 +54,19 @@ class _MessagingPageState extends State<MessagingPage> {
     showAppMessage(
       context,
       campaign.status == CampaignStatus.scheduled
-          ? 'Đã lên lịch chiến dịch.'
-          : 'Firebase đã nhận chiến dịch.',
+          ? 'Campaign scheduled.'
+          : 'Firebase accepted the campaign.',
     );
   }
 
   Future<void> _cancel(MessagingCampaign campaign) async {
     final confirmed = await showTypedConfirmation(
       context: context,
-      title: 'Hủy chiến dịch đã lên lịch?',
+      title: 'Cancel this scheduled campaign?',
       description:
-          'Chiến dịch “${campaign.name}” sẽ không được gửi. Thao tác này không thể hoàn tác.',
-      confirmationText: 'HUY LICH',
-      actionLabel: 'Hủy chiến dịch',
+          'Campaign “${campaign.name}” will not be sent. This action cannot be undone.',
+      confirmationText: 'CANCEL SCHEDULE',
+      actionLabel: 'Cancel schedule',
     );
     if (!confirmed || !mounted) return;
     try {
@@ -78,7 +78,7 @@ class _MessagingPageState extends State<MessagingPage> {
             if (item.id == updated.id) updated else item,
         ];
       });
-      showAppMessage(context, 'Đã hủy chiến dịch.');
+      showAppMessage(context, 'Campaign canceled.');
     } catch (error) {
       if (mounted) showAppMessage(context, errorText(error), error: true);
     }
@@ -201,36 +201,40 @@ class _CampaignComposerState extends State<_CampaignComposer> {
       if (line.isEmpty) continue;
       final separator = line.indexOf('=');
       if (separator <= 0) {
-        throw FormatException('Dòng ${index + 1} phải có định dạng key=value.');
+        throw FormatException(
+          'Line ${index + 1} must use the key=value format.',
+        );
       }
       final key = line.substring(0, separator).trim();
       final value = line.substring(separator + 1).trim();
       if (key.isEmpty || key.length > 128) {
-        throw FormatException('Key ở dòng ${index + 1} không hợp lệ.');
+        throw FormatException('The key on line ${index + 1} is invalid.');
       }
       if (value.length > 2048) {
-        throw FormatException('Value của “$key” vượt quá 2048 ký tự.');
+        throw FormatException('The value for “$key” exceeds 2,048 characters.');
       }
       if (_reservedKeys.contains(key) ||
           _reservedPrefixes.any(key.startsWith)) {
-        throw FormatException('Key “$key” được FCM dành riêng.');
+        throw FormatException('The key “$key” is reserved by FCM.');
       }
       if (result.containsKey(key)) {
-        throw FormatException('Key “$key” bị lặp lại.');
+        throw FormatException('The key “$key” is duplicated.');
       }
       result[key] = value;
     }
     if (result.length > 50) {
-      throw const FormatException('Custom data chỉ được có tối đa 50 dòng.');
+      throw const FormatException(
+        'Custom data supports a maximum of 50 lines.',
+      );
     }
     return result;
   }
 
   String? _required(String? value, String label, int maxLength) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return '$label không được để trống.';
+    if (text.isEmpty) return '$label is required.';
     if (text.length > maxLength) {
-      return '$label không được vượt quá $maxLength ký tự.';
+      return '$label cannot exceed $maxLength characters.';
     }
     return null;
   }
@@ -239,7 +243,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
     try {
       _parseData(value ?? '');
       if (_payloadBytes > _maxPayloadBytes) {
-        return 'Payload vượt quá 4096 byte UTF-8.';
+        return 'Payload exceeds 4,096 UTF-8 bytes.';
       }
     } on FormatException catch (error) {
       return error.message.toString();
@@ -283,7 +287,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
             ))) {
       showAppMessage(
         context,
-        'Thời gian gửi phải sau hiện tại ít nhất 1 phút.',
+        'The delivery time must be at least 1 minute from now.',
         error: true,
       );
       return;
@@ -291,12 +295,12 @@ class _CampaignComposerState extends State<_CampaignComposer> {
     final data = _parseData(_data.text);
     final confirmed = await showTypedConfirmation(
       context: context,
-      title: _sendNow ? 'Gửi chiến dịch ngay?' : 'Lên lịch chiến dịch?',
+      title: _sendNow ? 'Send this campaign now?' : 'Schedule this campaign?',
       description: _sendNow
-          ? 'Thông báo sẽ được phát tới ${_audience.label}. Fanout đang chạy không thể hủy.'
-          : 'Thông báo sẽ được gửi tới ${_audience.label} lúc ${_formatLocal(_scheduleAt!)} và có thể hủy trước khi bắt đầu.',
-      confirmationText: _sendNow ? 'GUI NGAY' : 'LEN LICH',
-      actionLabel: _sendNow ? 'Gửi chiến dịch' : 'Lên lịch',
+          ? 'This notification will be sent to ${_audience.label}. An active fanout cannot be canceled.'
+          : 'This notification will be sent to ${_audience.label} at ${_formatLocal(_scheduleAt!)} and can be canceled before delivery begins.',
+      confirmationText: _sendNow ? 'SEND NOW' : 'SCHEDULE',
+      actionLabel: _sendNow ? 'Send campaign' : 'Schedule campaign',
     );
     if (!confirmed || !mounted) return;
 
@@ -324,8 +328,8 @@ class _CampaignComposerState extends State<_CampaignComposer> {
 
   Future<void> _sendTest() async {
     if (_sending) return;
-    final titleError = _required(_title.text, 'Tiêu đề', 100);
-    final bodyError = _required(_body.text, 'Nội dung', 500);
+    final titleError = _required(_title.text, 'Notification title', 100);
+    final bodyError = _required(_body.text, 'Notification body', 500);
     final dataError = _validateData(_data.text);
     if (titleError != null || bodyError != null || dataError != null) {
       showAppMessage(
@@ -339,7 +343,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
     final target = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Gửi thông báo thử'),
+        title: const Text('Send test notification'),
         content: SizedBox(
           width: 520,
           child: Column(
@@ -347,8 +351,8 @@ class _CampaignComposerState extends State<_CampaignComposer> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'Nhập FCM registration token hoặc Firebase Installation ID. '
-                'Thao tác này không tạo chiến dịch.',
+                'Enter an FCM registration token or Firebase Installation ID. '
+                'This action does not create a campaign.',
               ),
               const SizedBox(height: 16),
               TextField(
@@ -358,7 +362,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                 autofocus: true,
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
                 decoration: const InputDecoration(
-                  labelText: 'Token hoặc Installation ID',
+                  labelText: 'Token or Installation ID',
                   alignLabelWithHint: true,
                 ),
               ),
@@ -368,7 +372,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Đóng'),
+            child: const Text('Close'),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -378,7 +382,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
               }
             },
             icon: const Icon(Icons.send_rounded),
-            label: const Text('Gửi thử'),
+            label: const Text('Send test'),
           ),
         ],
       ),
@@ -395,7 +399,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
           data: _parseData(_data.text),
         ),
       );
-      if (mounted) showAppMessage(context, 'Đã gửi thông báo thử.');
+      if (mounted) showAppMessage(context, 'Test notification sent.');
     } catch (error) {
       if (mounted) showAppMessage(context, errorText(error), error: true);
     } finally {
@@ -413,8 +417,8 @@ class _CampaignComposerState extends State<_CampaignComposer> {
           children: [
             _ComposerSection(
               number: 1,
-              title: 'Nội dung thông báo',
-              subtitle: 'Nội dung người dùng sẽ nhìn thấy trên thiết bị.',
+              title: 'Notification content',
+              subtitle: 'What recipients will see on their devices.',
               child: Column(
                 children: [
                   TextFormField(
@@ -422,10 +426,10 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                     enabled: !_sending,
                     maxLength: 120,
                     validator: (value) =>
-                        _required(value, 'Tên chiến dịch', 120),
+                        _required(value, 'Campaign name', 120),
                     decoration: const InputDecoration(
-                      labelText: 'Tên chiến dịch',
-                      hintText: 'Ví dụ: Ra mắt tính năng báo cáo tháng 7',
+                      labelText: 'Campaign name',
+                      hintText: 'Example: July reporting feature launch',
                       prefixIcon: Icon(Icons.campaign_outlined),
                     ),
                   ),
@@ -434,9 +438,10 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                     controller: _title,
                     enabled: !_sending,
                     maxLength: 100,
-                    validator: (value) => _required(value, 'Tiêu đề', 100),
+                    validator: (value) =>
+                        _required(value, 'Notification title', 100),
                     decoration: const InputDecoration(
-                      labelText: 'Tiêu đề thông báo',
+                      labelText: 'Notification title',
                       prefixIcon: Icon(Icons.title_rounded),
                     ),
                   ),
@@ -447,9 +452,10 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                     minLines: 3,
                     maxLines: 5,
                     maxLength: 500,
-                    validator: (value) => _required(value, 'Nội dung', 500),
+                    validator: (value) =>
+                        _required(value, 'Notification body', 500),
                     decoration: const InputDecoration(
-                      labelText: 'Nội dung thông báo',
+                      labelText: 'Notification body',
                       alignLabelWithHint: true,
                     ),
                   ),
@@ -459,9 +465,9 @@ class _CampaignComposerState extends State<_CampaignComposer> {
             const SizedBox(height: 18),
             _ComposerSection(
               number: 2,
-              title: 'Đối tượng',
+              title: 'Audience',
               subtitle:
-                  'Các thiết bị tự tham gia audience khi khởi động ứng dụng.',
+                  'Devices join an audience automatically when the app starts.',
               child: DropdownButtonFormField<CampaignAudience>(
                 initialValue: _audience,
                 items: [
@@ -485,8 +491,9 @@ class _CampaignComposerState extends State<_CampaignComposer> {
             const SizedBox(height: 18),
             _ComposerSection(
               number: 3,
-              title: 'Lịch gửi',
-              subtitle: 'Gửi ngay hoặc chọn thời điểm trong vòng một năm.',
+              title: 'Delivery schedule',
+              subtitle:
+                  'Send immediately or choose a time within the next year.',
               child: Column(
                 children: [
                   SegmentedButton<bool>(
@@ -494,12 +501,12 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                       ButtonSegment(
                         value: true,
                         icon: Icon(Icons.send_rounded),
-                        label: Text('Gửi ngay'),
+                        label: Text('Send now'),
                       ),
                       ButtonSegment(
                         value: false,
                         icon: Icon(Icons.schedule_rounded),
-                        label: Text('Lên lịch'),
+                        label: Text('Schedule'),
                       ),
                     ],
                     selected: {_sendNow},
@@ -517,13 +524,13 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                       leading: const Icon(Icons.event_rounded),
                       title: Text(
                         _scheduleAt == null
-                            ? 'Chưa chọn thời gian'
+                            ? 'No delivery time selected'
                             : _formatLocal(_scheduleAt!),
                       ),
-                      subtitle: const Text('Múi giờ thiết bị quản trị'),
+                      subtitle: const Text('Administrator device time zone'),
                       trailing: OutlinedButton(
                         onPressed: _sending ? null : _pickSchedule,
-                        child: const Text('Chọn'),
+                        child: const Text('Choose time'),
                       ),
                     ),
                   ],
@@ -533,22 +540,22 @@ class _CampaignComposerState extends State<_CampaignComposer> {
             const SizedBox(height: 18),
             _ComposerSection(
               number: 4,
-              title: 'Tùy chọn bổ sung',
-              subtitle: 'Cấu hình thời hạn, âm thanh và dữ liệu cho ứng dụng.',
+              title: 'Advanced options',
+              subtitle: 'Configure time to live, sound, and app data.',
               child: Column(
                 children: [
                   DropdownButtonFormField<int>(
                     initialValue: _ttlSeconds,
                     decoration: const InputDecoration(
-                      labelText: 'Hết hạn nếu thiết bị offline',
+                      labelText: 'Expire while device is offline',
                       prefixIcon: Icon(Icons.timer_outlined),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 3600, child: Text('1 giờ')),
-                      DropdownMenuItem(value: 21600, child: Text('6 giờ')),
-                      DropdownMenuItem(value: 86400, child: Text('1 ngày')),
-                      DropdownMenuItem(value: 604800, child: Text('7 ngày')),
-                      DropdownMenuItem(value: 2419200, child: Text('28 ngày')),
+                      DropdownMenuItem(value: 3600, child: Text('1 hour')),
+                      DropdownMenuItem(value: 21600, child: Text('6 hours')),
+                      DropdownMenuItem(value: 86400, child: Text('1 day')),
+                      DropdownMenuItem(value: 604800, child: Text('7 days')),
+                      DropdownMenuItem(value: 2419200, child: Text('28 days')),
                     ],
                     onChanged: _sending
                         ? null
@@ -562,9 +569,9 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                     onChanged: _sending
                         ? null
                         : (value) => setState(() => _sound = value),
-                    title: const Text('Âm thanh mặc định'),
+                    title: const Text('Default sound'),
                     subtitle: const Text(
-                      'Phát âm thanh khi hệ điều hành hiển thị notification.',
+                      'Play a sound when the operating system displays the notification.',
                     ),
                     secondary: const Icon(Icons.volume_up_outlined),
                   ),
@@ -582,7 +589,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                     decoration: const InputDecoration(
                       labelText: 'Custom data',
                       hintText: 'screen=report\nsource=admin-web',
-                      helperText: 'Mỗi dòng theo định dạng key=value.',
+                      helperText: 'One key=value pair per line.',
                       alignLabelWithHint: true,
                       prefixIcon: Icon(Icons.data_object_rounded),
                     ),
@@ -593,15 +600,16 @@ class _CampaignComposerState extends State<_CampaignComposer> {
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 12,
+              runSpacing: 10,
               children: [
                 OutlinedButton.icon(
                   onPressed: _sending ? null : _sendTest,
                   icon: const Icon(Icons.science_outlined),
-                  label: const Text('Gửi thông báo thử'),
+                  label: const Text('Send test notification'),
                 ),
-                const SizedBox(width: 12),
                 FilledButton.icon(
                   onPressed: _sending ? null : _submit,
                   icon: _sending
@@ -619,10 +627,10 @@ class _CampaignComposerState extends State<_CampaignComposer> {
                         ),
                   label: Text(
                     _sending
-                        ? 'Đang xử lý…'
+                        ? 'Processing…'
                         : _sendNow
-                        ? 'Xem lại và gửi'
-                        : 'Xem lại và lên lịch',
+                        ? 'Review and send'
+                        : 'Review and schedule',
                   ),
                 ),
               ],
@@ -638,7 +646,7 @@ class _CampaignComposerState extends State<_CampaignComposer> {
       if (constraints.maxWidth < 980) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [preview, const SizedBox(height: 18), form],
+          children: [form, const SizedBox(height: 18), preview],
         );
       }
       return Row(
@@ -762,14 +770,14 @@ class _CampaignList extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'Chưa có chiến dịch',
+                'No campaigns yet',
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
               Text(
-                'Tạo chiến dịch đầu tiên để gửi hoặc lên lịch notification.',
+                'Create your first campaign to send or schedule a notification.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -778,7 +786,7 @@ class _CampaignList extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onCreate,
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Tạo chiến dịch'),
+                label: const Text('Create campaign'),
               ),
             ],
           ),
@@ -786,34 +794,37 @@ class _CampaignList extends StatelessWidget {
       );
     }
 
-    return SectionCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: SectionTitle(
-              title: 'Tất cả chiến dịch',
-              description:
-                  '${campaigns.length} chiến dịch gần nhất · tự động làm mới khi tải lại trang',
-              trailing: IconButton(
-                tooltip: 'Tải lại',
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
+    return SizedBox(
+      width: double.infinity,
+      child: SectionCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: SectionTitle(
+                title: 'All campaigns',
+                description:
+                    '${campaigns.length} most recent campaigns · select one to inspect delivery details',
+                trailing: IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
               ),
             ),
-          ),
-          const Divider(),
-          for (var index = 0; index < campaigns.length; index++) ...[
-            _CampaignRow(
-              campaign: campaigns[index],
-              onCancel: () => onCancel(campaigns[index]),
-              onOpen: () => onOpen(campaigns[index]),
-            ),
-            if (index < campaigns.length - 1) const Divider(),
+            const Divider(),
+            for (var index = 0; index < campaigns.length; index++) ...[
+              _CampaignRow(
+                campaign: campaigns[index],
+                onCancel: () => onCancel(campaigns[index]),
+                onOpen: () => onOpen(campaigns[index]),
+              ),
+              if (index < campaigns.length - 1) const Divider(),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -890,7 +901,7 @@ class _CampaignRow extends StatelessWidget {
           if (campaign.status == CampaignStatus.scheduled) ...[
             const SizedBox(width: 8),
             IconButton(
-              tooltip: 'Hủy lịch',
+              tooltip: 'Cancel schedule',
               onPressed: onCancel,
               icon: const Icon(Icons.cancel_schedule_send_outlined),
             ),
@@ -945,7 +956,7 @@ class _CampaignDetailsDialog extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Chi tiết chiến dịch',
+                          'Campaign details',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -959,7 +970,7 @@ class _CampaignDetailsDialog extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    tooltip: 'Đóng',
+                    tooltip: 'Close',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_rounded),
                   ),
@@ -974,7 +985,7 @@ class _CampaignDetailsDialog extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Nội dung thông báo',
+                      'Notification content',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
@@ -1020,7 +1031,7 @@ class _CampaignDetailsDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Thông tin gửi',
+                      'Delivery details',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
@@ -1031,49 +1042,49 @@ class _CampaignDetailsDialog extends StatelessWidget {
                       runSpacing: 12,
                       children: [
                         _CampaignDetailItem(
-                          label: 'Đối tượng',
+                          label: 'Audience',
                           value: campaign.audience.label,
                         ),
                         _CampaignDetailItem(
-                          label: 'Âm thanh',
-                          value: campaign.sound ? 'Bật' : 'Tắt',
+                          label: 'Sound',
+                          value: campaign.sound ? 'On' : 'Off',
                         ),
                         _CampaignDetailItem(
-                          label: 'Thời hạn thông báo',
+                          label: 'Time to live',
                           value: _formatTtl(campaign.ttlSeconds),
                         ),
                         _CampaignDetailItem(
-                          label: 'Ngày tạo',
+                          label: 'Created',
                           value: _optionalTime(campaign.createdAt),
                         ),
                         if (campaign.scheduleAt != null)
                           _CampaignDetailItem(
-                            label: 'Lịch gửi',
+                            label: 'Scheduled for',
                             value: _optionalTime(campaign.scheduleAt),
                           ),
                         if (campaign.sentAt != null)
                           _CampaignDetailItem(
-                            label: 'Đã gửi lúc',
+                            label: 'Sent',
                             value: _optionalTime(campaign.sentAt),
                           ),
                         if (campaign.canceledAt != null)
                           _CampaignDetailItem(
-                            label: 'Đã hủy lúc',
+                            label: 'Canceled',
                             value: _optionalTime(campaign.canceledAt),
                           ),
                         _CampaignDetailItem(
-                          label: 'Người tạo',
+                          label: 'Created by',
                           value:
                               campaign.createdByEmail ??
                               campaign.createdByUid ??
-                              'Không có thông tin',
+                              'Not available',
                         ),
                       ],
                     ),
                     if (campaign.data.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       Text(
-                        'Dữ liệu tùy chỉnh',
+                        'Custom data',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w900,
                         ),
@@ -1131,7 +1142,7 @@ class _CampaignDetailsDialog extends StatelessWidget {
                         campaign.errorCode != null) ...[
                       const SizedBox(height: 24),
                       Text(
-                        'Kết quả',
+                        'Result',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w900,
                         ),
@@ -1144,7 +1155,7 @@ class _CampaignDetailsDialog extends StatelessWidget {
                         ),
                       if (campaign.errorCode != null)
                         _CampaignResultValue(
-                          label: 'Mã lỗi',
+                          label: 'Error code',
                           value: campaign.errorCode!,
                           danger: true,
                         ),
@@ -1244,8 +1255,9 @@ class _NotificationPreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SectionTitle(
-              title: 'Xem trước',
-              description: 'Mô phỏng notification trên thiết bị.',
+              title: 'Notification preview',
+              description:
+                  'Preview how the notification will appear on a device.',
               trailing: Icon(Icons.phone_android_rounded),
             ),
             const SizedBox(height: 20),
@@ -1264,7 +1276,7 @@ class _NotificationPreview extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'JOURNAL TREND ANALYZER · BÂY GIỜ',
+                    'JOURNAL TREND ANALYZER · NOW',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .72),
                       fontSize: 10,
@@ -1296,7 +1308,7 @@ class _NotificationPreview extends StatelessWidget {
                                 children: [
                                   Text(
                                     title.text.trim().isEmpty
-                                        ? 'Tiêu đề thông báo'
+                                        ? 'Notification title'
                                         : title.text.trim(),
                                     style: const TextStyle(
                                       color: Color(0xFF111827),
@@ -1306,7 +1318,7 @@ class _NotificationPreview extends StatelessWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     body.text.trim().isEmpty
-                                        ? 'Nội dung thông báo sẽ hiển thị tại đây.'
+                                        ? 'Notification body will appear here.'
                                         : body.text.trim(),
                                     style: const TextStyle(
                                       color: Color(0xFF475569),
@@ -1339,7 +1351,7 @@ class _NotificationPreview extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Đối tượng hiện tại',
+                    'Current audience',
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 3),
@@ -1403,21 +1415,30 @@ String _campaignTime(MessagingCampaign campaign) {
 }
 
 String _optionalTime(DateTime? value) =>
-    value == null ? 'Không có thông tin' : _formatLocal(value);
+    value == null ? 'Not available' : _formatLocal(value);
 
 String _formatTtl(int seconds) {
-  if (seconds % 86400 == 0) return '${seconds ~/ 86400} ngày';
-  if (seconds % 3600 == 0) return '${seconds ~/ 3600} giờ';
-  if (seconds % 60 == 0) return '${seconds ~/ 60} phút';
-  return '$seconds giây';
+  if (seconds % 86400 == 0) {
+    final days = seconds ~/ 86400;
+    return '$days ${days == 1 ? 'day' : 'days'}';
+  }
+  if (seconds % 3600 == 0) {
+    final hours = seconds ~/ 3600;
+    return '$hours ${hours == 1 ? 'hour' : 'hours'}';
+  }
+  if (seconds % 60 == 0) {
+    final minutes = seconds ~/ 60;
+    return '$minutes ${minutes == 1 ? 'minute' : 'minutes'}';
+  }
+  return '$seconds ${seconds == 1 ? 'second' : 'seconds'}';
 }
 
 String _statusLabel(CampaignStatus status) => switch (status) {
-  CampaignStatus.scheduled => 'Đã lên lịch',
-  CampaignStatus.sending => 'Đang gửi',
-  CampaignStatus.sent => 'Đã gửi',
-  CampaignStatus.failed => 'Thất bại',
-  CampaignStatus.canceled => 'Đã hủy',
+  CampaignStatus.scheduled => 'Scheduled',
+  CampaignStatus.sending => 'Sending',
+  CampaignStatus.sent => 'Sent',
+  CampaignStatus.failed => 'Failed',
+  CampaignStatus.canceled => 'Canceled',
 };
 
 StatusTone _statusTone(CampaignStatus status) => switch (status) {

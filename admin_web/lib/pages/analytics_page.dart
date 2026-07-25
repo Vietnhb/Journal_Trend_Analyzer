@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../core/core.dart';
 import '../utils/ui_format.dart';
 import '../widgets/admin_widgets.dart';
 
@@ -15,7 +15,7 @@ class AnalyticsPage extends StatefulWidget {
 }
 
 class _AnalyticsPageState extends State<AnalyticsPage> {
-  AdminDateRange _range = AdminDateRange.last30Days;
+  AdminDateRange _range = AdminDateRange.last30Days();
   late Future<AnalyticsData> _future;
 
   @override
@@ -126,23 +126,23 @@ class _AnalyticsContent extends StatelessWidget {
         minItemWidth: 245,
         children: [
           MetricCard(
-            label: 'Tổng sự kiện',
+            label: 'Total events',
             value: formatNumber(data.summary.eventCount),
             detail: rangeLabel,
             icon: Icons.ads_click_rounded,
             tone: MetricTone.violet,
           ),
           MetricCard(
-            label: 'Người dùng hoạt động',
+            label: 'Active users',
             value: formatNumber(data.summary.activeUsers),
-            detail: 'Active users từ GA4',
+            detail: 'Active users reported by GA4',
             icon: Icons.people_alt_outlined,
             tone: MetricTone.green,
           ),
           MetricCard(
-            label: 'Phiên truy cập',
+            label: 'Sessions',
             value: formatNumber(data.summary.sessions),
-            detail: 'Sessions trong khoảng đã chọn',
+            detail: 'Sessions in the selected period',
             icon: Icons.query_stats_rounded,
           ),
         ],
@@ -185,7 +185,7 @@ class _AnalyticsReadyNotice extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Đã kết nối Google Analytics',
+                  'Google Analytics connected',
                   style: TextStyle(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 4),
@@ -207,7 +207,7 @@ class _AnalyticsReadyNotice extends StatelessWidget {
                       icon: Icons.android_rounded,
                     ),
                     StatusPill(
-                      'Stream ${source.streamId.isEmpty ? "chưa cấu hình" : source.streamId}',
+                      'Stream ${source.streamId.isEmpty ? "not configured" : source.streamId}',
                       tone: source.streamId.isEmpty
                           ? StatusTone.warning
                           : StatusTone.neutral,
@@ -219,7 +219,7 @@ class _AnalyticsReadyNotice extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           const StatusPill(
-            'Đang đồng bộ',
+            'Syncing',
             tone: StatusTone.info,
             icon: Icons.sync_rounded,
           ),
@@ -254,15 +254,15 @@ class _AnalyticsIntegrationState extends StatelessWidget {
         ? Theme.of(context).colorScheme.primary
         : Colors.amber.shade800;
     final title = isError
-        ? 'Không thể đọc dữ liệu Analytics'
+        ? 'Unable to read Analytics data'
         : needsAuthorization
-        ? 'Kết nối Google Analytics'
+        ? 'Connect Google Analytics'
         : isPending
-        ? 'Đang chờ lần export Analytics đầu tiên'
-        : 'Chưa tìm thấy Analytics stream';
+        ? 'Waiting for the first Analytics export'
+        : 'Analytics stream not found';
     final description = reason?.trim().isNotEmpty == true
         ? reason!.trim()
-        : 'Không tìm thấy Android stream trong GA4 Property.';
+        : 'No Android data stream was found in the GA4 property.';
 
     return SectionCard(
       child: LayoutBuilder(
@@ -301,12 +301,12 @@ class _AnalyticsIntegrationState extends StatelessWidget {
                   ),
                   StatusPill(
                     isError
-                        ? 'Lỗi tích hợp'
+                        ? 'Integration error'
                         : needsAuthorization
-                        ? 'Cần cấp quyền'
+                        ? 'Authorization required'
                         : isPending
-                        ? 'Đang đồng bộ'
-                        : 'Cần cấu hình',
+                        ? 'Syncing'
+                        : 'Configuration required',
                     tone: isError
                         ? StatusTone.danger
                         : needsAuthorization
@@ -337,47 +337,47 @@ class _AnalyticsIntegrationState extends StatelessWidget {
                 const _SetupStep(
                   number: 1,
                   text:
-                      'Nhấn Kết nối Google Analytics và chọn tài khoản admin hiện tại.',
+                      'Select Connect Google Analytics and choose the current admin account.',
                 ),
                 const _SetupStep(
                   number: 2,
                   text:
-                      'Chấp nhận quyền chỉ đọc Analytics; web không có quyền thay đổi Property.',
+                      'Grant read-only Analytics access; this console cannot modify the property.',
                 ),
                 const _SetupStep(
                   number: 3,
                   text:
-                      'Dữ liệu được đọc theo đúng quyền GA4 của tài khoản đang đăng nhập.',
+                      'Data is read using the GA4 permissions of the signed-in account.',
                 ),
               ] else if (isPending) ...[
                 const _SetupStep(
                   number: 1,
                   text:
-                      'Giữ Daily export bật cho Google Analytics; ảnh cấu hình hiện tại đã đúng.',
+                      'Keep the Google Analytics daily export enabled; the current configuration is valid.',
                 ),
                 const _SetupStep(
                   number: 2,
                   text:
-                      'Mở mobile app và thực hiện đăng nhập, tìm kiếm hoặc xuất PDF để phát sinh sự kiện.',
+                      'Open the mobile app and sign in, search, or export a PDF to generate events.',
                 ),
                 const _SetupStep(
                   number: 3,
                   text:
-                      'Chờ Firebase tạo dataset và bảng events_* (lần đầu có thể tới 48 giờ), sau đó bấm Kiểm tra lại.',
+                      'Wait for Firebase to create the dataset and events_* tables (the first export can take up to 48 hours), then check again.',
                 ),
               ] else ...[
                 const _SetupStep(
                   number: 1,
-                  text: 'Mở Google Analytics > Admin > Data streams.',
+                  text: 'Open Google Analytics > Admin > Data streams.',
                 ),
                 const _SetupStep(
                   number: 2,
                   text:
-                      'Kiểm tra Android stream của Journal Trend đã được tạo.',
+                      'Confirm that the Journal Trend Android stream has been created.',
                 ),
                 const _SetupStep(
                   number: 3,
-                  text: 'Bấm Kiểm tra lại để tải dữ liệu.',
+                  text: 'Select Check again to load the data.',
                 ),
               ],
               const SizedBox(height: 18),
@@ -390,8 +390,8 @@ class _AnalyticsIntegrationState extends StatelessWidget {
                 ),
                 label: Text(
                   needsAuthorization
-                      ? 'Kết nối Google Analytics'
-                      : 'Kiểm tra lại',
+                      ? 'Connect Google Analytics'
+                      : 'Check again',
                 ),
               ),
             ],
@@ -481,7 +481,7 @@ String _lastRecordedFor(
           .where((date) => date.isNotEmpty)
           .toList()
         ..sort();
-  return dates.isEmpty ? 'Chưa ghi nhận' : formatChartDate(dates.last);
+  return dates.isEmpty ? 'Not recorded' : formatChartDate(dates.last);
 }
 
 class _BusinessEventsOverview extends StatelessWidget {
@@ -506,13 +506,13 @@ class _BusinessEventsOverview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionTitle(
-            title: 'Kiểm tra event nghiệp vụ',
+            title: 'Business event coverage',
             description:
-                '$active/${_businessEventNames.length} event đã được GA4 ghi nhận · $rangeLabel',
+                '$active of ${_businessEventNames.length} business events recorded by GA4 · $rangeLabel',
             trailing: StatusPill(
               active == _businessEventNames.length
-                  ? 'Đầy đủ'
-                  : '${_businessEventNames.length - active} chưa có dữ liệu',
+                  ? 'Complete'
+                  : '${_businessEventNames.length - active} awaiting data',
               tone: active == _businessEventNames.length
                   ? StatusTone.success
                   : StatusTone.warning,
@@ -598,7 +598,7 @@ class _BusinessEventCard extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   Text(
-                    '$name · ${formatNumber(count)} lần',
+                    '$name · ${formatNumber(count)} events',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -607,7 +607,7 @@ class _BusinessEventCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Gần nhất: $lastRecorded',
+                    'Last recorded: $lastRecorded',
                     style: TextStyle(
                       color: scheme.onSurfaceVariant,
                       fontSize: 11,
@@ -637,9 +637,8 @@ class _AnalyticsChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionTitle(
-            title: 'Xu hướng sự kiện',
-            description:
-                'Tổng số event được ghi nhận trong khoảng $rangeLabel.',
+            title: 'Event trend',
+            description: 'Total events recorded during $rangeLabel.',
             trailing: StatusPill(
               rangeLabel,
               tone: StatusTone.info,
@@ -649,9 +648,8 @@ class _AnalyticsChart extends StatelessWidget {
           const SizedBox(height: 22),
           if (ordered.isEmpty)
             const EmptyPanel(
-              title: 'Chưa có dữ liệu theo ngày',
-              description:
-                  'GA4 chưa trả về số sự kiện trong khoảng thời gian này.',
+              title: 'No daily data',
+              description: 'GA4 returned no daily event data for this period.',
               icon: Icons.show_chart_rounded,
             )
           else
@@ -659,7 +657,7 @@ class _AnalyticsChart extends StatelessWidget {
               builder: (context, constraints) => Semantics(
                 image: true,
                 label:
-                    'Biểu đồ đường số sự kiện theo ngày, gồm ${ordered.length} mốc dữ liệu.',
+                    'Daily event line chart with ${ordered.length} data points.',
                 child: ExcludeSemantics(
                   child: SizedBox(
                     height: constraints.maxWidth < 680 ? 260 : 320,
@@ -778,7 +776,7 @@ class _AnalyticsLineChart extends StatelessWidget {
               for (final spot in spots)
                 LineTooltipItem(
                   '${formatChartDate(data[spot.x.round()].date)}\n'
-                  '${formatNumber(spot.y.round())} sự kiện',
+                  '${formatNumber(spot.y.round())} events',
                   TextStyle(
                     color: scheme.onInverseSurface,
                     fontSize: 12,
@@ -857,24 +855,43 @@ class _EventsSectionState extends State<_EventsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionTitle(
-            title: 'Sự kiện: Tên sự kiện',
-            description:
-                '${widget.events.length} event GA4 · ${widget.rangeLabel}',
-            trailing: SizedBox(
-              width: 280,
-              child: TextField(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final search = TextField(
                 onChanged: (value) => setState(() {
                   _query = value.trim();
                   _page = 0;
                 }),
                 decoration: const InputDecoration(
-                  hintText: 'Tìm kiếm sự kiện',
+                  hintText: 'Search events by name',
                   prefixIcon: Icon(Icons.search_rounded),
                   isDense: true,
                 ),
-              ),
-            ),
+              );
+              if (constraints.maxWidth < 720) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SectionTitle(
+                      title: 'Event inventory',
+                      description:
+                          '${widget.events.length} GA4 events · ${widget.rangeLabel}',
+                    ),
+                    const SizedBox(height: 14),
+                    search,
+                  ],
+                );
+              }
+              return SectionTitle(
+                title: 'Event inventory',
+                description:
+                    '${widget.events.length} GA4 events · ${widget.rangeLabel}',
+                trailing: SizedBox(
+                  width: constraints.maxWidth >= 1100 ? 380 : 320,
+                  child: search,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -895,18 +912,16 @@ class _EventsSectionState extends State<_EventsSection> {
           const SizedBox(height: 18),
           if (ordered.isEmpty)
             EmptyPanel(
-              title: _query.isEmpty
-                  ? 'Chưa có sự kiện'
-                  : 'Không tìm thấy sự kiện',
+              title: _query.isEmpty ? 'No events yet' : 'No matching events',
               description: _query.isEmpty
-                  ? 'GA4 chưa ghi nhận event trong khoảng thời gian này.'
-                  : 'Không có event phù hợp với “$_query”.',
+                  ? 'GA4 has not recorded any events in this period.'
+                  : 'No events match “$_query”.',
               icon: Icons.bolt_outlined,
             )
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                if (constraints.maxWidth < 760) {
+                if (constraints.maxWidth < 680) {
                   return Column(
                     children: [
                       for (var index = 0; index < visible.length; index++) ...[
@@ -934,18 +949,15 @@ class _EventsSectionState extends State<_EventsSection> {
                       dataRowMinHeight: 66,
                       dataRowMaxHeight: 76,
                       columns: const [
-                        DataColumn(label: Text('Sự kiện')),
-                        DataColumn(label: Text('Số sự kiện'), numeric: true),
+                        DataColumn(label: Text('Event')),
+                        DataColumn(label: Text('Event count'), numeric: true),
+                        DataColumn(label: Text('Total users'), numeric: true),
                         DataColumn(
-                          label: Text('Tổng người dùng'),
+                          label: Text('Events per user'),
                           numeric: true,
                         ),
-                        DataColumn(
-                          label: Text('Sự kiện/người dùng'),
-                          numeric: true,
-                        ),
-                        DataColumn(label: Text('Ghi nhận gần nhất')),
-                        DataColumn(label: Text('Chi tiết')),
+                        DataColumn(label: Text('Last recorded')),
+                        DataColumn(label: Text('Details')),
                       ],
                       rows: [
                         for (final event in visible) _eventRow(event, context),
@@ -968,7 +980,7 @@ class _EventsSectionState extends State<_EventsSection> {
                 ),
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Trang trước',
+                  tooltip: 'Previous page',
                   onPressed: safePage > 0
                       ? () => setState(() => _page = safePage - 1)
                       : null,
@@ -976,7 +988,7 @@ class _EventsSectionState extends State<_EventsSection> {
                 ),
                 Text('${safePage + 1} / $pageCount'),
                 IconButton(
-                  tooltip: 'Trang sau',
+                  tooltip: 'Next page',
                   onPressed: safePage + 1 < pageCount
                       ? () => setState(() => _page = safePage + 1)
                       : null,
@@ -1014,7 +1026,7 @@ class _EventsSectionState extends State<_EventsSection> {
         DataCell(Text(_lastRecordedFor(event.name, widget.eventDaily))),
         DataCell(
           IconButton(
-            tooltip: 'Xem chi tiết ${event.name}',
+            tooltip: 'View details for ${event.name}',
             onPressed: () => _showDetails(event),
             icon: const Icon(Icons.open_in_new_rounded, size: 19),
           ),
@@ -1057,26 +1069,26 @@ class _EventsSectionState extends State<_EventsSection> {
                   runSpacing: 12,
                   children: [
                     _EventDetailMetric(
-                      label: 'Số sự kiện',
+                      label: 'Event count',
                       value: formatNumber(event.count),
                     ),
                     _EventDetailMetric(
-                      label: 'Tổng người dùng',
+                      label: 'Total users',
                       value: formatNumber(event.users),
                     ),
                     _EventDetailMetric(
-                      label: 'Sự kiện/người dùng',
+                      label: 'Events per user',
                       value: event.countPerUser.toStringAsFixed(2),
                     ),
                     _EventDetailMetric(
-                      label: 'Ghi nhận gần nhất',
+                      label: 'Last recorded',
                       value: _lastRecordedFor(event.name, widget.eventDaily),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Xu hướng · ${widget.rangeLabel}',
+                  'Trend · ${widget.rangeLabel}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
@@ -1085,9 +1097,8 @@ class _EventsSectionState extends State<_EventsSection> {
                 const SizedBox(height: 12),
                 if (daily.isEmpty)
                   const EmptyPanel(
-                    title: 'Chưa có dữ liệu theo ngày',
-                    description:
-                        'GA4 chưa trả về chuỗi thời gian cho event này.',
+                    title: 'No daily data',
+                    description: 'GA4 returned no daily series for this event.',
                     icon: Icons.show_chart_rounded,
                   )
                 else
@@ -1102,7 +1113,7 @@ class _EventsSectionState extends State<_EventsSection> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Đóng'),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -1150,7 +1161,7 @@ class _EventCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   StatusPill(
-                    count > 0 ? 'Đã ghi nhận' : 'Chưa có',
+                    count > 0 ? 'Recorded' : 'No data',
                     tone: count > 0 ? StatusTone.success : StatusTone.neutral,
                   ),
                 ],
@@ -1161,13 +1172,13 @@ class _EventCard extends StatelessWidget {
                 spacing: 24,
                 runSpacing: 10,
                 children: [
-                  _InlineMetric(label: 'Lượt ghi nhận', value: count),
-                  _InlineMetric(label: 'Người dùng', value: event.users),
+                  _InlineMetric(label: 'Events', value: count),
+                  _InlineMetric(label: 'Users', value: event.users),
                   _InlineTextMetric(
-                    label: 'Sự kiện/người',
+                    label: 'Events/user',
                     value: event.countPerUser.toStringAsFixed(2),
                   ),
-                  _InlineTextMetric(label: 'Gần nhất', value: lastRecorded),
+                  _InlineTextMetric(label: 'Latest', value: lastRecorded),
                 ],
               ),
             ],
@@ -1179,9 +1190,9 @@ class _EventCard extends StatelessWidget {
 }
 
 enum _EventCategory {
-  all('Tất cả'),
-  business('Nghiệp vụ'),
-  system('Hệ thống');
+  all('All'),
+  business('Business'),
+  system('System');
 
   const _EventCategory(this.label);
   final String label;
@@ -1331,19 +1342,19 @@ class _InlineTextMetric extends StatelessWidget {
 }
 
 String _eventLabel(String name) => switch (name) {
-  'login' => 'Đăng nhập',
-  'search_topic' => 'Tìm chủ đề',
-  'view_publication' => 'Xem publication',
-  'view_journal' => 'Xem journal',
-  'view_keyword' => 'Xem keyword',
-  'export_pdf' => 'Xuất PDF',
-  'logout' => 'Đăng xuất',
-  'screen_view' => 'Lượt xem màn hình',
-  'user_engagement' => 'Tương tác người dùng',
-  'session_start' => 'Bắt đầu phiên',
-  'first_open' => 'Mở lần đầu',
-  'app_exception' => 'Lỗi ứng dụng',
-  'app_remove' => 'Gỡ ứng dụng',
+  'login' => 'Login',
+  'search_topic' => 'Search topic',
+  'view_publication' => 'View publication',
+  'view_journal' => 'View journal',
+  'view_keyword' => 'View keyword',
+  'export_pdf' => 'Export PDF',
+  'logout' => 'Log out',
+  'screen_view' => 'Screen view',
+  'user_engagement' => 'User engagement',
+  'session_start' => 'Session start',
+  'first_open' => 'First open',
+  'app_exception' => 'App exception',
+  'app_remove' => 'App removed',
   _ => name,
 };
 

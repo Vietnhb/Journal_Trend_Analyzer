@@ -46,7 +46,7 @@ class _JournalAdminAppState extends State<JournalAdminApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Journal Trend Admin',
+    title: 'Journal Trend Observatory',
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
@@ -75,7 +75,7 @@ class AdminBootstrapFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Journal Trend Admin',
+    title: 'Journal Trend Observatory',
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
@@ -97,14 +97,14 @@ class AdminBootstrapFailure extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Không thể khởi tạo Firebase',
+                    'Unable to initialize Firebase',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    'Kiểm tra kết nối mạng, cấu hình Web App và Authorized domains trong Firebase Console.',
+                    'Check your network connection, Web App configuration, and authorized domains in Firebase Console.',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 14),

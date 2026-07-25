@@ -3,8 +3,13 @@ import 'dart:math' as math;
 import 'package:intl/intl.dart';
 
 abstract final class AppFormat {
-  static final NumberFormat _integer = NumberFormat.decimalPattern('vi_VN');
-  static final NumberFormat _decimal = NumberFormat('0.#', 'vi_VN');
+  static final NumberFormat _integer = NumberFormat.decimalPattern('en_US');
+  static final NumberFormat _decimal = NumberFormat('0.#', 'en_US');
+  static final DateFormat _dateTime = DateFormat(
+    'MMM d, yyyy, h:mm a',
+    'en_US',
+  );
+  static final DateFormat _shortDate = DateFormat('MMM d', 'en_US');
   static const _byteUnits = ['B', 'KB', 'MB', 'GB', 'TB'];
 
   static String number(num? value) =>
@@ -13,16 +18,13 @@ abstract final class AppFormat {
   static String dateTime(String? value) {
     final parsed = _parseDate(value);
     if (parsed == null) return '—';
-    final local = parsed.toLocal();
-    return '${_two(local.day)}/${_two(local.month)}/${local.year} '
-        '${_two(local.hour)}:${_two(local.minute)}';
+    return _dateTime.format(parsed.toLocal());
   }
 
   static String shortDate(String? value) {
     final parsed = _parseDate(value);
     if (parsed == null) return value?.trim() ?? '';
-    final local = parsed.toLocal();
-    return '${_two(local.day)}/${_two(local.month)}';
+    return _shortDate.format(parsed.toLocal());
   }
 
   static String bytes(num? value) {
@@ -71,8 +73,6 @@ abstract final class AppFormat {
         : text;
     return DateTime.tryParse(normalized);
   }
-
-  static String _two(int value) => value.toString().padLeft(2, '0');
 
   static String? _firstNonEmpty(Iterable<String?> values) {
     for (final value in values) {

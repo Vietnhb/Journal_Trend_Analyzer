@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../core/core.dart';
 import '../pages/analytics_page.dart';
 import '../pages/audit_logs_page.dart';
 import '../pages/crashes_page.dart';
@@ -64,12 +64,15 @@ class _AdminShellState extends State<AdminShell> {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final wide = constraints.maxWidth >= 1160;
-      final rail = !wide && constraints.maxWidth >= 760;
+      // Keep the content width monotonic as the browser grows. The previous
+      // 1160px jump from a compact rail to a full sidebar made pages narrower.
+      final wide = constraints.maxWidth >= 1360;
+      final rail = !wide && constraints.maxWidth >= 840;
       final border = Theme.of(context).dividerColor;
+      final desktopChrome = wide || rail;
 
       return Scaffold(
-        drawer: wide || rail
+        drawer: desktopChrome
             ? null
             : Drawer(
                 child: SafeArea(
@@ -77,79 +80,83 @@ class _AdminShellState extends State<AdminShell> {
                     selected: _selected,
                     onSelected: _select,
                     identity: widget.session.identity,
-                    onSignOut: _confirmSignOut,
-                    onToggleTheme: widget.onToggleTheme,
                     closeOnSelect: true,
                   ),
                 ),
               ),
-        // ── Slim AppBar — only contextual controls, no page title duplication ─
-        appBar: AppBar(
-          toolbarHeight: 52,
-          leading: wide || rail ? null : null,
-          automaticallyImplyLeading: !wide && !rail,
-          titleSpacing: wide || rail ? 0 : 4,
-          title: wide || rail
-              ? null // page title lives in PageHeading on wide/rail layouts
-              : Text(
+        appBar: desktopChrome
+            ? null
+            : AppBar(
+                automaticallyImplyLeading: true,
+                titleSpacing: 4,
+                title: Text(
                   _destinations[_selected].label,
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
+                    letterSpacing: -.2,
                   ),
                 ),
-          actions: [
-            // Theme toggle
-            _ThemeToggle(onToggle: widget.onToggleTheme),
-            const SizedBox(width: 4),
-            // Profile
-            _ProfileMenu(
-              identity: widget.session.identity,
-              onSignOut: _confirmSignOut,
-            ),
-            const SizedBox(width: 12),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(0.5),
-            child: Divider(height: 0.5, color: border),
-          ),
-        ),
+                actions: [
+                  _ThemeToggle(onToggle: widget.onToggleTheme),
+                  const SizedBox(width: 4),
+                  _ProfileMenu(
+                    identity: widget.session.identity,
+                    onSignOut: _confirmSignOut,
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(.5),
+                  child: Divider(height: .5, color: border),
+                ),
+              ),
         body: Row(
           children: [
             if (wide)
               SizedBox(
-                width: 256,
+                width: 276,
                 child: _SideNavigation(
                   selected: _selected,
                   onSelected: _select,
                   identity: widget.session.identity,
-                  onSignOut: _confirmSignOut,
-                  onToggleTheme: widget.onToggleTheme,
                 ),
               )
             else if (rail)
               _CompactRail(selected: _selected, onSelected: _select),
-            if (wide || rail) VerticalDivider(width: 0.5, color: border),
+            if (desktopChrome) VerticalDivider(width: .5, color: border),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                transitionBuilder: (child, anim) => FadeTransition(
-                  opacity: anim,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.02),
-                      end: Offset.zero,
-                    ).animate(anim),
-                    child: child,
+              child: Column(
+                children: [
+                  if (desktopChrome)
+                    _WorkspaceBar(
+                      destination: _destinations[_selected],
+                      identity: widget.session.identity,
+                      onToggleTheme: widget.onToggleTheme,
+                      onSignOut: _confirmSignOut,
+                    ),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, .012),
+                            end: Offset.zero,
+                          ).animate(anim),
+                          child: child,
+                        ),
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey(_selected),
+                        child: _page(_selected),
+                      ),
+                    ),
                   ),
-                ),
-                child: KeyedSubtree(
-                  key: ValueKey(_selected),
-                  child: _page(_selected),
-                ),
+                ],
               ),
             ),
           ],
@@ -251,23 +258,19 @@ class _SideNavigation extends StatelessWidget {
     required this.selected,
     required this.onSelected,
     required this.identity,
-    required this.onSignOut,
-    required this.onToggleTheme,
     this.closeOnSelect = false,
   });
 
   final int selected;
   final ValueChanged<int> onSelected;
   final AdminIdentity identity;
-  final VoidCallback onSignOut;
-  final VoidCallback onToggleTheme;
   final bool closeOnSelect;
 
   @override
   Widget build(BuildContext context) {
-    final surface = Theme.of(context).colorScheme.surface;
-    final border = Theme.of(context).dividerColor;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF0A0C13) : AppColors.navigation;
+    final border = Colors.white.withValues(alpha: .08);
 
     return ColoredBox(
       color: surface,
@@ -306,12 +309,7 @@ class _SideNavigation extends StatelessWidget {
 
           // ── Footer ────────────────────────────────────────────────────────
           Divider(height: 0.5, color: border),
-          _SidebarFooter(
-            identity: identity,
-            onSignOut: onSignOut,
-            onToggleTheme: onToggleTheme,
-            isDark: isDark,
-          ),
+          _SidebarFooter(identity: identity),
         ],
       ),
     );
@@ -328,12 +326,10 @@ class _NavGroupLabel extends StatelessWidget {
     child: Text(
       label.toUpperCase(),
       style: GoogleFonts.inter(
-        color: Theme.of(
-          context,
-        ).colorScheme.onSurfaceVariant.withValues(alpha: .6),
-        fontSize: 9.5,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.0,
+        color: Colors.white.withValues(alpha: .42),
+        fontSize: 9,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.25,
       ),
     ),
   );
@@ -361,14 +357,12 @@ class _NavItemState extends State<_NavItem> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = widget.selected;
 
-    final bgSelected = cs.primary.withValues(alpha: .09);
-    final bgHover = isDark
-        ? Colors.white.withValues(alpha: .04)
-        : Colors.black.withValues(alpha: .03);
+    final bgSelected = Colors.white.withValues(alpha: .095);
+    final bgHover = Colors.white.withValues(alpha: .05);
+    const selectedColor = Color(0xFF9B9DFF);
+    final mutedColor = Colors.white.withValues(alpha: .58);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -396,7 +390,7 @@ class _NavItemState extends State<_NavItem> {
                   width: isSelected ? 3 : 0,
                   height: isSelected ? 20 : 0,
                   decoration: BoxDecoration(
-                    color: cs.primary,
+                    color: selectedColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -404,7 +398,7 @@ class _NavItemState extends State<_NavItem> {
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 9,
+                    vertical: 10,
                   ),
                   child: Row(
                     children: [
@@ -412,8 +406,8 @@ class _NavItemState extends State<_NavItem> {
                         isSelected
                             ? widget.destination.selectedIcon
                             : widget.destination.icon,
-                        size: 17,
-                        color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                        size: 18,
+                        color: isSelected ? selectedColor : mutedColor,
                       ),
                       const SizedBox(width: 11),
                       Expanded(
@@ -424,7 +418,9 @@ class _NavItemState extends State<_NavItem> {
                             fontWeight: isSelected
                                 ? FontWeight.w700
                                 : FontWeight.w500,
-                            color: isSelected ? cs.primary : cs.onSurface,
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: .78),
                           ),
                           child: Text(widget.destination.label),
                         ),
@@ -442,24 +438,14 @@ class _NavItemState extends State<_NavItem> {
 }
 
 class _SidebarFooter extends StatelessWidget {
-  const _SidebarFooter({
-    required this.identity,
-    required this.onSignOut,
-    required this.onToggleTheme,
-    required this.isDark,
-  });
+  const _SidebarFooter({required this.identity});
 
   final AdminIdentity identity;
-  final VoidCallback onSignOut;
-  final VoidCallback onToggleTheme;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           _Avatar(identity: identity, radius: 17),
@@ -475,52 +461,41 @@ class _SidebarFooter extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 1),
-                Text(
-                  'Administrator',
-                  style: GoogleFonts.inter(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.success,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppColors.success,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'AUTHORIZED ADMIN',
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: .65,
+                        color: Colors.white.withValues(alpha: .5),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          // Theme toggle
           Tooltip(
-            message: isDark ? 'Light mode' : 'Dark mode',
-            child: InkWell(
-              onTap: onToggleTheme,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                  size: 16,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 2),
-          // Sign out
-          Tooltip(
-            message: 'Sign out',
-            child: InkWell(
-              onTap: onSignOut,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  Icons.logout_rounded,
-                  size: 16,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
+            message: 'Admin access active',
+            child: Icon(
+              Icons.verified_user_outlined,
+              size: 18,
+              color: Colors.white.withValues(alpha: .42),
             ),
           ),
         ],
@@ -539,15 +514,32 @@ class _CompactRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => NavigationRail(
+    backgroundColor: AppColors.navigation,
     selectedIndex: selected,
     onDestinationSelected: onSelected,
     labelType: NavigationRailLabelType.all,
     groupAlignment: -0.85,
+    indicatorColor: Colors.white.withValues(alpha: .1),
+    selectedIconTheme: const IconThemeData(color: Color(0xFF9B9DFF), size: 20),
+    unselectedIconTheme: IconThemeData(
+      color: Colors.white.withValues(alpha: .52),
+      size: 20,
+    ),
+    selectedLabelTextStyle: GoogleFonts.inter(
+      color: Colors.white,
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+    ),
+    unselectedLabelTextStyle: GoogleFonts.inter(
+      color: Colors.white.withValues(alpha: .5),
+      fontSize: 10,
+      fontWeight: FontWeight.w500,
+    ),
     leading: Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: _LogoIcon(),
     ),
-    minWidth: 72,
+    minWidth: 84,
     destinations: [
       for (final d in _destinations)
         NavigationRailDestination(
@@ -557,6 +549,136 @@ class _CompactRail extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 2),
         ),
     ],
+  );
+}
+
+class _WorkspaceBar extends StatelessWidget {
+  const _WorkspaceBar({
+    required this.destination,
+    required this.identity,
+    required this.onToggleTheme,
+    required this.onSignOut,
+  });
+
+  final _Destination destination;
+  final AdminIdentity identity;
+  final VoidCallback onToggleTheme;
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final border = Theme.of(context).dividerColor;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: cs.surface.withValues(alpha: .97),
+        border: Border(bottom: BorderSide(color: border, width: .7)),
+      ),
+      child: SizedBox(
+        height: 64,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: .09),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(9),
+                  child: Icon(
+                    destination.selectedIcon,
+                    size: 17,
+                    color: cs.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    destination.label,
+                    style: GoogleFonts.inter(
+                      color: cs.onSurface,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    destination.caption,
+                    style: GoogleFonts.inter(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: .16),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    children: [
+                      const _WorkspaceStatusDot(),
+                      const SizedBox(width: 7),
+                      Text(
+                        'ADMIN WORKSPACE',
+                        style: GoogleFonts.inter(
+                          color: AppColors.success,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .75,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _ThemeToggle(onToggle: onToggleTheme),
+              const SizedBox(width: 4),
+              _ProfileMenu(identity: identity, onSignOut: onSignOut),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceStatusDot extends StatelessWidget {
+  const _WorkspaceStatusDot();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 7,
+    height: 7,
+    decoration: BoxDecoration(
+      color: AppColors.success,
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.success.withValues(alpha: .35),
+          blurRadius: 7,
+        ),
+      ],
+    ),
   );
 }
 
@@ -669,21 +791,21 @@ class _SidebarBrand extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Journal Trend',
-              style: GoogleFonts.inter(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: Theme.of(context).colorScheme.onSurface,
+              'JOURNAL TREND',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.15,
+                color: Colors.white,
               ),
             ),
             Text(
-              'ADMIN CONSOLE',
+              'OBSERVATORY',
               style: GoogleFonts.inter(
-                color: Theme.of(context).colorScheme.primary,
+                color: const Color(0xFF9B9DFF),
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 1.3,
+                letterSpacing: 1.45,
               ),
             ),
           ],
@@ -697,18 +819,14 @@ class _LogoIcon extends StatelessWidget {
   const _LogoIcon();
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.brand, AppColors.accent],
-      ),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-    ),
-    child: const Padding(
-      padding: EdgeInsets.all(8),
-      child: Icon(Icons.show_chart_rounded, color: Colors.white, size: 18),
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(AppRadius.lg),
+    child: Image.asset(
+      'web/icons/jta-icon-192.png',
+      width: 38,
+      height: 38,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.high,
     ),
   );
 }

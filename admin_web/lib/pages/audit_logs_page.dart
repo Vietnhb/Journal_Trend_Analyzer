@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:journal_trend_admin_web/core/core.dart';
 
+import '../core/core.dart';
 import '../utils/ui_format.dart';
 import '../widgets/admin_widgets.dart';
 
@@ -21,7 +21,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   bool _loading = true;
   int _limit = 50;
   String _action = _allActions;
-  AdminDateRange _range = AdminDateRange.last30Days;
+  AdminDateRange _range = AdminDateRange.last30Days();
 
   static const _allActions = '__all__';
 
@@ -156,7 +156,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 )
               else
                 LayoutBuilder(
-                  builder: (context, constraints) => constraints.maxWidth < 880
+                  builder: (context, constraints) => constraints.maxWidth < 860
                       ? _AuditCards(logs: filtered)
                       : _AuditTable(logs: filtered),
                 ),
@@ -191,8 +191,8 @@ class _PrivacyNotice extends StatelessWidget {
           const SizedBox(width: 11),
           Expanded(
             child: Text(
-              'Nhật ký chỉ hiển thị metadata vận hành. ID token, App Check token '
-              'và FCM target đầy đủ không được đưa lên giao diện.',
+              'Audit logs show operational metadata only. ID tokens, App Check '
+              'tokens, and full FCM targets are never exposed in this interface.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(height: 1.45),
@@ -238,11 +238,11 @@ class _AuditToolbar extends StatelessWidget {
         onChanged: (_) => onSearchChanged(),
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.search_rounded),
-          hintText: 'Lọc quản trị viên, thao tác hoặc đối tượng…',
+          hintText: 'Filter by administrator, action, or target…',
           suffixIcon: searchController.text.isEmpty
               ? null
               : IconButton(
-                  tooltip: 'Xóa từ khóa',
+                  tooltip: 'Clear search',
                   onPressed: () {
                     searchController.clear();
                     onSearchChanged();
@@ -256,13 +256,13 @@ class _AuditToolbar extends StatelessWidget {
         initialValue: action,
         isExpanded: true,
         decoration: const InputDecoration(
-          labelText: 'Thao tác',
+          labelText: 'Action',
           prefixIcon: Icon(Icons.filter_alt_outlined),
         ),
         items: [
           const DropdownMenuItem(
             value: _AuditLogsPageState._allActions,
-            child: Text('Tất cả thao tác'),
+            child: Text('All actions'),
           ),
           for (final item in actions)
             DropdownMenuItem(
@@ -284,7 +284,7 @@ class _AuditToolbar extends StatelessWidget {
         key: ValueKey('audit-limit-$limit'),
         initialValue: limit,
         decoration: const InputDecoration(
-          labelText: 'Số bản ghi',
+          labelText: 'Record limit',
           prefixIcon: Icon(Icons.format_list_numbered_rounded),
         ),
         items: const [
@@ -304,7 +304,7 @@ class _AuditToolbar extends StatelessWidget {
           const Icon(Icons.receipt_long_outlined, size: 17),
           const SizedBox(width: 7),
           Text(
-            '$shown / $total bản ghi',
+            '$shown / $total records',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
@@ -312,7 +312,7 @@ class _AuditToolbar extends StatelessWidget {
         ],
       );
 
-      if (constraints.maxWidth < 760) {
+      if (constraints.maxWidth < 720) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -351,76 +351,89 @@ class _AuditTable extends StatelessWidget {
   final List<AuditLog> logs;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: DataTable(
-      dataRowMinHeight: 72,
-      dataRowMaxHeight: 88,
-      columns: const [
-        DataColumn(label: Text('THỜI GIAN')),
-        DataColumn(label: Text('QUẢN TRỊ VIÊN')),
-        DataColumn(label: Text('THAO TÁC')),
-        DataColumn(label: Text('ĐỐI TƯỢNG')),
-        DataColumn(label: Text('TÓM TẮT')),
-      ],
-      rows: [
-        for (final log in logs)
-          DataRow(
-            cells: [
-              DataCell(
-                SizedBox(
-                  width: 132,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        formatDateTime(log.createdAt),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+        child: DataTable(
+          columnSpacing: 32,
+          headingRowHeight: 48,
+          dataRowMinHeight: 72,
+          dataRowMaxHeight: 88,
+          columns: const [
+            DataColumn(label: Text('TIME')),
+            DataColumn(label: Text('ADMINISTRATOR')),
+            DataColumn(label: Text('ACTION')),
+            DataColumn(label: Text('TARGET')),
+            DataColumn(label: Text('SUMMARY')),
+          ],
+          rows: [
+            for (final log in logs)
+              DataRow(
+                cells: [
+                  DataCell(
+                    SizedBox(
+                      width: 132,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            formatDateTime(log.createdAt),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 3),
+                          Tooltip(
+                            message: log.id,
+                            child: Text(
+                              truncateMiddle(log.id, keep: 7),
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    fontFamily: 'monospace',
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outline,
+                                  ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 3),
-                      Tooltip(
-                        message: log.id,
-                        child: Text(
-                          truncateMiddle(log.id, keep: 7),
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                fontFamily: 'monospace',
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                        ),
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(width: 210, child: _ActorIdentity(log: log)),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 175,
+                      child: StatusPill(
+                        friendlyAction(log.action),
+                        tone: StatusTone.purple,
+                        icon: Icons.task_alt_rounded,
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              DataCell(SizedBox(width: 210, child: _ActorIdentity(log: log))),
-              DataCell(
-                SizedBox(
-                  width: 175,
-                  child: StatusPill(
-                    friendlyAction(log.action),
-                    tone: StatusTone.purple,
-                    icon: Icons.task_alt_rounded,
+                  DataCell(
+                    SizedBox(width: 185, child: _TargetIdentity(log: log)),
                   ),
-                ),
-              ),
-              DataCell(SizedBox(width: 185, child: _TargetIdentity(log: log))),
-              DataCell(
-                SizedBox(
-                  width: 270,
-                  child: Text(
-                    log.summary?.trim().isNotEmpty == true
-                        ? log.summary!
-                        : 'Không có mô tả bổ sung.',
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                  DataCell(
+                    SizedBox(
+                      width: 270,
+                      child: Text(
+                        log.summary?.trim().isNotEmpty == true
+                            ? log.summary!
+                            : 'No additional description.',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-      ],
+          ],
+        ),
+      ),
     ),
   );
 }
@@ -475,7 +488,7 @@ class _AuditCards extends StatelessWidget {
               Text(
                 log.summary?.trim().isNotEmpty == true
                     ? log.summary!
-                    : 'Không có mô tả bổ sung.',
+                    : 'No additional description.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(height: 1.45),
@@ -520,7 +533,7 @@ class _ActorIdentity extends StatelessWidget {
             Text(
               log.actorEmail?.trim().isNotEmpty == true
                   ? log.actorEmail!
-                  : 'Không rõ email',
+                  : 'Unknown email',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w800),

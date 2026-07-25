@@ -22,7 +22,7 @@ final class ApiException implements Exception {
 
   String get displayMessage {
     final id = requestId;
-    return id == null || id.isEmpty ? message : '$message (Mã yêu cầu: $id)';
+    return id == null || id.isEmpty ? message : '$message (Request ID: $id)';
   }
 
   String get userMessage => displayMessage;
@@ -37,5 +37,5 @@ String apiErrorMessage(Object error) {
   if (error case final ApiException exception) {
     return exception.displayMessage;
   }
-  return 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.';
+  return 'An unexpected error occurred. Please try again.';
 }

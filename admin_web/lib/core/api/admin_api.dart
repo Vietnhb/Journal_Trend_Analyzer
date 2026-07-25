@@ -1,6 +1,6 @@
-import '../models/models.dart';
-import '../models/json_readers.dart';
 import '../files/storage_file.dart';
+import '../models/json_readers.dart';
+import '../models/models.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 
@@ -143,7 +143,7 @@ final class AdminApi {
       throw ApiException(
         status: 502,
         code: 'incomplete_storage_download',
-        message: 'Tệp tải về từ Storage không đầy đủ.',
+        message: 'The file downloaded from Storage is incomplete.',
       );
     }
     return ValidatedStorageFile.pdf(
@@ -203,7 +203,7 @@ final class AdminApi {
       throw const ApiException(
         status: 401,
         code: 'analytics_oauth_required',
-        message: 'Không nhận được quyền truy cập Google Analytics.',
+        message: 'Google Analytics access was not granted.',
       );
     }
   }
