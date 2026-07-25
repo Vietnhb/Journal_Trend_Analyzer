@@ -116,10 +116,7 @@ class _AnalyticsContent extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       if (data.reason?.trim().isNotEmpty == true) ...[
-        _AnalyticsReadyNotice(
-          message: data.reason!.trim(),
-          source: data.source,
-        ),
+        _AnalyticsReadyNotice(source: data.source),
         const SizedBox(height: 22),
       ],
       AdaptiveGrid(
@@ -166,9 +163,8 @@ class _AnalyticsContent extends StatelessWidget {
 }
 
 class _AnalyticsReadyNotice extends StatelessWidget {
-  const _AnalyticsReadyNotice({required this.message, required this.source});
+  const _AnalyticsReadyNotice({required this.source});
 
-  final String message;
   final AnalyticsSource source;
 
   @override
@@ -187,14 +183,6 @@ class _AnalyticsReadyNotice extends StatelessWidget {
                 const Text(
                   'Google Analytics connected',
                   style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: TextStyle(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
